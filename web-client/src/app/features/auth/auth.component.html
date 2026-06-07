@@ -1,0 +1,67 @@
+<div class="auth-container">
+  <!-- Brand Panel (Left) -->
+  <div class="auth-brand-panel">
+    <div class="brand-header">
+      <span style="font-weight: 800; font-size: 20px; background-color: var(--accent-primary); color: black; padding: 2px 8px; border-radius: var(--radius-sm);">WT</span>
+      <span class="brand-name">WorkTogether</span>
+    </div>
+    <div class="brand-essence-wrap">
+      <h1>Cùng chia sẻ không gian âm nhạc & làm việc nhóm.</h1>
+      <p>Nền tảng đồng bộ âm thanh thời gian thực, voice call tích hợp và chat nhóm bảo mật với hiệu năng cao cho đội ngũ phát triển.</p>
+    </div>
+    <div class="brand-footer">
+      © 2026 WorkTogether. Thiết kế tối giản tối ưu năng suất.
+    </div>
+  </div>
+
+  <!-- Form Panel (Right) -->
+  <div class="auth-form-panel">
+    <div class="auth-card">
+      <div class="auth-card-header">
+        <h2>{{ isRegister ? 'Tạo tài khoản mới' : 'Chào mừng quay trở lại' }}</h2>
+        <p>{{ isRegister ? 'Điền thông tin bên dưới để đăng ký.' : 'Đăng nhập vào không gian làm việc của bạn.' }}</p>
+      </div>
+
+      <form (submit)="onSubmit($event)" class="auth-form">
+        @if (isRegister) {
+          <div class="form-group">
+            <label class="form-label" for="reg-username">Tên người dùng</label>
+            <input type="text" id="reg-username" name="username" [(ngModel)]="username" placeholder="vd: coder_pro" required>
+          </div>
+        }
+        
+        <div class="form-group">
+          <label class="form-label" for="auth-identity">{{ isRegister ? 'Địa chỉ Email' : 'Tên đăng nhập hoặc Email' }}</label>
+          <input [type]="isRegister ? 'email' : 'text'" id="auth-identity" name="identity" [(ngModel)]="identity" placeholder="{{ isRegister ? 'email@example.com' : 'username_hoac_email' }}" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="auth-password">Mật khẩu</label>
+          <input type="password" id="auth-password" name="password" [(ngModel)]="password" (input)="onPasswordInput(password)" placeholder="••••••••" required>
+          @if (isRegister) {
+            <div class="pw-strength-bar">
+              <div [class]="'pw-strength-fill ' + pwStrengthClass"></div>
+            </div>
+          }
+        </div>
+
+        <button type="submit" [disabled]="isLoading" class="btn btn-primary w-full" style="padding: 12px; margin-top: 8px;">
+          {{ isLoading ? (isRegister ? 'Đang tạo tài khoản...' : 'Đang xác thực...') : (isRegister ? 'Đăng ký Tài khoản' : 'Đăng nhập Workspace') }}
+        </button>
+      </form>
+
+      <div class="divider">Hoặc tiếp tục với</div>
+      <button (click)="loginWithGoogle()" class="btn btn-google w-full">
+        <svg class="google-icon" viewBox="0 0 24 24" width="16" height="16">
+          <path fill="#EA4335" d="M12.24 10.285V14.4h6.887c-.648 2.41-2.519 4.114-5.136 4.114A5.79 5.79 0 0 1 8.2 12.725a5.79 5.79 0 0 1 5.79-5.79c1.496 0 2.85.55 3.886 1.454l3.242-3.242C19.143 3.332 16.793 2.4 13.99 2.4 8.14 2.4 3.4 7.14 3.4 12.99s4.74 10.59 10.59 10.59c6.07 0 10.09-4.27 10.09-10.27 0-.69-.06-1.35-.18-2.025H12.24Z"/>
+        </svg>
+        Google Account
+      </button>
+
+      <p class="form-toggle-link">
+        {{ isRegister ? 'Đã có tài khoản?' : 'Chưa có tài khoản?' }} 
+        <a href="javascript:void(0)" (click)="toggleMode()">{{ isRegister ? 'Đăng nhập ngay' : 'Đăng ký miễn phí' }}</a>
+      </p>
+    </div>
+  </div>
+</div>

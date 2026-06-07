@@ -1,0 +1,130 @@
+<div class="room-right-panel h-full flex flex-col">
+  <div class="right-panel-tabs">
+    <button class="panel-tab-btn" [class.active]="activeTab === 'queue'" (click)="switchTab('queue')">
+      Hang doi
+    </button>
+    <button class="panel-tab-btn" [class.active]="activeTab === 'members'" (click)="switchTab('members')">
+      Thanh vien
+    </button>
+  </div>
+
+  <div class="right-panel-content flex-1">
+    @if (activeTab === 'queue') {
+      <div class="tab-pane active">
+        <div class="queue-form-wrapper">
+          <form (submit)="onAddTrackSubmit($event)" class="flex gap-2">
+            <input
+              type="text"
+              [(ngModel)]="newTrackUrl"
+              name="newTrackUrl"
+              placeholder="Nhap ten bai hat hoac link YouTube..."
+              class="queue-text-input"
+              [disabled]="isExtracting"
+              autocomplete="off"
+            >
+            <button
+              type="submit"
+              class="btn-add-queue"
+              [disabled]="isExtracting || !newTrackUrl.trim()"
+            >
+              {{ isExtracting ? '...' : 'Tim' }}
+            </button>
+          </form>
+        </div>
+
+        @if (searchResults.length > 0) {
+          <div class="search-results-panel">
+            <div class="search-results-header">
+              <span>Ket qua tim kiem YouTube</span>
+              <button class="close-search-btn" (click)="clearSearch()">×</button>
+            </div>
+            <div class="search-results-list">
+              @for (result of searchResults; track result.id) {
+                <div class="search-result-item" (click)="onAddSearchResult(result)">
+                  <img [src]="result.thumbnail_url" class="search-result-thumb" alt="Thumbnail">
+                  <div class="search-result-info">
+                    <span class="search-result-title" [title]="result.title">{{ result.title }}</span>
+                    <span class="search-result-artist">{{ result.artist }}</span>
+                  </div>
+                  <button class="btn-add-search-item">+</button>
+                </div>
+              }
+            </div>
+          </div>
+        }
+
+        <div class="queue-list">
+          @if (tracks.length === 0) {
+            <p class="empty-placeholder">Hang doi dang trong.</p>
+          } @else {
+            @for (track of tracks; track track.id; let i = $index) {
+              <div
+                class="queue-item"
+                [class.dragging]="dragIndex === i"
+                [draggable]="canManageQueue"
+                (dragstart)="onDragStart(i, $event)"
+                (dragover)="onDragOver(i, $event)"
+                (drop)="onDrop(i, $event)"
+                (dragend)="onDragEnd()"
+                (click)="onTrackClick(track)"
+              >
+                <div class="queue-item-info">
+                  <span class="queue-item-title" [title]="track.title">{{ track.title }}</span>
+                  <span class="queue-item-artist">{{ track.artist || 'Unknown' }}</span>
+                </div>
+                <div class="queue-item-actions">
+                  <span class="vote-badge" (click)="onVoteClick(track.id, $event)">
+                    ▲ {{ track.votes || 0 }}
+                  </span>
+                  <button class="remove-track-btn" (click)="onRemoveClick(track.id, $event)" title="Xoa khoi hang doi">
+                    ×
+                  </button>
+                </div>
+              </div>
+            }
+          }
+        </div>
+      </div>
+    }
+
+    @if (activeTab === 'members') {
+      <div class="tab-pane active">
+        <div class="members-list">
+          @if (members.length === 0) {
+            <p class="empty-placeholder">Dang tai thanh vien...</p>
+          } @else {
+            @for (m of members; track m.id) {
+              <div class="room-member-row">
+                <div class="member-profile">
+                  <div class="member-avatar">
+                    @if (m.avatar_url) {
+                      <img [src]="m.avatar_url" alt="Avatar">
+                    } @else {
+                      <span>{{ getInitials(m) }}</span>
+                    }
+                    <span class="member-presence-dot" [ngClass]="m.presence?.status || 'offline'"></span>
+                  </div>
+                  <div class="member-meta">
+                    <span class="member-name">{{ m.display_name }}{{ m.isCurrentUser ? ' (Ban)' : '' }}</span>
+                    <span class="member-status">{{ getStatusText(m) }}</span>
+                  </div>
+                </div>
+
+                <div class="member-actions">
+                  <span class="member-role-badge" [class.owner]="m.role === 'OWNER'" [class.moderator]="m.role === 'MODERATOR'">
+                    {{ m.role }}
+                  </span>
+                  @if (canKick(m)) {
+                    <button class="member-kick-btn" (click)="onKickClick(m, $event)" title="Kick thanh vien">
+                      Kick
+                    </button>
+                  }
+                </div>
+              </div>
+            }
+          }
+        </div>
+      </div>
+    }
+  </div>
+</div>

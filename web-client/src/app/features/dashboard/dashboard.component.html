@@ -1,0 +1,369 @@
+<div class="dashboard-layout">
+  <aside class="dashboard-sidebar-slim">
+    <div class="sidebar-cluster">
+      <div class="slim-logo-badge">WT</div>
+      <button type="button" class="slim-nav-item active" title="Lobby">
+        <span class="slim-nav-glyph">L</span>
+      </button>
+    </div>
+
+    <div class="sidebar-cluster">
+      <button type="button" class="slim-avatar" (click)="isProfileSettingsModalOpen = true" title="Ho so ca nhan">
+        @if (state.user?.avatar_url) {
+          <img [src]="state.user?.avatar_url" alt="User avatar">
+        } @else {
+          <span>{{ userLabel(state.user) }}</span>
+        }
+      </button>
+      <button type="button" class="slim-nav-item" (click)="logout()" title="Dang xuat">
+        <span class="slim-nav-glyph">X</span>
+      </button>
+    </div>
+  </aside>
+
+  <main class="dashboard-main">
+    <header class="dashboard-topbar">
+      <div class="topbar-title-group">
+        <span class="section-eyebrow">Workspace</span>
+        <h1>WorkTogether Lobby</h1>
+        <p>Quan ly phong, notifications, ket noi ban be va vao phong bang invite code tu cung mot cho.</p>
+      </div>
+
+      <div class="topbar-utility-cluster">
+        <button type="button" class="notification-button" (click)="toggleNotificationPanel()">
+          <span class="notification-button-label">Notifications</span>
+          @if (unreadNotificationCount > 0) {
+            <span class="notification-count">{{ unreadNotificationCount }}</span>
+          }
+        </button>
+
+        <button type="button" class="user-status-widget" (click)="togglePresence()">
+          <div [class]="'presence-dot ' + presenceStatus"></div>
+          <span class="presence-text">{{ presenceStatus }}</span>
+        </button>
+      </div>
+
+      @if (isNotificationPanelOpen) {
+        <div class="notification-panel">
+          <div class="notification-panel-header">
+            <div>
+              <span class="section-eyebrow">Realtime</span>
+              <h3>Notification Center</h3>
+            </div>
+            <button type="button" class="pill-action neutral" (click)="markAllNotificationsRead()" [disabled]="unreadNotificationCount === 0">
+              Mark all read
+            </button>
+          </div>
+
+          <div class="notification-list">
+            @if (isNotificationsLoading) {
+              <div class="panel-empty">Dang tai notifications...</div>
+            } @else if (visibleNotifications.length === 0) {
+              <div class="panel-empty">Chua co notification nao.</div>
+            } @else {
+              @for (notification of visibleNotifications; track notification.id) {
+                <div class="notification-item" [class.unread]="!notification.is_read">
+                  <div class="notification-item-head">
+                    <div class="notification-tag" [ngClass]="notificationTypeClass(notification)">
+                      {{ notificationTypeLabel(notification) }}
+                    </div>
+                    <span class="notification-time">{{ notification.created_at | date:'shortTime' }}</span>
+                  </div>
+
+                  <div class="notification-title">{{ notification.title }}</div>
+                  <div class="notification-content">{{ notification.content }}</div>
+
+                  @if (!notification.is_read) {
+                    <button type="button" class="notification-read-button" (click)="markNotificationRead(notification, $event)">
+                      Mark read
+                    </button>
+                  }
+                </div>
+              }
+            }
+          </div>
+        </div>
+      }
+    </header>
+
+    <div class="dashboard-body">
+      <section class="dashboard-hero-grid">
+        <div class="signal-card signal-card-primary">
+          <span class="section-eyebrow">Overview</span>
+          <h2>{{ roomCount }} active rooms</h2>
+          <p>Lobby da noi thong notifications realtime, friend requests cho duyet va quick-join bang invite code.</p>
+
+          <div class="metric-row">
+            <div class="metric-chip">
+              <span class="metric-value">{{ friendCount }}</span>
+              <span class="metric-label">friends</span>
+            </div>
+            <div class="metric-chip">
+              <span class="metric-value">{{ pendingFriendRequests.length }}</span>
+              <span class="metric-label">pending</span>
+            </div>
+            <div class="metric-chip">
+              <span class="metric-value">{{ unreadNotificationCount }}</span>
+              <span class="metric-label">unread</span>
+            </div>
+          </div>
+
+          <div class="hero-actions">
+            <button type="button" class="btn btn-primary" (click)="isCreateRoomModalOpen = true">Create room</button>
+            <button type="button" class="btn btn-secondary" (click)="loadRooms()">Refresh lobby</button>
+          </div>
+        </div>
+
+        <div class="signal-card">
+          <span class="section-eyebrow">Quick Join</span>
+          <h3>Join by invite code</h3>
+          <p>Paste ma moi do owner chia se de vao phong private hoac friends room ma khong can tim tay.</p>
+
+          <form class="invite-form" (submit)="$event.preventDefault(); joinRoomByInviteCode()">
+            <input type="text" name="inviteCode" [(ngModel)]="inviteCode" placeholder="VD: LOUNGE1">
+            <button type="submit" class="btn btn-primary" [disabled]="isInviteJoining">
+              {{ isInviteJoining ? 'Joining...' : 'Join room' }}
+            </button>
+          </form>
+        </div>
+      </section>
+
+      <section class="rooms-section">
+        <div class="section-title-bar">
+          <div>
+            <span class="section-eyebrow">Public Rooms</span>
+            <h2>Cac phong dang hoat dong</h2>
+          </div>
+          <button type="button" class="btn btn-secondary" (click)="loadRooms()">Reload</button>
+        </div>
+
+        <div class="rooms-grid">
+          @if (isRoomLoading) {
+            <div class="room-card skeleton"></div>
+            <div class="room-card skeleton"></div>
+            <div class="room-card skeleton"></div>
+          } @else if ((state.roomList$ | async)?.length === 0) {
+            <div class="rooms-empty">
+              <div class="rooms-empty-icon">R</div>
+              <h3>Chua co phong nao hien len</h3>
+              <p>Tao phong moi de khoi dong workspace, hoac dung invite code de vao phong private.</p>
+            </div>
+          } @else {
+            @for (room of (state.roomList$ | async); track room.id) {
+              <button type="button" class="room-card" (click)="joinRoom(room.id)">
+                <div class="room-card-top">
+                  <div class="room-card-head">
+                    <h3>{{ room.name }}</h3>
+                    <span class="room-privacy-badge">{{ room.privacy || 'PUBLIC' }}</span>
+                  </div>
+                  <p>{{ room.description || 'Khong co mo ta cho phong nay.' }}</p>
+                </div>
+
+                <div class="room-card-bottom">
+                  <div class="room-card-meta-stack">
+                    <span class="room-members-count">Members {{ room.active_members || 0 }}</span>
+                    @if (room.current_song) {
+                      <span class="room-playing-badge">{{ room.current_song }}</span>
+                    }
+                  </div>
+
+                  <div class="room-invite-code">
+                    <span class="room-invite-label">Code</span>
+                    <strong>{{ room.invite_code || '------' }}</strong>
+                  </div>
+                </div>
+              </button>
+            }
+          }
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <aside class="dashboard-friends-panel">
+    <section class="side-panel-section">
+      <div class="friends-header">
+        <div>
+          <span class="section-eyebrow">Queue</span>
+          <h3>Friend Requests</h3>
+        </div>
+        <span class="panel-count">{{ pendingFriendRequests.length }}</span>
+      </div>
+
+      <div class="pending-request-list">
+        @if (isPendingRequestsLoading) {
+          <div class="panel-empty">Dang tai loi moi ket ban...</div>
+        } @else if (pendingFriendRequests.length === 0) {
+          <div class="panel-empty">Khong co yeu cau nao dang cho.</div>
+        } @else {
+          @for (request of pendingFriendRequests; track request.friendship_id) {
+            <div class="request-card">
+              <div class="friend-info">
+                <div class="friend-avatar">
+                  @if (request.friend_profile?.avatar_url) {
+                    <img [src]="request.friend_profile.avatar_url" alt="Pending friend avatar">
+                  } @else {
+                    <span>{{ userLabel(request.friend_profile) }}</span>
+                  }
+                </div>
+
+                <div class="friend-name-wrap">
+                  <span class="friend-name">{{ request.friend_profile?.display_name || request.friend_profile?.username || 'Unknown' }}</span>
+                  <span class="friend-status-text">Dang cho phan hoi</span>
+                </div>
+              </div>
+
+              <div class="request-actions">
+                <button type="button" class="pill-action accept" (click)="respondToFriendRequest(request.friendship_id, 'accept')">Accept</button>
+                <button type="button" class="pill-action reject" (click)="respondToFriendRequest(request.friendship_id, 'reject')">Reject</button>
+              </div>
+            </div>
+          }
+        }
+      </div>
+    </section>
+
+    <section class="side-panel-section grow">
+      <div class="friends-header">
+        <div>
+          <span class="section-eyebrow">Presence</span>
+          <h3>Friends Online</h3>
+        </div>
+        <span class="panel-count">{{ friendCount }}</span>
+      </div>
+
+      <div class="friends-list">
+        @if (isFriendsLoading) {
+          <div class="panel-empty">Dang tai danh sach ban be...</div>
+        } @else if ((state.friends$ | async)?.length === 0) {
+          <div class="panel-empty">Ban chua ket noi voi ai.</div>
+        } @else {
+          @for (friend of (state.friends$ | async); track friend.friend_profile.id) {
+            <div class="friend-item">
+              <div class="friend-info">
+                <div class="friend-avatar">
+                  @if (friend.friend_profile.avatar_url) {
+                    <img [src]="friend.friend_profile.avatar_url" alt="Friend avatar">
+                  } @else {
+                    <span>{{ userLabel(friend.friend_profile) }}</span>
+                  }
+                  <div [class]="'friend-presence-dot ' + (friend.presence?.status || 'offline')"></div>
+                </div>
+
+                <div class="friend-name-wrap">
+                  <span class="friend-name">{{ friend.friend_profile.display_name || friend.friend_profile.username }}</span>
+                  <span class="friend-status-text">{{ friend.presence?.custom_text || (friend.presence?.status || 'offline') }}</span>
+                </div>
+              </div>
+            </div>
+          }
+        }
+      </div>
+    </section>
+
+    <section class="side-panel-section">
+      <div class="friends-header compact">
+        <div>
+          <span class="section-eyebrow">Network</span>
+          <h3>Add Friend</h3>
+        </div>
+      </div>
+
+      <form class="add-friend-section" (submit)="$event.preventDefault(); onAddFriendSubmit()">
+        <input type="text" name="addFriendId" [(ngModel)]="addFriendId" placeholder="Nhap user ID...">
+        <button type="submit" class="btn btn-primary">Send request</button>
+      </form>
+    </section>
+  </aside>
+</div>
+
+@if (isCreateRoomModalOpen) {
+  <div class="modal-overlay active">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3>Create collaboration room</h3>
+        <button type="button" class="modal-close" (click)="isCreateRoomModalOpen = false">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <form class="stack-form" (submit)="$event.preventDefault(); onCreateRoomSubmit()">
+          <div class="form-group">
+            <label class="form-label" for="room-name">Ten phong</label>
+            <input type="text" id="room-name" name="roomName" [(ngModel)]="roomName" placeholder="VD: Focus Lab" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="room-desc">Mo ta ngan</label>
+            <textarea id="room-desc" name="roomDesc" [(ngModel)]="roomDesc" rows="3" placeholder="Khong gian lam viec, nghe nhac, review task..."></textarea>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="room-privacy">Quyen rieng tu</label>
+            <select id="room-privacy" name="roomPrivacy" [(ngModel)]="roomPrivacy">
+              <option value="public">Public</option>
+              <option value="private">Private</option>
+              <option value="friends">Friends</option>
+            </select>
+          </div>
+
+          @if (roomPrivacy === 'private') {
+            <div class="form-group">
+              <label class="form-label" for="room-password">Mat khau phong</label>
+              <input type="password" id="room-password" name="roomPassword" [(ngModel)]="roomPassword" placeholder="Nhap mat khau phong">
+            </div>
+          }
+        </form>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" (click)="isCreateRoomModalOpen = false">Cancel</button>
+        <button type="button" class="btn btn-primary" (click)="onCreateRoomSubmit()">Create room</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (isProfileSettingsModalOpen) {
+  <div class="modal-overlay active">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3>Profile settings</h3>
+        <button type="button" class="modal-close" (click)="isProfileSettingsModalOpen = false">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="profile-avatar-preview">
+          <div class="profile-avatar-large">
+            @if (profileAvatarUrl) {
+              <img [src]="profileAvatarUrl" alt="Profile avatar">
+            } @else {
+              <span>{{ userLabel({ display_name: profileDisplayName }) }}</span>
+            }
+          </div>
+
+          <input type="file" id="avatar-file-input" #avatarFile (change)="onAvatarFileSelected($event)" accept="image/*" hidden>
+          <button type="button" class="btn btn-secondary" [disabled]="isAvatarUploading" (click)="avatarFile.click()">
+            {{ isAvatarUploading ? 'Uploading...' : 'Change avatar' }}
+          </button>
+        </div>
+
+        <form class="stack-form">
+          <div class="form-group">
+            <label class="form-label" for="profile-display-name">Display name</label>
+            <input type="text" id="profile-display-name" name="profileDisplayName" [(ngModel)]="profileDisplayName" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="profile-bio">Bio</label>
+            <textarea id="profile-bio" name="profileBio" [(ngModel)]="profileBio" rows="3"></textarea>
+          </div>
+        </form>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" (click)="isProfileSettingsModalOpen = false">Cancel</button>
+        <button type="button" class="btn btn-primary" (click)="onSaveProfileSubmit()">Save profile</button>
+      </div>
+    </div>
+  </div>
+}

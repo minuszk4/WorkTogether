@@ -1,0 +1,203 @@
+.auth-container {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  background-color: var(--bg-primary);
+}
+
+/* Left Brand Panel (Cinematic & Minimalist) */
+.auth-brand-panel {
+  flex: 1.2;
+  background-color: #050608;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 48px;
+  position: relative;
+  overflow: hidden;
+  border-right: 1px solid var(--border-color);
+}
+
+/* Background grid overlay */
+.auth-brand-panel::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-image: radial-gradient(#1f2128 1px, transparent 1px);
+  background-size: 24px 24px;
+  opacity: 0.15;
+  pointer-events: none;
+}
+
+.brand-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 2;
+}
+
+.brand-logo-img {
+  height: 28px;
+}
+
+.brand-name {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.brand-essence-wrap {
+  z-index: 2;
+  max-width: 440px;
+}
+
+.brand-essence-wrap h1 {
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+  margin-bottom: 16px;
+  color: var(--text-primary);
+}
+
+.brand-essence-wrap p {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.brand-footer {
+  z-index: 2;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Right Form Panel */
+.auth-form-panel {
+  flex: 0.8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  background-color: var(--bg-primary);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.auth-card-header h2 {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-bottom: 6px;
+}
+
+.auth-card-header p {
+  font-size: 13.5px;
+  color: var(--text-secondary);
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.form-toggle-link {
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-align: center;
+  margin-top: 12px;
+}
+
+.form-toggle-link a {
+  color: var(--accent-primary);
+  text-decoration: none;
+  font-weight: 500;
+}
+.form-toggle-link a:hover {
+  text-decoration: underline;
+}
+
+/* Google OAuth login */
+.divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.divider::before, .divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid var(--border-color);
+}
+.divider:not(:empty)::before {
+  margin-right: .5em;
+}
+.divider:not(:empty)::after {
+  margin-left: .5em;
+}
+
+.btn-google {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+}
+.btn-google:hover {
+  background-color: var(--bg-hover);
+  border-color: var(--border-focus);
+}
+
+.google-icon {
+  width: 16px;
+  height: 16px;
+}
+
+/* Password Strength Indicator */
+.pw-strength-bar {
+  height: 3px;
+  background-color: var(--border-color);
+  border-radius: var(--radius-full);
+  margin-top: 6px;
+  overflow: hidden;
+  position: relative;
+}
+.pw-strength-fill {
+  height: 100%;
+  width: 0;
+  transition: var(--transition-normal);
+}
+.strength-weak { background-color: var(--danger); width: 33.33%; }
+.strength-medium { background-color: var(--warning); width: 66.66%; }
+.strength-strong { background-color: var(--success); width: 100%; }
+
+/* Responsive adjustments */
+@media (max-width: 860px) {
+  .auth-brand-panel {
+    display: none;
+  }
+  .auth-form-panel {
+    flex: 1;
+  }
+}

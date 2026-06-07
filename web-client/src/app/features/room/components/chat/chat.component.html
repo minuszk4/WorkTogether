@@ -1,0 +1,45 @@
+<div class="room-chat-panel h-full flex flex-col">
+  <div class="room-info-header">
+    <h2>{{ (state.activeRoom$ | async)?.name }}</h2>
+    <p>{{ (state.activeRoom$ | async)?.description || 'Không có mô tả.' }}</p>
+  </div>
+
+  <!-- Pinned Messages Banner -->
+  @if (isPinnedBannerVisible) {
+    <div class="pinned-msg-banner">
+      <span style="font-size:11px;">📌 Ghim: <span>{{ pinnedMessageContent }}</span></span>
+    </div>
+  }
+
+  <!-- Chat messages area -->
+  <div class="chat-messages flex-1" #messagesContainer>
+    @for (msg of messages; track msg.id) {
+      <div class="chat-msg-card" [id]="'msg-' + msg.id">
+        <div class="chat-msg-avatar">
+          @if (msg.sender?.avatar_url) {
+            <img [src]="msg.sender?.avatar_url" alt="Avatar">
+          } @else {
+            <span style="font-size:10px; font-weight:600; display:flex; align-items:center; justify-content:center; height:100%;">
+              {{ (msg.sender?.display_name || msg.sender?.username || 'WT').slice(0, 2).toUpperCase() }}
+            </span>
+          }
+        </div>
+        <div class="chat-msg-content-wrap">
+          <div class="chat-msg-header">
+            <span class="chat-msg-sender">{{ msg.sender?.display_name || msg.sender?.username || 'Thành viên' }}</span>
+            <span class="chat-msg-time">{{ formatTime(msg.created_at) }}</span>
+          </div>
+          <div class="chat-msg-bubble">{{ msg.content }}</div>
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- Chat input -->
+  <div class="chat-input-area">
+    <form (submit)="onSendSubmit($event)" class="chat-input-wrapper">
+      <input type="text" [(ngModel)]="messageContent" name="messageContent" class="chat-text-input" placeholder="Nhập tin nhắn..." autocomplete="off">
+      <button type="submit" style="display:none;"></button>
+    </form>
+  </div>
+</div>

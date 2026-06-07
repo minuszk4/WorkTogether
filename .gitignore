@@ -1,0 +1,43 @@
+# =============================================================
+# WorkTogether .gitignore
+# =============================================================
+
+# ----- Environment / Secrets -----
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.crt
+
+# ----- Go -----
+*/vendor/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+dist/
+
+# ----- Node / Angular -----
+node_modules/
+.angular/cache/
+web-client/dist/
+web-client-vanilla/dist/
+
+# ----- Docker -----
+docker/postgres/data/
+
+# ----- IDE -----
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ----- Logs -----
+*.log
+logs/

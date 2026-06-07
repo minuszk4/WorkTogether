@@ -1,0 +1,125 @@
+<div class="room-layout h-full w-full flex">
+  <div class="dashboard-sidebar-slim flex flex-col justify-between items-center py-4">
+    <div class="flex flex-col gap-4 items-center w-full">
+      <button class="slim-nav-item" (click)="onBackToLobbyClick()" title="Quay ve Lobby">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5">
+          <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+      </button>
+
+      <button
+        class="slim-nav-item"
+        [class.active]="isMicActive"
+        [disabled]="isVoiceBusy"
+        (click)="onVoiceChannelClick()"
+        [title]="isMicActive ? 'Roi kenh voice' : 'Tham gia kenh voice'"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5">
+          <path d="M3 18v-6a9 9 0 0 1 18 0v6"/>
+          <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>
+        </svg>
+      </button>
+
+      <button
+        class="slim-nav-item"
+        [class.active]="isMicActive && !isMuted"
+        [class.muted]="isMicActive && isMuted"
+        [disabled]="!isMicActive || isVoiceBusy"
+        (click)="onMuteToggleClick()"
+        [title]="isMicActive ? 'Bat / Tat microphone' : 'Tham gia kenh voice de dung microphone'"
+      >
+        @if (isMicActive && isMuted) {
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5">
+            <line x1="1" y1="1" x2="23" y2="23"/>
+            <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/>
+            <path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/>
+            <line x1="12" y1="19" x2="12" y2="23"/>
+          </svg>
+        } @else {
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5">
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+            <path d="M19 10v1a7 7 0 0 1-14 0v-1"/>
+            <line x1="12" y1="19" x2="12" y2="23"/>
+            <line x1="8" y1="23" x2="16" y2="23"/>
+          </svg>
+        }
+      </button>
+
+      <button
+        class="slim-nav-item"
+        [class.active]="isScreenSharing"
+        [disabled]="!isMicActive || isScreenShareBusy"
+        (click)="onScreenShareToggleClick()"
+        [title]="isMicActive ? 'Chia se man hinh' : 'Tham gia kenh voice de chia se man hinh'"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5">
+          <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+          <path d="M12 17v4M8 21h8M12 8l4 4m-4-4l-4 4m4-4v7"/>
+        </svg>
+      </button>
+
+      <button
+        class="slim-nav-item"
+        [class.active]="isCameraActive"
+        [disabled]="!isMicActive || isCameraBusy"
+        (click)="onCameraToggleClick()"
+        [title]="isMicActive ? 'Bat / Tat camera' : 'Tham gia kenh voice de bat camera'"
+      >
+        @if (isMicActive && !isCameraActive) {
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5">
+            <path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2m5.66 0H14a2 2 0 0 1 2 2v3.34l1 1L23 7v10M1 1l22 22"/>
+          </svg>
+        } @else {
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5">
+            <path d="M23 7l-7 5 7 5V7z"/>
+            <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+          </svg>
+        }
+      </button>
+    </div>
+
+    <div class="flex flex-col gap-4 items-center w-full">
+      <div class="slim-avatar" title="Ho so ca nhan">
+        @if ((state.user$ | async)?.avatar_url) {
+          <img [src]="(state.user$ | async)?.avatar_url" alt="Avatar">
+        } @else {
+          <span class="avatar-fallback-text">
+            {{ ((state.user$ | async)?.display_name || (state.user$ | async)?.username || 'WT').slice(0, 2).toUpperCase() }}
+          </span>
+        }
+      </div>
+    </div>
+  </div>
+
+  <div class="chat-column">
+    <app-room-chat></app-room-chat>
+  </div>
+
+  <div 
+    class="room-workspace-main flex-1 flex" 
+    [class.flex-row]="!(state.isVideoHidden$ | async)" 
+    [class.flex-col]="(state.isVideoHidden$ | async)"
+  >
+    <div 
+      class="voice-row" 
+      [class.expanded]="(state.isVideoHidden$ | async) || (state.isVoiceFocused$ | async)"
+      [class.split-half]="hasScreenshare && !(state.isVideoHidden$ | async)"
+    >
+      <app-room-voice-grid></app-room-voice-grid>
+    </div>
+
+    <div 
+      class="player-row" 
+      [class.flex-1]="!(state.isVideoHidden$ | async) && !(state.isVoiceFocused$ | async)" 
+      [class.audio-only]="(state.isVideoHidden$ | async)"
+      [class.mini-player]="!(state.isVideoHidden$ | async) && (state.isVoiceFocused$ | async)"
+      [class.split-half]="hasScreenshare && !(state.isVideoHidden$ | async)"
+    >
+      <app-room-player></app-room-player>
+    </div>
+  </div>
+
+  <div class="queue-column">
+    <app-room-queue></app-room-queue>
+  </div>
+</div>

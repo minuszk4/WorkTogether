@@ -1,0 +1,70 @@
+/* ============================================================
+   WorkTogether — Design Tokens
+   Dark-tech electric violet system. Locked palette.
+   ============================================================ */
+
+:root {
+  /* ── Backgrounds ─────────────────────────────────────────── */
+  --bg-primary:    #080910;
+  --bg-secondary:  #0d0f17;
+  --bg-surface:    #12141f;
+  --bg-hover:      #1a1d2e;
+
+  /* ── Borders ─────────────────────────────────────────────── */
+  --border-color:  #1e2235;
+  --border-focus:  #3d4466;
+
+  /* ── Accent ──────────────────────────────────────────────── */
+  --accent-primary: #6c63ff; /* electric violet with blue-shift */
+  --accent-hover:   #7c74ff;
+  --accent-dim:     rgba(108, 99, 255, 0.12);
+  --accent-glow:    0 0 20px rgba(108, 99, 255, 0.15);
+  --accent-glow-color: rgba(108, 99, 255, 0.15);
+
+  /* Keep legacy alias for components still using it */
+  --accent-alpha:   rgba(108, 99, 255, 0.12);
+
+  /* ── Text ────────────────────────────────────────────────── */
+  --text-primary:   #e8eaf2;
+  --text-secondary: #7b80a0;
+  --text-muted:     #4a4f6a;
+
+  /* ── Semantic ────────────────────────────────────────────── */
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --danger:  #ef4444;
+
+  /* ── Typography ──────────────────────────────────────────── */
+  --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* ── Radius ──────────────────────────────────────────────── */
+  --radius-sm:   4px;
+  --radius-md:   6px;
+  --radius-lg:   10px;
+  --radius-xl:   16px;
+  --radius-full: 9999px;
+
+  /* ── Motion ──────────────────────────────────────────────── */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-fast:   all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-normal: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-slow:   all 0.4s  cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* ── Shadows (bg-hue tinted, never pure black, linear-clean) ────── */
+  --shadow-sm: 0 1px 3px rgba(4, 5, 14, 0.5);
+  --shadow-md: 0 4px 12px rgba(4, 5, 14, 0.6);
+  --shadow-lg: 0 12px 32px rgba(4, 5, 14, 0.7), 0 0 0 1px rgba(108, 99, 255, 0.04);
+  --shadow-accent: 0 0 20px rgba(108, 99, 255, 0.2), 0 4px 12px rgba(4, 5, 14, 0.6);
+
+  /* ── Double-Bezel Card borders ───────────────────────────── */
+  --inner-bezel: inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+  --outer-bezel: 0 0 0 1px var(--border-color);
+
+  /* ── Z-index scale ────────────────────────────────────────── */
+  --z-base:    1;
+  --z-overlay: 100;
+  --z-modal:   200;
+  --z-toast:   300;
+  --z-player:  10;
+}

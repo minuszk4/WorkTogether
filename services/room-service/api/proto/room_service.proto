@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package worktogether.room.v1;
+option go_package = "github.com/worktogether/services/room-service/api/v1;roomv1";
+
+service RoomInternalService {
+  rpc VerifyRoomMember(VerifyRoomMemberRequest) returns (VerifyRoomMemberResponse);
+}
+
+message VerifyRoomMemberRequest {
+  string room_id = 1;
+  string user_id = 2;
+}
+
+message VerifyRoomMemberResponse {
+  bool is_member = 1;
+  string role = 2; // OWNER, MODERATOR, MEMBER
+  repeated string permissions = 3;
+}

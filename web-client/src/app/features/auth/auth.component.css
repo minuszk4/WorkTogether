@@ -1,0 +1,351 @@
+/* ============================================================
+   Auth Component — Premium Split-screen
+   Left: brand panel with diagonal mesh gradient
+   Right: clean form panel
+   ============================================================ */
+
+.auth-container {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  background: var(--bg-primary);
+  overflow: hidden;
+  font-family: var(--font-sans);
+}
+
+/* ── Left Brand Panel ─────────────────────────────────────── */
+.auth-brand-panel {
+  flex: 1.25;
+  background: #05060b;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 56px 64px;
+  position: relative;
+  overflow: hidden;
+  border-right: 1px solid var(--border-color);
+}
+
+/* Diagonal mesh gradient overlay */
+.auth-brand-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 65% 55% at 20% 80%, rgba(108, 99, 255, 0.15) 0%, transparent 70%),
+    radial-gradient(ellipse 45% 45% at 80% 20%, rgba(108, 99, 255, 0.08) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+/* Dot grid texture */
+.auth-brand-panel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, rgba(108, 99, 255, 0.12) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: linear-gradient(135deg, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.15) 60%, transparent 100%);
+  -webkit-mask-image: linear-gradient(135deg, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.15) 60%, transparent 100%);
+  pointer-events: none;
+}
+
+/* ── Brand Logo Header ────────────────────────────────────── */
+.brand-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+  z-index: 2;
+}
+
+.brand-name {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+/* ── Brand Headline Block ─────────────────────────────────── */
+.brand-essence-wrap {
+  position: relative;
+  z-index: 2;
+  max-width: 480px;
+}
+
+.brand-essence-wrap h1 {
+  font-size: 42px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.035em;
+  color: var(--text-primary);
+  margin-bottom: 20px;
+}
+
+.brand-essence-wrap p {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+/* ── Brand Footer ─────────────────────────────────────────── */
+.brand-footer {
+  position: relative;
+  z-index: 2;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  letter-spacing: 0.01em;
+}
+
+/* ── Right Form Panel ─────────────────────────────────────── */
+.auth-form-panel {
+  flex: 0.95;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+  background: var(--bg-primary);
+  position: relative;
+  overflow-y: auto;
+}
+
+/* Radial ambient light behind card */
+.auth-form-panel::before {
+  content: "";
+  position: absolute;
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(108, 99, 255, 0.05) 0%, transparent 70%);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+/* Premium glassmorphic double-bezel card */
+.auth-card {
+  width: 100%;
+  max-width: 400px;
+  background: rgba(18, 20, 31, 0.65);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid var(--border-color);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.05), var(--shadow-lg);
+  border-radius: var(--radius-xl);
+  padding: 36px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  position: relative;
+  z-index: 2;
+}
+
+.auth-card::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: calc(var(--radius-xl) - 1px);
+  pointer-events: none;
+  border: 1px solid rgba(255, 255, 255, 0.02);
+}
+
+/* ── Card Header ──────────────────────────────────────────── */
+.auth-card-header h2 {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+  line-height: 1.25;
+}
+
+.auth-card-header p {
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* ── Auth Form ────────────────────────────────────────────── */
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* Inputs styling */
+.auth-form input[type="text"],
+.auth-form input[type="email"],
+.auth-form input[type="password"] {
+  height: 42px;
+  border-radius: var(--radius-md);
+  background: rgba(8, 9, 16, 0.5);
+  border: 1px solid var(--border-color);
+  font-size: 13.5px;
+  color: var(--text-primary);
+  padding: 0 14px;
+  transition: border-color 0.2s var(--ease-out-expo), box-shadow 0.2s var(--ease-out-expo);
+}
+
+.auth-form input:focus {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.12);
+  background: rgba(8, 9, 16, 0.8);
+}
+
+/* ── Password Strength Bar ────────────────────────────────── */
+.pw-strength-bar {
+  height: 3px;
+  background: var(--border-color);
+  border-radius: var(--radius-full);
+  margin-top: 4px;
+  overflow: hidden;
+}
+
+.pw-strength-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: var(--radius-full);
+  transition: width 0.35s var(--ease-out-expo),
+              background-color 0.35s var(--ease-out-expo);
+}
+
+.strength-weak   { background: var(--danger);  width: 33.33%; }
+.strength-medium { background: var(--warning); width: 66.66%; }
+.strength-strong { background: var(--success); width: 100%; }
+
+/* ── Submit Button ────────────────────────────────────────── */
+.btn-auth-submit {
+  height: 44px;
+  border-radius: var(--radius-md);
+  background: var(--accent-primary);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  letter-spacing: -0.01em;
+  transition: transform 0.15s var(--ease-out-expo), background-color 0.15s var(--ease-out-expo), box-shadow 0.15s var(--ease-out-expo);
+  box-shadow: var(--shadow-accent);
+  margin-top: 4px;
+}
+.btn-auth-submit:hover:not(:disabled) {
+  background: var(--accent-hover);
+  box-shadow: 0 0 28px rgba(108, 99, 255, 0.3), 0 4px 12px rgba(4,5,14,0.6);
+}
+.btn-auth-submit:active {
+  transform: scale(0.97);
+}
+.btn-auth-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Divider ──────────────────────────────────────────────── */
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-color);
+}
+
+/* ── Google Button ────────────────────────────────────────── */
+.btn-google {
+  height: 42px;
+  border-radius: var(--radius-md);
+  background: rgba(18, 20, 31, 0.4);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: transform 0.15s var(--ease-out-expo), background-color 0.15s var(--ease-out-expo), border-color 0.15s var(--ease-out-expo);
+  letter-spacing: -0.01em;
+  box-shadow: var(--inner-bezel);
+}
+.btn-google:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-focus);
+}
+.btn-google:active {
+  transform: scale(0.97);
+}
+
+.google-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+/* ── Toggle Link ──────────────────────────────────────────── */
+.form-toggle-link {
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.form-toggle-link a {
+  color: var(--accent-primary);
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.15s var(--ease-out-expo);
+}
+.form-toggle-link a:hover {
+  color: var(--accent-hover);
+}
+
+/* ── Responsive ───────────────────────────────────────────── */
+@media (max-width: 960px) {
+  .auth-brand-panel {
+    display: none;
+  }
+  .auth-form-panel {
+    flex: 1;
+    padding: 32px;
+  }
+}
+
+@media (max-width: 480px) {
+  .auth-form-panel {
+    padding: 20px;
+  }
+  .auth-card {
+    padding: 28px 24px;
+    gap: 20px;
+  }
+}

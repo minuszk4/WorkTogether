@@ -1,0 +1,279 @@
+services:
+  # ----------------------------------------------------
+  # Infrastructure
+  # ----------------------------------------------------
+  postgres:
+    image: postgres:15-alpine
+    container_name: worktogether_postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    restart: unless-stopped
+    networks:
+      - worktogether_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: worktogether_redis
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    networks:
+      - worktogether_network
+
+  minio:
+    image: minio/minio
+    container_name: worktogether_minio
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    restart: unless-stopped
+    networks:
+      - worktogether_network
+
+  livekit:
+    image: livekit/livekit-server:v1.8
+    container_name: worktogether_livekit
+    command: --config /etc/livekit.yaml
+    ports:
+      - "7880:7880"
+      - "7881:7881"
+    volumes:
+      - ./docker/livekit/livekit.yaml:/etc/livekit.yaml
+    restart: unless-stopped
+    networks:
+      - worktogether_network
+
+  # ----------------------------------------------------
+  # Go Microservices
+  # ----------------------------------------------------
+  auth-service:
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+    container_name: worktogether_auth_service
+    env_file: .env
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=${POSTGRES_USER}
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      - DB_NAME=worktogether_auth
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - PORT=${AUTH_PORT}
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    networks:
+      - worktogether_network
+
+  user-service:
+    build:
+      context: ./services/user-service
+      dockerfile: Dockerfile
+    container_name: worktogether_user_service
+    env_file: .env
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=${POSTGRES_USER}
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      - DB_NAME=worktogether_user
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - PORT=${USER_PORT}
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+    networks:
+      - worktogether_network
+
+  room-service:
+    build:
+      context: ./services/room-service
+      dockerfile: Dockerfile
+    container_name: worktogether_room_service
+    env_file: .env
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=${POSTGRES_USER}
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      - DB_NAME=worktogether_room
+      - PORT=${ROOM_PORT}
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    networks:
+      - worktogether_network
+
+  chat-service:
+    build:
+      context: ./services/chat-service
+      dockerfile: Dockerfile
+    container_name: worktogether_chat_service
+    env_file: .env
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=${POSTGRES_USER}
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      - DB_NAME=worktogether_chat
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - ROOM_SERVICE_GRPC=room-service:50051
+      - PORT=${CHAT_PORT}
+    depends_on:
+      - postgres
+      - redis
+      - room-service
+    restart: unless-stopped
+    networks:
+      - worktogether_network
+
+  music-service:
+    build:
+      context: ./services/music-service
+      dockerfile: Dockerfile
+    container_name: worktogether_music_service
+    env_file: .env
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=${POSTGRES_USER}
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      - DB_NAME=worktogether_music
+      - PORT=${MUSIC_PORT}
+    depends_on:
+      - postgres
+      - minio
+    restart: unless-stopped
+    networks:
+      - worktogether_network
+
+  playlist-service:
+    build:
+      context: ./services/playlist-service
+      dockerfile: Dockerfile
+    container_name: worktogether_playlist_service
+    env_file: .env
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=${POSTGRES_USER}
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      - DB_NAME=worktogether_playlist
+      - PORT=${PLAYLIST_PORT}
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    networks:
+      - worktogether_network
+
+  playback-service:
+    build:
+      context: ./services/playback-service
+      dockerfile: Dockerfile
+    container_name: worktogether_playback_service
+    env_file: .env
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - PORT=${PLAYBACK_PORT}
+    depends_on:
+      - redis
+    restart: unless-stopped
+    networks:
+      - worktogether_network
+
+  voice-service:
+    build:
+      context: ./services/voice-service
+      dockerfile: Dockerfile
+    container_name: worktogether_voice_service
+    env_file: .env
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - ROOM_SERVICE_GRPC=room-service:50051
+      - PORT=${VOICE_PORT}
+    depends_on:
+      - redis
+      - room-service
+      - livekit
+    restart: unless-stopped
+    networks:
+      - worktogether_network
+
+  notification-service:
+    build:
+      context: ./services/notification-service
+      dockerfile: Dockerfile
+    container_name: worktogether_notification_service
+    env_file: .env
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=${POSTGRES_USER}
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      - DB_NAME=worktogether_notification
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - PORT=${NOTIFICATION_PORT}
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+    networks:
+      - worktogether_network
+
+  # ----------------------------------------------------
+  # API Gateway
+  # ----------------------------------------------------
+  nginx:
+    image: nginx:alpine
+    container_name: worktogether_nginx
+    ports:
+      - "${GATEWAY_PORT}:8080"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - auth-service
+      - user-service
+      - room-service
+      - chat-service
+      - music-service
+      - playlist-service
+      - playback-service
+      - voice-service
+      - notification-service
+    restart: unless-stopped
+    networks:
+      - worktogether_network
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+
+networks:
+  worktogether_network:
+    name: worktogether_network
+    driver: bridge

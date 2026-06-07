@@ -1,0 +1,179 @@
+<div class="voice-workspace-container w-full h-full flex flex-col">
+  @if (!isConnected || participants.length === 0) {
+    <div class="voice-grid-layout">
+      @for (member of members; track member.id) {
+        <div class="participant-card-shell">
+          <div class="participant-card-bg" [style.background-image]="'url(https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&q=80)'"></div>
+
+          <div class="participant-card-inner">
+            <div class="avatar-card-view">
+              <div class="avatar-glow-ring">
+                <div class="avatar-circle">
+                  @if (member.avatar_url) {
+                    <img [src]="member.avatar_url" alt="Avatar">
+                  } @else {
+                    <span class="avatar-text">{{ getInitials(member.display_name) }}</span>
+                  }
+                </div>
+              </div>
+            </div>
+
+            <div class="participant-overlay-label">
+              <div class="participant-meta">
+                <span class="participant-name">{{ getParticipantLabel(member) }}</span>
+                <div class="presence-line">
+                  <span class="presence-dot" [ngClass]="member.presence?.status || 'offline'"></span>
+                  <span class="presence-text">{{ getPresenceText(member) }}</span>
+                </div>
+              </div>
+              <span class="role-badge" [class.owner]="member.role === 'OWNER'" [class.moderator]="member.role === 'MODERATOR'">
+                {{ member.role }}
+              </span>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  } @else if (isConnected && hasScreenshare() && screenshareParticipant) {
+    <!-- Premium Screenshare Focus Layout (Symmetrical to Player) -->
+    <div class="voice-screenshare-layout flex w-full h-full justify-center items-center">
+      <div class="screenshare-viewport-shell">
+        <div class="screenshare-viewport-inner">
+          <video #voiceVideo [id]="'video-screen-' + screenshareParticipant.sid" autoplay playsinline [muted]="true"></video>
+          
+          <div class="screenshare-overlay-label">
+            <span class="live-dot"></span>
+            <span class="username">{{ getParticipantLabel(screenshareParticipant) }} đang chia sẻ màn hình</span>
+          </div>
+
+          <!-- Fullscreen Button -->
+          <button class="screenshare-fullscreen-btn" (click)="toggleFullscreen()" title="Toàn màn hình">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
+              <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+            </svg>
+          </button>
+
+          <!-- Floating Participant Strip Overlay -->
+          <div class="floating-participants-strip">
+            @for (participant of participants; track participant.sid) {
+              <div 
+                class="floating-participant-card" 
+                [class.is-speaking]="participant.isVoiceParticipant !== false && isSpeaking(participant.sid)"
+                [title]="getParticipantLabel(participant)"
+              >
+                @if (participant.isCameraOn) {
+                  <div class="floating-camera-wrapper">
+                    <video #voiceVideo [id]="'video-camera-' + participant.sid" autoplay playsinline [muted]="true"></video>
+                  </div>
+                } @else {
+                  <div class="floating-avatar-circle">
+                    @if (participant.avatar_url) {
+                      <img [src]="participant.avatar_url" alt="Avatar">
+                    } @else {
+                      <span class="floating-avatar-text">{{ getInitials(participant.display_name || participant.identity) }}</span>
+                    }
+                  </div>
+                }
+
+                <div class="floating-card-name-tag">
+                  <span class="floating-card-name">{{ getParticipantLabel(participant).split(' ')[0] }}</span>
+                  @if (participant.isMuted) {
+                    <span class="floating-card-status-icon" title="Muted" style="font-size: 8px;">🔇</span>
+                  } @else if (participant.isVoiceParticipant !== false && isSpeaking(participant.sid)) {
+                    <span class="floating-card-status-icon" title="Speaking" style="font-size: 8px;">🔊</span>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  } @else {
+    <div class="voice-grid-layout" [class.has-screenshare]="hasScreenshare()">
+      @for (participant of participants; track participant.sid) {
+        <div
+          class="participant-card-shell"
+          [class.is-speaking]="participant.isVoiceParticipant !== false && isSpeaking(participant.sid)"
+          [class.is-screensharing]="participant.isScreenSharing"
+        >
+          @if (!participant.isScreenSharing && !participant.isCameraOn) {
+            <div class="participant-card-bg" [style.background-image]="'url(https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&q=80)'"></div>
+          }
+
+          <div class="participant-card-inner">
+            @if (participant.isScreenSharing && participant.isCameraOn) {
+              <div class="screenshare-video-wrapper">
+                <video #voiceVideo [id]="'video-screen-' + participant.sid" autoplay playsinline [muted]="true"></video>
+                <div class="camera-pip-wrapper">
+                  <video #voiceVideo [id]="'video-camera-' + participant.sid" autoplay playsinline [muted]="true"></video>
+                </div>
+                <div class="screenshare-badge">
+                  <span class="live-dot"></span> LIVE + CAM
+                </div>
+              </div>
+            } @else if (participant.isScreenSharing) {
+              <div class="screenshare-video-wrapper">
+                <video #voiceVideo [id]="'video-screen-' + participant.sid" autoplay playsinline [muted]="true"></video>
+                <div class="screenshare-badge">
+                  <span class="live-dot"></span> LIVE
+                </div>
+              </div>
+            } @else if (participant.isCameraOn) {
+              <div class="camera-video-wrapper">
+                <video #voiceVideo [id]="'video-camera-' + participant.sid" autoplay playsinline [muted]="true"></video>
+                <div class="camera-badge">
+                  <span class="cam-dot"></span> CAM
+                </div>
+              </div>
+            } @else {
+              <div class="avatar-card-view">
+                <div class="avatar-glow-ring">
+                  <div class="avatar-circle">
+                    @if (participant.avatar_url) {
+                      <img [src]="participant.avatar_url" alt="Avatar">
+                    } @else {
+                      <span class="avatar-text">{{ getInitials(participant.display_name || participant.identity) }}</span>
+                    }
+                  </div>
+                </div>
+              </div>
+            }
+
+            <div class="participant-overlay-label">
+              <div class="participant-meta">
+                <span class="participant-name">{{ getParticipantLabel(participant) }}</span>
+                <div class="presence-line">
+                  <span class="presence-dot" [ngClass]="participant.presence?.status || 'offline'"></span>
+                  <span class="presence-text">{{ getPresenceText(participant) }}</span>
+                </div>
+              </div>
+              <div class="participant-status-icons">
+                <span class="role-badge compact" [class.owner]="participant.role === 'OWNER'" [class.moderator]="participant.role === 'MODERATOR'">
+                  {{ participant.role }}
+                </span>
+                @if (participant.isVoiceParticipant === false) {
+                  <span class="status-badge standby" title="Thanh vien dang trong phong">IDLE</span>
+                } @else if (participant.isMuted) {
+                  <span class="status-badge muted" title="Da tat mic">MUTE</span>
+                } @else {
+                  <span class="status-badge speaking-indicator" [class.active]="isSpeaking(participant.sid)">
+                    <span class="voice-wave-bar"></span>
+                    <span class="voice-wave-bar"></span>
+                    <span class="voice-wave-bar"></span>
+                  </span>
+                }
+                @if (participant.isScreenSharing) {
+                  <span class="status-badge sharing" title="Dang chia se man hinh">SCR</span>
+                }
+                @if (participant.isCameraOn) {
+                  <span class="status-badge camera-on" title="Camera dang bat">CAM</span>
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>

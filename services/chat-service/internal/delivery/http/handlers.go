@@ -1,0 +1,253 @@
+package http
+
+import (
+	"context"
+	"encoding/json"
+	"log"
+	"net/http"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
+	roomv1 "github.com/worktogether/services/chat-service/api/v1"
+	"github.com/worktogether/services/chat-service/internal/domain"
+	"github.com/worktogether/services/chat-service/internal/usecase"
+)
+
+var upgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+	CheckOrigin: func(r *http.Request) bool {
+		return true // CORS được quản lý bởi Gateway Nginx
+	},
+}
+
+type ChatHandler struct {
+	usecase    *usecase.ChatUsecase
+	hub        *Hub
+	roomClient roomv1.RoomInternalServiceClient
+}
+
+func NewChatHandler(uc *usecase.ChatUsecase, hub *Hub, rc roomv1.RoomInternalServiceClient) *ChatHandler {
+	return &ChatHandler{
+		usecase:    uc,
+		hub:        hub,
+		roomClient: rc,
+	}
+}
+
+// 1. WebSocket Handler
+func (h *ChatHandler) HandleWS(c *gin.Context) {
+	roomID := c.Param("id")
+	userIDVal, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Thiếu thông tin đăng nhập"})
+		return
+	}
+	userID := userIDVal.(string)
+
+	// Call gRPC room-service để xác thực quyền thành viên
+	res, err := h.roomClient.VerifyRoomMember(context.Background(), &roomv1.VerifyRoomMemberRequest{
+		RoomID: roomID,
+		UserID: userID,
+	})
+	if err != nil || res == nil || !res.IsMember {
+		log.Printf("[WS ERR] Từ chối kết nối WS: User %s không phải thành viên Room %s (Err: %v)\n", userID, roomID, err)
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "Bạn không phải thành viên của phòng này."})
+		return
+	}
+
+	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
+		log.Printf("[WS ERR] Lỗi upgrade socket: %v\n", err)
+		return
+	}
+
+	// Trích xuất permissions lưu vào phiên kết nối (cho phép canModerate)
+	canModerate := false
+	for _, p := range res.Permissions {
+		if p == "CAN_MODERATE_MEMBERS" {
+			canModerate = true
+		}
+	}
+
+	client := &Client{
+		UserID:   userID,
+		RoomID:   roomID,
+		Username: "User_" + userID[:8], // default
+		Conn:     conn,
+		Send:     make(chan []byte, 256),
+		Hub:      h.hub,
+	}
+
+	h.hub.Register(client)
+
+	// Chạy ghi/đọc song song
+	go client.writePump()
+	go client.readPump(h.usecase, canModerate)
+}
+
+// 2. REST API: Lấy lịch sử chat
+func (h *ChatHandler) GetMessages(c *gin.Context) {
+	roomID := c.Param("id")
+	beforeID := c.Query("before_id")
+	limit := 50 // default
+
+	list, err := h.usecase.GetMessagesByRoom(c.Request.Context(), roomID, beforeID, limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"data":    nil,
+			"error": gin.H{
+				"code":    "GET_MESSAGES_ERROR",
+				"message": err.Error(),
+			},
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    list,
+		"error":   nil,
+	})
+}
+
+// WebSocket client pumps implementation
+func (c *Client) readPump(uc *usecase.ChatUsecase, canModerate bool) {
+	defer func() {
+		c.Hub.Unregister(c)
+	}()
+
+	c.Conn.SetReadLimit(4096)
+	_ = c.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+	c.Conn.SetPongHandler(func(string) error {
+		_ = c.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		return nil
+	})
+
+	for {
+		_, message, err := c.Conn.ReadMessage()
+		if err != nil {
+			break
+		}
+
+		var incoming domain.WSMessage
+		if err := json.Unmarshal(message, &incoming); err != nil {
+			continue
+		}
+
+		incoming.RoomID = c.RoomID
+		incoming.UserID = c.UserID
+
+		// Xử lý các loại Event khác nhau
+		switch incoming.Event {
+		case "chat:send_message":
+			var payload domain.SendMessagePayload
+			payloadBytes, _ := json.Marshal(incoming.Payload)
+			_ = json.Unmarshal(payloadBytes, &payload)
+
+			msg, err := uc.SaveMessage(context.Background(), c.UserID, c.RoomID, &payload)
+			if err == nil && msg != nil {
+				broadcastMsg := domain.WSMessage{
+					Event:  "chat:message_received",
+					RoomID: c.RoomID,
+					Payload: gin.H{
+						"id":          msg.ID,
+						"sender_id":   msg.SenderID,
+						"content":     msg.Content,
+						"reply_to_id": msg.ReplyToID,
+						"created_at":  msg.CreatedAt,
+					},
+				}
+				data, _ := json.Marshal(broadcastMsg)
+				c.Hub.BroadcastToRoom(c.RoomID, data)
+			}
+
+		case "chat:typing":
+			var payload domain.TypingPayload
+			payloadBytes, _ := json.Marshal(incoming.Payload)
+			_ = json.Unmarshal(payloadBytes, &payload)
+
+			broadcastMsg := domain.WSMessage{
+				Event:  "chat:member_typing",
+				RoomID: c.RoomID,
+				Payload: gin.H{
+					"user_id":   c.UserID,
+					"username":  c.Username,
+					"is_typing": payload.IsTyping,
+				},
+			}
+			data, _ := json.Marshal(broadcastMsg)
+			c.Hub.BroadcastToRoom(c.RoomID, data)
+
+		case "chat:react":
+			var payload domain.ReactMessagePayload
+			payloadBytes, _ := json.Marshal(incoming.Payload)
+			_ = json.Unmarshal(payloadBytes, &payload)
+
+			var err error
+			if payload.Action == "add" {
+				_, err = uc.AddReaction(context.Background(), c.UserID, payload.MessageID, payload.Emoji)
+			} else {
+				err = uc.RemoveReaction(context.Background(), c.UserID, payload.MessageID, payload.Emoji)
+			}
+
+			if err == nil {
+				broadcastMsg := domain.WSMessage{
+					Event:  "chat:reaction_updated",
+					RoomID: c.RoomID,
+					Payload: gin.H{
+						"message_id": payload.MessageID,
+						"user_id":    c.UserID,
+						"emoji":      payload.Emoji,
+						"action":     payload.Action,
+					},
+				}
+				data, _ := json.Marshal(broadcastMsg)
+				c.Hub.BroadcastToRoom(c.RoomID, data)
+			}
+		}
+	}
+}
+
+func (c *Client) writePump() {
+	ticker := time.NewTicker(30 * time.Second)
+	defer func() {
+		ticker.Stop()
+		c.Conn.Close()
+	}()
+
+	for {
+		select {
+		case message, ok := <-c.Send:
+			_ = c.Conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			if !ok {
+				_ = c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
+				return
+			}
+
+			w, err := c.Conn.NextWriter(websocket.TextMessage)
+			if err != nil {
+				return
+			}
+			_, _ = w.Write(message)
+
+			// Add queued chat messages to the current websocket message
+			n := len(c.Send)
+			for i := 0; i < n; i++ {
+				_, _ = w.Write([]byte{'\n'})
+				_, _ = w.Write(<-c.Send)
+			}
+
+			if err := w.Close(); err != nil {
+				return
+			}
+		case <-ticker.C:
+			_ = c.Conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			if err := c.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				return
+			}
+		}
+	}
+}
