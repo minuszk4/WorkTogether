@@ -2,6 +2,7 @@ import { Injectable, NgZone, OnDestroy, inject } from '@angular/core';
 import { BehaviorSubject, Subscription } from 'rxjs';
 import { PlaybackWsService, PlaybackState, Track } from '../../../../core/services/websocket/playback-ws.service';
 import { VoiceService } from '../../../../core/services/voice.service';
+import { ChatWsService } from '../../../../core/services/websocket/chat-ws.service';
 
 /**
  * Pure playback-sync engine extracted from the legacy PlayerComponent.
@@ -13,6 +14,8 @@ export class PlayerEngineService implements OnDestroy {
   private playbackWs = inject(PlaybackWsService);
   private voiceService = inject(VoiceService);
   private zone = inject(NgZone);
+  private chatWs = inject(ChatWsService);
+  private heartbeatInterval: any = null;
 
   private ytPlayer: any = null;
   private isReady = false;
@@ -138,12 +141,39 @@ export class PlayerEngineService implements OnDestroy {
   }
 
   private handlePlaybackSync(state: PlaybackState): void {
+    const isPlaying = state.state === 'playing';
+    
+    // Send state change instantly on play/pause/seek events
+    this.chatWs.updatePresenceState(isPlaying, state.position_ms);
+
     this._currentState$.next(state.state);
     this._currentTrack$.next(state.current_track);
     this.lastServerPosition = state.position_ms;
     this.lastUpdatedAt = state.updated_at;
     this.syncPlayerWithServerState();
     this.startProgressTimer();
+
+    if (isPlaying) {
+      this.startHeartbeat();
+    } else {
+      this.stopHeartbeat();
+    }
+  }
+
+  private startHeartbeat(): void {
+    this.stopHeartbeat();
+    this.heartbeatInterval = setInterval(() => {
+      if (this.currentState === 'playing') {
+        this.chatWs.updatePresenceState(true, this.getLocalProgress());
+      }
+    }, 5000);
+  }
+
+  private stopHeartbeat(): void {
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+    }
   }
 
   private syncPlayerWithServerState(): void {
@@ -331,6 +361,7 @@ export class PlayerEngineService implements OnDestroy {
   ngOnDestroy(): void {
     this.subs.forEach(s => s.unsubscribe());
     if (this.progressTimer) clearInterval(this.progressTimer);
+    this.stopHeartbeat();
     if (this.ytPlayer && this.ytPlayer.destroy) this.ytPlayer.destroy();
     if (this.audioEl) { this.audioEl.pause(); this.audioEl.src = ''; }
   }
