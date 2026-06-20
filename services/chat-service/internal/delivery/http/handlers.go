@@ -142,6 +142,34 @@ func (c *Client) readPump(uc *usecase.ChatUsecase, canModerate bool) {
 
 		// Xử lý các loại Event khác nhau
 		switch incoming.Event {
+		case "presence:state_change":
+			var payload struct {
+				IsPlaying  bool `json:"is_playing"`
+				PositionMS int  `json:"position_ms"`
+			}
+			payloadBytes, _ := json.Marshal(incoming.Payload)
+			_ = json.Unmarshal(payloadBytes, &payload)
+
+			c.Hub.UpdateClientPresence(c.RoomID, c.UserID, payload.IsPlaying, payload.PositionMS)
+
+			c.Hub.RLock()
+			presence := c.Hub.RoomPresences[c.RoomID]
+			c.Hub.RUnlock()
+
+			if presence != nil {
+				presence.RLock()
+				broadcastMsg := domain.WSMessage{
+					Event:  "presence:listener_states",
+					RoomID: c.RoomID,
+					Payload: gin.H{
+						"user_states": presence.MemberStates,
+					},
+				}
+				presence.RUnlock()
+				data, _ := json.Marshal(broadcastMsg)
+				c.Hub.BroadcastToRoom(c.RoomID, data)
+			}
+
 		case "chat:send_message":
 			var payload domain.SendMessagePayload
 			payloadBytes, _ := json.Marshal(incoming.Payload)

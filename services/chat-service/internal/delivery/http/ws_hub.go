@@ -2,6 +2,7 @@ package http
 
 import (
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -76,4 +77,25 @@ func (h *Hub) BroadcastToRoom(roomID string, message []byte) {
 			}
 		}
 	}
+}
+
+func (h *Hub) UpdateClientPresence(roomID string, userID string, isPlaying bool, positionMs int) {
+	h.Lock()
+	presence, exists := h.RoomPresences[roomID]
+	if !exists {
+		presence = &RoomPresence{
+			MemberStates:    make(map[string]MemberState),
+			RecentReactions: make(map[string]int),
+		}
+		h.RoomPresences[roomID] = presence
+	}
+	h.Unlock()
+
+	presence.Lock()
+	presence.MemberStates[userID] = MemberState{
+		IsPlaying:  isPlaying,
+		PositionMS: positionMs,
+		UpdatedAt:  time.Now().UnixMilli(),
+	}
+	presence.Unlock()
 }
