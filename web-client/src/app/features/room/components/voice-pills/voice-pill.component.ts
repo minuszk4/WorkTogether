@@ -1,8 +1,11 @@
-import { Component, Input } from '@angular/core';
+import { Component, Input, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Subscription } from 'rxjs';
+import { ChatWsService } from '../../../../core/services/websocket/chat-ws.service';
 
 export interface PillParticipant {
   sid: string;
+  identity?: string;
   display_name: string;
   avatar_url?: string;
   isSpeaking: boolean;
@@ -17,7 +20,7 @@ export interface PillParticipant {
   standalone: true,
   imports: [CommonModule],
   template: `
-    <div class="voice-pill" [class.speaking]="p.isSpeaking" [class.muted]="p.isMuted">
+    <div class="voice-pill" [class.speaking]="p.isSpeaking" [class.muted]="p.isMuted" [class.react-bounce]="isReacting">
       <div class="vp-avatar">
         @if (p.avatar_url) {
           <img [src]="p.avatar_url" [alt]="p.display_name">
@@ -35,6 +38,12 @@ export interface PillParticipant {
             }
           </div>
         }
+
+        <div class="vp-floaters-container" aria-hidden="true">
+          @for (f of floaters; track f.id) {
+            <span class="vp-floater">{{ f.emoji }}</span>
+          }
+        </div>
       </div>
       <span class="vp-name">
         {{ p.display_name }}{{ p.isCurrentUser ? ' (Bạn)' : '' }}
@@ -50,6 +59,8 @@ export interface PillParticipant {
   styles: [`
     .voice-pill { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: var(--radius-full); background: var(--bg-glass); backdrop-filter: blur(12px); border: 1px solid var(--border-color); transition: var(--transition-normal); }
     .voice-pill.speaking { border-color: var(--accent-primary); box-shadow: var(--accent-glow); transform: scale(1.04); }
+    .voice-pill.react-bounce { animation: pill-bounce 1s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+    @keyframes pill-bounce { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.15); } }
     .vp-avatar { position: relative; width: 28px; height: 28px; border-radius: 50%; overflow: hidden; background: var(--bg-elevated); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: var(--text-primary); }
     .vp-avatar img { width: 100%; height: 100%; object-fit: cover; }
     .vp-ring { position: absolute; inset: -3px; border: 2px solid var(--accent-primary); border-radius: 50%; animation: ring-pulse 1.2s var(--ease-out-expo) infinite; }
@@ -59,12 +70,51 @@ export interface PillParticipant {
     .vp-playback-status { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.45); display: flex; align-items: center; justify-content: center; opacity: 0.75; transition: opacity 0.2s; }
     .status-icon { width: 10px; height: 10px; color: #fff; }
     .vp-unsynced-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: var(--warning, #f59e0b); margin-left: 6px; vertical-align: middle; }
-    @media (prefers-reduced-motion: reduce) { .vp-ring { animation: none; } }
+    .vp-floaters-container { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
+    .vp-floater { position: absolute; left: 50%; top: 50%; font-size: 16px; transform: translate(-50%, -50%); animation: float-up 1.5s ease-out forwards; }
+    @keyframes float-up { 0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; } 20% { opacity: 1; } 100% { transform: translate(-50%, -60px) scale(1.2); opacity: 0; } }
+    @media (prefers-reduced-motion: reduce) {
+      .vp-ring { animation: none; }
+      .voice-pill.react-bounce { animation: none; }
+      .vp-floater { animation: float-up-reduced 1.5s ease-out forwards; }
+      @keyframes float-up-reduced { 0% { opacity: 0; } 20% { opacity: 1; } 100% { opacity: 0; } }
+    }
   `]
 })
-export class VoicePillComponent {
+export class VoicePillComponent implements OnInit, OnDestroy {
   @Input({ required: true }) p!: PillParticipant;
+  
+  private chatWs = inject(ChatWsService);
+  private sub: Subscription | null = null;
+
+  public isReacting = false;
+  public floaters: { id: number; emoji: string }[] = [];
+  private floaterId = 0;
+
   get initials(): string {
     return (this.p?.display_name || 'WT').slice(0, 2).toUpperCase();
+  }
+
+  ngOnInit(): void {
+    this.sub = this.chatWs.liveReaction$.subscribe(rx => {
+      if (rx && rx.user_id === this.p.identity) {
+        this.triggerReaction(rx.emoji);
+      }
+    });
+  }
+
+  ngOnDestroy(): void {
+    if (this.sub) this.sub.unsubscribe();
+  }
+
+  public triggerReaction(emoji: string): void {
+    this.isReacting = true;
+    setTimeout(() => { this.isReacting = false; }, 1200);
+
+    const id = this.floaterId++;
+    this.floaters.push({ id, emoji });
+    setTimeout(() => {
+      this.floaters = this.floaters.filter(f => f.id !== id);
+    }, 1500);
   }
 }
