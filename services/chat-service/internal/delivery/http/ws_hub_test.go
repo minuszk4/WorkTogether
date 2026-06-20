@@ -27,3 +27,22 @@ func TestUpdateClientPresence(t *testing.T) {
 		t.Errorf("Unexpected member state saved: %+v", state)
 	}
 }
+
+func TestRecordReaction(t *testing.T) {
+	h := NewHub()
+	h.RecordReaction("room-1", "🔥")
+
+	presence, exists := h.RoomPresences["room-1"]
+	if !exists {
+		t.Fatal("Expected RoomPresence to be created")
+	}
+
+	count, exists := presence.RecentReactions["🔥"]
+	if !exists {
+		t.Fatal("Expected reaction count to be recorded")
+	}
+
+	if count != 1 {
+		t.Errorf("Expected reaction count to be 1, got %d", count)
+	}
+}

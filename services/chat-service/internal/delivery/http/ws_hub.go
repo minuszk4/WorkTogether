@@ -99,3 +99,20 @@ func (h *Hub) UpdateClientPresence(roomID string, userID string, isPlaying bool,
 	}
 	presence.Unlock()
 }
+
+func (h *Hub) RecordReaction(roomID string, emoji string) {
+	h.Lock()
+	presence, exists := h.RoomPresences[roomID]
+	if !exists {
+		presence = &RoomPresence{
+			MemberStates:    make(map[string]MemberState),
+			RecentReactions: make(map[string]int),
+		}
+		h.RoomPresences[roomID] = presence
+	}
+	h.Unlock()
+
+	presence.Lock()
+	presence.RecentReactions[emoji]++
+	presence.Unlock()
+}

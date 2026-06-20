@@ -170,6 +170,26 @@ func (c *Client) readPump(uc *usecase.ChatUsecase, canModerate bool) {
 				c.Hub.BroadcastToRoom(c.RoomID, data)
 			}
 
+		case "presence:send_reaction":
+			var payload struct {
+				Emoji string `json:"emoji"`
+			}
+			payloadBytes, _ := json.Marshal(incoming.Payload)
+			_ = json.Unmarshal(payloadBytes, &payload)
+
+			c.Hub.RecordReaction(c.RoomID, payload.Emoji)
+
+			broadcastMsg := domain.WSMessage{
+				Event:  "presence:reaction_broadcast",
+				RoomID: c.RoomID,
+				Payload: gin.H{
+					"user_id": c.UserID,
+					"emoji":   payload.Emoji,
+				},
+			}
+			data, _ := json.Marshal(broadcastMsg)
+			c.Hub.BroadcastToRoom(c.RoomID, data)
+
 		case "chat:send_message":
 			var payload domain.SendMessagePayload
 			payloadBytes, _ := json.Marshal(incoming.Payload)
