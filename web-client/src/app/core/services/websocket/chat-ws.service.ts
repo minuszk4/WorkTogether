@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Subject } from 'rxjs';
+import { Subject, BehaviorSubject } from 'rxjs';
 
 export interface ChatMessage {
   id: string;
@@ -25,6 +25,10 @@ export class ChatWsService {
   public messageDeleted$ = new Subject<string>();
   public pinnedUpdate$ = new Subject<any>();
   public connected$ = new Subject<boolean>();
+
+  public listenerStates$ = new BehaviorSubject<Record<string, { is_playing: boolean; position_ms: number; updated_at: number }>>({});
+  public liveReaction$ = new Subject<{ user_id: string; emoji: string }>();
+  public roomVibe$ = new BehaviorSubject<{ current_vibe: string; vibe_scores: Record<string, number> } | null>(null);
 
   constructor() {}
 
@@ -67,6 +71,15 @@ export class ChatWsService {
         case 'chat:pin_updated':
           this.pinnedUpdate$.next(msg.payload);
           break;
+        case 'presence:listener_states':
+          this.listenerStates$.next(msg.payload.user_states);
+          break;
+        case 'presence:reaction_broadcast':
+          this.liveReaction$.next({ user_id: msg.payload.user_id, emoji: msg.payload.emoji });
+          break;
+        case 'presence:vibe_tick':
+          this.roomVibe$.next(msg.payload);
+          break;
         default:
           console.log('[Chat WS] Sự kiện chưa xử lý:', msg.event);
       }
@@ -91,6 +104,24 @@ export class ChatWsService {
     };
 
     this.socket.send(JSON.stringify(payload));
+  }
+
+  public updatePresenceState(isPlaying: boolean, positionMs: number): void {
+    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) return;
+    this.socket.send(JSON.stringify({
+      event: 'presence:state_change',
+      room_id: this.roomId,
+      payload: { is_playing: isPlaying, position_ms: positionMs }
+    }));
+  }
+
+  public sendLiveReaction(emoji: string): void {
+    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) return;
+    this.socket.send(JSON.stringify({
+      event: 'presence:send_reaction',
+      room_id: this.roomId,
+      payload: { emoji }
+    }));
   }
 
   public disconnect(): void {
