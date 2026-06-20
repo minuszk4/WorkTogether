@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject, ElementRef, ViewChild } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, ElementRef, ViewChild, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ChatWsService, ChatMessage } from '../../../../core/services/websocket/chat-ws.service';
@@ -6,6 +6,7 @@ import { StateService } from '../../../../core/services/state.service';
 import { ToastService } from '../../../../shared/services/toast.service';
 import { ApiService } from '../../../../core/services/api.service';
 import { Subscription } from 'rxjs';
+import { RoomUiStateService } from '../../room-ui-state.service';
 
 @Component({
   selector: 'app-room-chat',
@@ -19,6 +20,9 @@ export class ChatComponent implements OnInit, OnDestroy {
   public state = inject(StateService);
   private toast = inject(ToastService);
   private api = inject(ApiService);
+  private uiState = inject(RoomUiStateService);
+
+  @Input() isOpen = false;
 
   private profileCache = new Map<string, { username: string, display_name: string, avatar_url: string }>();
 
@@ -39,6 +43,9 @@ export class ChatComponent implements OnInit, OnDestroy {
       this.chatWs.messageReceived$.subscribe((msg) => {
         this.enrichMessage(msg);
         this.messages.push(msg);
+        if (!this.uiState.uiState.isChatOpen) {
+          this.uiState.markUnread(1);
+        }
         setTimeout(() => this.scrollToBottom(), 50);
       })
     );
@@ -168,5 +175,9 @@ export class ChatComponent implements OnInit, OnDestroy {
       },
       error: () => {}
     });
+  }
+
+  public close(): void {
+    this.uiState.toggleChat(false);
   }
 }

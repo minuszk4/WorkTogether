@@ -8,20 +8,20 @@ import { ChatWsService } from '../../core/services/websocket/chat-ws.service';
 import { PlaybackWsService } from '../../core/services/websocket/playback-ws.service';
 import { VoiceService } from '../../core/services/voice.service';
 import { ToastService } from '../../shared/services/toast.service';
+import { RoomUiStateService, StageMode } from './room-ui-state.service';
+import { SidebarComponent } from './components/sidebar/sidebar.component';
+import { StageComponent } from './components/stage/stage.component';
+import { VoicePillsComponent } from './components/voice-pills/voice-pills.component';
 import { ChatComponent } from './components/chat/chat.component';
-import { VoiceGridComponent } from './components/voice-grid/voice-grid.component';
-import { PlayerComponent } from './components/player/player.component';
 import { QueueComponent } from './components/queue/queue.component';
+import { PlayerBarComponent } from './components/player-bar/player-bar.component';
 
 @Component({
   selector: 'app-room',
   standalone: true,
   imports: [
-    CommonModule,
-    ChatComponent,
-    VoiceGridComponent,
-    PlayerComponent,
-    QueueComponent
+    CommonModule, SidebarComponent, StageComponent,
+    VoicePillsComponent, ChatComponent, QueueComponent, PlayerBarComponent
   ],
   templateUrl: './room.component.html',
   styleUrl: './room.component.css'
@@ -35,6 +35,7 @@ export class RoomComponent implements OnInit, OnDestroy {
   private playbackWs = inject(PlaybackWsService);
   public voiceService = inject(VoiceService);
   private toast = inject(ToastService);
+  private uiState = inject(RoomUiStateService);
 
   public roomId = '';
   public isMicActive = false;
@@ -45,10 +46,6 @@ export class RoomComponent implements OnInit, OnDestroy {
   public isScreenShareBusy = false;
   public isCameraBusy = false;
   public isLeavingRoom = false;
-  public hasScreenshare = false;
-  public hasCameraActive = false;
-  public memberCount = 0;
-  public voiceParticipantCount = 0;
 
   private subs: Subscription[] = [];
   private presenceTimer: any = null;
@@ -57,17 +54,16 @@ export class RoomComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('room_id');
     if (!id) {
-      this.toast.error('Phong khong hop le.');
+      this.toast.error('Phòng không hợp lệ.');
       this.router.navigate(['/dashboard']);
       return;
     }
-
     this.roomId = id;
     this.loadRoomDetails();
   }
 
   ngOnDestroy(): void {
-    this.subs.forEach(sub => sub.unsubscribe());
+    this.subs.forEach(s => s.unsubscribe());
     this.disconnectAll();
   }
 
@@ -77,14 +73,10 @@ export class RoomComponent implements OnInit, OnDestroy {
         this.state.activeRoom$.next(room);
         this.loadRoomMembers();
         this.connectWebSockets();
-
-        // Auto-join the voice channel on entry to enable all huddle features immediately
-        setTimeout(() => {
-          this.onVoiceChannelClick();
-        }, 800);
+        setTimeout(() => this.onVoiceChannelClick(), 800);
       },
       error: (err) => {
-        this.toast.error('Khong the tai thong tin phong: ' + err.message);
+        this.toast.error('Không thể tải phòng: ' + err.message);
         this.router.navigate(['/dashboard']);
       }
     });
@@ -92,146 +84,94 @@ export class RoomComponent implements OnInit, OnDestroy {
 
   private connectWebSockets(): void {
     const token = this.state.accessToken;
-    if (!token) {
-      this.toast.error('Thieu access token xac thuc.');
-      this.router.navigate(['/auth']);
-      return;
-    }
-
+    if (!token) { this.toast.error('Thiếu token.'); this.router.navigate(['/auth']); return; }
     this.chatWs.connect(this.roomId, token);
     this.playbackWs.connect(this.roomId, token);
-
     this.startPresenceHeartbeat();
     this.startMembersPolling();
 
     this.subs.push(
-      this.voiceService.connected$.subscribe(connected => {
-        this.isMicActive = connected;
-        if (!connected) {
-          this.isMuted = false;
-          this.isScreenSharing = false;
-          this.isCameraActive = false;
-          this.isVoiceBusy = false;
-        }
+      this.voiceService.connected$.subscribe(c => {
+        this.isMicActive = c;
+        if (!c) { this.isMuted = false; this.isScreenSharing = false; this.isCameraActive = false; this.isVoiceBusy = false; }
+        this.recomputeStageMode();
       }),
-      this.voiceService.isMuted$.subscribe(muted => {
-        this.isMuted = muted;
-      }),
-      this.voiceService.isScreenSharing$.subscribe(sharing => {
-        this.isScreenSharing = sharing;
-      }),
-      this.voiceService.isCameraActive$.subscribe(active => {
-        this.isCameraActive = active;
-      }),
-      this.voiceService.participants$.subscribe(list => {
-        const screensharing = list.some(participant => participant.isScreenSharing);
-        const cameraActive = list.some(participant => participant.isCameraOn);
-        if ((screensharing && !this.hasScreenshare) || (cameraActive && !this.hasCameraActive)) {
-          // Auto-focus on voice/video workspace when someone starts sharing screen or starts camera
-          this.state.isVoiceFocused$.next(true);
-        }
-        this.hasScreenshare = screensharing;
-        this.hasCameraActive = cameraActive;
-        this.voiceParticipantCount = list.length;
-      }),
-      this.state.activeRoomMembers$.subscribe(members => {
-        this.memberCount = members.length;
-      })
+      this.voiceService.isMuted$.subscribe(m => (this.isMuted = m)),
+      this.voiceService.isScreenSharing$.subscribe(s => { this.isScreenSharing = s; this.recomputeStageMode(); }),
+      this.voiceService.isCameraActive$.subscribe(a => { this.isCameraActive = a; this.recomputeStageMode(); }),
+      this.voiceService.participants$.subscribe(() => this.recomputeStageMode())
     );
   }
 
-  public async onVoiceChannelClick(): Promise<void> {
-    if (this.isVoiceBusy) return;
+  private recomputeStageMode(): void {
+    let mode: StageMode = 'music-only';
+    if (this.voiceService.participants$.value.some(p => p.isScreenSharing)) mode = 'screenshare';
+    else if (this.voiceService.participants$.value.some(p => p.isCameraOn)) mode = 'video';
+    else if (this.isMicActive) mode = 'music-voice';
+    this.uiState.setStageMode(mode);
+  }
 
+  public onVoiceChannelClick(): Promise<void> {
+    if (this.isVoiceBusy) return Promise.resolve();
     if (this.isMicActive) {
       this.voiceService.disconnect();
-      this.toast.success('Da roi kenh voice.');
-      return;
+      this.toast.success('Đã rời kênh voice.');
+      return Promise.resolve();
     }
-
     this.isVoiceBusy = true;
-    this.toast.info('Dang yeu cau ket noi kenh voice...');
+    this.toast.info('Đang kết nối voice...');
     this.api.voice.getToken(this.roomId).subscribe({
       next: async (res) => {
-        try {
-          await this.voiceService.connect(res.livekit_url, res.token);
-          this.toast.success('Da tham gia kenh voice.');
-        } catch (err: any) {
-          this.toast.error('Loi voice call: ' + err.message);
-        } finally {
-          this.isVoiceBusy = false;
-        }
+        try { await this.voiceService.connect(res.livekit_url, res.token); this.toast.success('Đã tham gia voice.'); }
+        catch (err: any) { this.toast.error('Lỗi voice: ' + err.message); }
+        finally { this.isVoiceBusy = false; }
       },
-      error: (err) => {
-        this.isVoiceBusy = false;
-        this.toast.error('Khong the xin token voice call: ' + err.message);
-      }
+      error: (err) => { this.isVoiceBusy = false; this.toast.error('Không xin được token voice: ' + err.message); }
     });
+    return Promise.resolve();
   }
 
   public async onMuteToggleClick(): Promise<void> {
     if (!this.isMicActive || this.isVoiceBusy) return;
-
     try {
-      const targetMute = !this.isMuted;
-      await this.voiceService.setMute(targetMute);
-      this.toast.info(targetMute ? 'Da tat microphone.' : 'Da bat microphone.');
-    } catch (err: any) {
-      this.toast.error('Loi microphone: ' + err.message);
-    }
+      const target = !this.isMuted;
+      await this.voiceService.setMute(target);
+      this.toast.info(target ? 'Đã tắt mic.' : 'Đã bật mic.');
+    } catch (err: any) { this.toast.error('Lỗi mic: ' + err.message); }
   }
 
   public async onScreenShareToggleClick(): Promise<void> {
     if (!this.isMicActive || this.isScreenShareBusy) return;
-
     try {
       this.isScreenShareBusy = true;
-      const targetState = !this.isScreenSharing;
-      await this.voiceService.setScreenShare(targetState);
-      this.toast.success(targetState ? 'Da chia se man hinh.' : 'Da dung chia se.');
-    } catch (err: any) {
-      this.toast.error('Loi chia se man hinh: ' + err.message);
-    } finally {
-      this.isScreenShareBusy = false;
-    }
+      const target = !this.isScreenSharing;
+      await this.voiceService.setScreenShare(target);
+      this.toast.success(target ? 'Đã chia sẻ màn hình.' : 'Đã dừng chia sẻ.');
+    } catch (err: any) { this.toast.error('Lỗi chia sẻ: ' + err.message); }
+    finally { this.isScreenShareBusy = false; }
   }
 
   public async onCameraToggleClick(): Promise<void> {
     if (!this.isMicActive || this.isCameraBusy) return;
-
     try {
       this.isCameraBusy = true;
-      const targetState = !this.isCameraActive;
-      await this.voiceService.setCamera(targetState);
-      this.toast.info(targetState ? 'Da bat camera.' : 'Da tat camera.');
-    } catch (err: any) {
-      this.toast.error('Loi camera: ' + err.message);
-    } finally {
-      this.isCameraBusy = false;
-    }
+      const target = !this.isCameraActive;
+      await this.voiceService.setCamera(target);
+      this.toast.info(target ? 'Đã bật camera.' : 'Đã tắt camera.');
+    } catch (err: any) { this.toast.error('Lỗi camera: ' + err.message); }
+    finally { this.isCameraBusy = false; }
   }
 
   public async onBackToLobbyClick(): Promise<void> {
     if (this.isLeavingRoom) return;
-
     this.isLeavingRoom = true;
-    try {
-      await this.api.room.leave(this.roomId).toPromise();
-    } catch (err: any) {
-      console.warn('Leave room failed:', err);
-      this.toast.info('Khong dong bo duoc trang thai roi phong tren server, nhung da thoat giao dien phong.');
-    } finally {
+    try { await this.api.room.leave(this.roomId).toPromise(); }
+    catch (err: any) { console.warn('Leave failed:', err); this.toast.info('Đã thoát phòng.'); }
+    finally {
       this.disconnectAll();
       this.router.navigate(['/dashboard']);
       this.isLeavingRoom = false;
     }
-  }
-
-  public get roomModeLabel(): string {
-    if (this.isScreenSharing) return 'Screen live';
-    if (this.isCameraActive) return 'Camera live';
-    if (this.isMicActive) return 'Voice live';
-    return 'Standby';
   }
 
   private async loadRoomMembers(): Promise<void> {
@@ -328,4 +268,12 @@ export class RoomComponent implements OnInit, OnDestroy {
     this.state.activeRoom$.next(null);
     this.state.activeRoomMembers$.next([]);
   }
+
+  get currentUserAvatar(): string { return this.state.user?.avatar_url || ''; }
+  get currentUserDisplayName(): string {
+    const u = this.state.user;
+    return u?.display_name || u?.username || 'WT';
+  }
+  get isChatOpen(): boolean { return this.uiState.uiState.isChatOpen; }
+  get isQueueOpen(): boolean { return this.uiState.uiState.isQueueOpen; }
 }

@@ -1,0 +1,7 @@
+:host { display: block; }
+.voice-pills {
+  position: absolute; top: 16px; left: 16px; right: 16px;
+  display: flex; flex-wrap: wrap; gap: 8px; z-index: var(--z-overlay);
+  pointer-events: none;
+}
+.voice-pills app-room-voice-pill { pointer-events: auto; }

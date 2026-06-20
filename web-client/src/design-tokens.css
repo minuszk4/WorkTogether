@@ -1,67 +1,80 @@
 /* ============================================================
    WorkTogether — Design Tokens
-   Dark-tech electric violet system. Locked palette.
+   Cool Ocean system. Dark navy base, teal-led gradient accent.
    ============================================================ */
 
 :root {
-  /* ── Backgrounds ─────────────────────────────────────────── */
-  --bg-primary:    #080910;
-  --bg-secondary:  #0d0f17;
-  --bg-surface:    #12141f;
-  --bg-hover:      #1a1d2e;
+  /* ── Backgrounds (deep ocean navy) ──────────────────────── */
+  --bg-base:       #0a1628;
+  --bg-primary:    #0a1628;   /* alias kept for components using old name */
+  --bg-surface:    #0f2240;
+  --bg-secondary:  #0f2240;   /* alias kept for components using old name */
+  --bg-elevated:   #163355;
+  --bg-hover:      #163355;   /* alias kept */
+  --bg-glass:      rgba(15, 34, 64, 0.6);
 
   /* ── Borders ─────────────────────────────────────────────── */
-  --border-color:  #1e2235;
-  --border-focus:  #3d4466;
+  --border-color:  #1b3a5c;
+  --border-focus:  #2dd4bf;
 
-  /* ── Accent ──────────────────────────────────────────────── */
-  --accent-primary: #6c63ff; /* electric violet with blue-shift */
-  --accent-hover:   #7c74ff;
-  --accent-dim:     rgba(108, 99, 255, 0.12);
-  --accent-glow:    0 0 20px rgba(108, 99, 255, 0.15);
-  --accent-glow-color: rgba(108, 99, 255, 0.15);
-
-  /* Keep legacy alias for components still using it */
-  --accent-alpha:   rgba(108, 99, 255, 0.12);
+  /* ── Accent (ocean gradient, teal-led) ───────────────────── */
+  --ocean-teal:    #2dd4bf;
+  --ocean-sky:     #38bdf8;
+  --ocean-indigo:  #6366f1;
+  --accent-primary:   #2dd4bf;
+  --accent-hover:     #34e0cc;
+  --accent-dim:       rgba(45, 212, 191, 0.12);
+  --accent-glow:      0 0 20px rgba(45, 212, 191, 0.18);
+  --accent-glow-color: rgba(45, 212, 191, 0.18);
+  --accent-gradient:  linear-gradient(135deg, #2dd4bf 0%, #38bdf8 50%, #6366f1 100%);
 
   /* ── Text ────────────────────────────────────────────────── */
-  --text-primary:   #e8eaf2;
-  --text-secondary: #7b80a0;
-  --text-muted:     #4a4f6a;
+  --text-primary:   #e6f1ff;
+  --text-secondary: #8aa4c8;
+  --text-muted:     #4a6080;
 
   /* ── Semantic ────────────────────────────────────────────── */
-  --success: #22c55e;
-  --warning: #f59e0b;
-  --danger:  #ef4444;
+  --success: #2dd4bf;
+  --warning: #fbbf24;
+  --danger:  #f87171;
 
   /* ── Typography ──────────────────────────────────────────── */
   --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
-  /* ── Radius ──────────────────────────────────────────────── */
-  --radius-sm:   4px;
-  --radius-md:   6px;
-  --radius-lg:   10px;
-  --radius-xl:   16px;
+  --text-display-size: 2rem;   /* 32px */
+  --text-lg-size:      1.25rem;/* 20px */
+  --text-md-size:      1rem;   /* 16px */
+  --text-sm-size:      0.875rem;/* 14px */
+  --text-xs-size:      0.75rem;/* 12px */
+  --leading-tight: 1.2;
+  --leading-normal: 1.5;
+
+  /* ── Radius (fresh, larger) ──────────────────────────────── */
+  --radius-sm:   6px;
+  --radius-md:   10px;
+  --radius-lg:   14px;
+  --radius-xl:   22px;
   --radius-full: 9999px;
 
   /* ── Motion ──────────────────────────────────────────────── */
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
-  --transition-fast:   all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
-  --transition-normal: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  --transition-slow:   all 0.4s  cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-fast:   all 0.15s var(--ease-out-expo);
+  --transition-normal: all 0.25s var(--ease-out-expo);
+  --transition-slow:   all 0.4s  var(--ease-out-expo);
+  --transition-panel:  all 0.28s var(--ease-out-expo);
 
-  /* ── Shadows (bg-hue tinted, never pure black, linear-clean) ────── */
-  --shadow-sm: 0 1px 3px rgba(4, 5, 14, 0.5);
-  --shadow-md: 0 4px 12px rgba(4, 5, 14, 0.6);
-  --shadow-lg: 0 12px 32px rgba(4, 5, 14, 0.7), 0 0 0 1px rgba(108, 99, 255, 0.04);
-  --shadow-accent: 0 0 20px rgba(108, 99, 255, 0.2), 0 4px 12px rgba(4, 5, 14, 0.6);
+  /* ── Shadows (bg-hue tinted) ─────────────────────────────── */
+  --shadow-sm: 0 1px 3px rgba(4, 10, 22, 0.5);
+  --shadow-md: 0 4px 12px rgba(4, 10, 22, 0.6);
+  --shadow-lg: 0 12px 32px rgba(4, 10, 22, 0.7), 0 0 0 1px rgba(45, 212, 191, 0.04);
+  --shadow-accent: 0 0 20px rgba(45, 212, 191, 0.2), 0 4px 12px rgba(4, 10, 22, 0.6);
 
-  /* ── Double-Bezel Card borders ───────────────────────────── */
+  /* ── Bezels ──────────────────────────────────────────────── */
   --inner-bezel: inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
   --outer-bezel: 0 0 0 1px var(--border-color);
 
-  /* ── Z-index scale ────────────────────────────────────────── */
+  /* ── Z-index scale ───────────────────────────────────────── */
   --z-base:    1;
   --z-overlay: 100;
   --z-modal:   200;
