@@ -12,7 +12,19 @@
               var(--bg-base);
 }
 app-room-sidebar { grid-area: sidebar; }
-.room-main { grid-area: main; position: relative; min-width: 0; overflow: hidden; }
+.room-main {
+  grid-area: main;
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+app-room-stage {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+}
 .room-queue-panel {
   grid-area: queue; width: 296px; flex-shrink: 0; overflow: hidden;
   background: var(--bg-glass); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);

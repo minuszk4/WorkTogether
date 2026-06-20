@@ -267,7 +267,8 @@ export class PlayerEngineService implements OnDestroy {
       let action: 'play' | 'pause' | '' = '';
       if (state === 'playing' && this.currentState !== 'playing') action = 'play';
       else if (state === 'paused' && this.currentState === 'playing') action = 'pause';
-      if (action) this.playbackWs.sendControlCommand(action, Math.floor(posMS));
+      // Prevent feedback loops: custom player UI sends commands directly to server.
+      // if (action) this.playbackWs.sendControlCommand(action, Math.floor(posMS));
     });
   }
 
@@ -277,7 +278,8 @@ export class PlayerEngineService implements OnDestroy {
     let action: 'play' | 'pause' | '' = '';
     if (state === 'playing' && this.currentState !== 'playing') action = 'play';
     else if (state === 'paused' && this.currentState === 'playing') action = 'pause';
-    if (action) this.playbackWs.sendControlCommand(action, posMS);
+    // Prevent feedback loops: custom player UI sends commands directly to server.
+    // if (action) this.playbackWs.sendControlCommand(action, posMS);
   }
 
   private handlePlayerStateChange(state: number): void {
@@ -291,7 +293,8 @@ export class PlayerEngineService implements OnDestroy {
       if (state === ytPlaying && this.currentState !== 'playing') action = 'play';
       else if (state === ytPaused && this.currentState === 'playing') action = 'pause';
     } catch (e) {}
-    if (action) this.playbackWs.sendControlCommand(action, currentPosMS);
+    // Prevent feedback loops: custom player UI sends commands directly to server.
+    // if (action) this.playbackWs.sendControlCommand(action, currentPosMS);
   }
 
   private isUrlsSame(u1: string, u2: string): boolean {

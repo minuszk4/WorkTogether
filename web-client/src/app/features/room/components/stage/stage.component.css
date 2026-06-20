@@ -1,6 +1,100 @@
 :host { display: block; height: 100%; }
-.stage { height: 100%; display: flex; align-items: center; justify-content: center; padding: 32px 24px 110px; }
+.stage { height: 100%; width: 100%; display: flex; align-items: center; justify-content: center; padding: 32px 24px 110px; box-sizing: border-box; }
 .stage-music { display: flex; flex-direction: column; align-items: center; gap: 24px; }
 .stage-meta { min-width: 260px; justify-content: center; }
-.stage-media { width: 100%; height: 100%; background: var(--bg-base); border-radius: var(--radius-lg); overflow: hidden; }
+.stage-media { width: 100%; height: 100%; background: var(--bg-base); border-radius: var(--radius-lg); overflow: hidden; position: relative; }
+.video-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  padding: 16px;
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+}
+.video-grid-item {
+  position: relative;
+  aspect-ratio: 16/9;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: #000;
+  box-shadow: var(--shadow-sm);
+}
+.video-label {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  backdrop-filter: blur(4px);
+  z-index: 10;
+}
 @media (max-width: 768px) { .stage { padding: 16px 12px 96px; } }
+
+.screenshare-layout {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  gap: 16px;
+}
+.screenshare-main {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  position: relative;
+}
+.screenshare-camera-strip {
+  display: flex;
+  gap: 12px;
+  height: 100px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.strip-item {
+  position: relative;
+  width: 160px;
+  height: 90px;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: #000;
+  box-shadow: var(--shadow-sm);
+}
+.strip-label {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  padding: 3px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  backdrop-filter: blur(4px);
+  z-index: 10;
+}
+
+.screenshare-grid {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+  padding: 16px;
+  background: var(--bg-base);
+  border-radius: var(--radius-lg);
+  overflow-y: auto;
+}
+
+.screenshare-grid-item {
+  position: relative;
+  aspect-ratio: 16/9;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: #000;
+  box-shadow: var(--shadow-sm);
+}
