@@ -28,9 +28,6 @@
   --accent-glow-color: rgba(45, 212, 191, 0.18);
   --accent-gradient:  linear-gradient(135deg, #2dd4bf 0%, #38bdf8 50%, #6366f1 100%);
 
-  /* Legacy alias — temporary, removed after full migration (Task 16/20) */
-  --accent-alpha:   rgba(45, 212, 191, 0.12);
-
   /* ── Text ────────────────────────────────────────────────── */
   --text-primary:   #e6f1ff;
   --text-secondary: #8aa4c8;
