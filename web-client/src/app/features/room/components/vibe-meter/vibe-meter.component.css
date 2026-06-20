@@ -1,0 +1,85 @@
+.vibe-meter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  border-radius: var(--radius-full, 9999px);
+  background: var(--bg-glass, rgba(10, 22, 40, 0.4));
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-color, rgba(45, 212, 191, 0.15));
+  transition: all 0.5s ease;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.vibe-icon {
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vibe-label {
+  font-family: 'Outfit', sans-serif;
+  font-size: var(--text-sm-size, 14px);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary, #94a3b8);
+  transition: color 0.5s;
+}
+
+.vibe-value {
+  color: var(--text-primary, #ffffff);
+}
+
+/* Chill Theme (Default) */
+.vibe-meter.vibe-chill {
+  border-color: rgba(45, 212, 191, 0.3);
+  box-shadow: 0 0 15px rgba(45, 212, 191, 0.15);
+  animation: pulse-chill 3s ease-in-out infinite;
+}
+.vibe-meter.vibe-chill .vibe-value {
+  color: #2dd4bf; /* Teal */
+}
+
+/* Hype Theme */
+.vibe-meter.vibe-hype {
+  border-color: rgba(249, 115, 22, 0.4);
+  box-shadow: 0 0 20px rgba(249, 115, 22, 0.25);
+  animation: pulse-hype 1.5s ease-in-out infinite;
+}
+.vibe-meter.vibe-hype .vibe-value {
+  color: #f97316; /* Orange */
+}
+
+/* Study Theme */
+.vibe-meter.vibe-study {
+  border-color: rgba(168, 85, 247, 0.4);
+  box-shadow: 0 0 15px rgba(168, 85, 247, 0.2);
+  animation: pulse-study 4s ease-in-out infinite;
+}
+.vibe-meter.vibe-study .vibe-value {
+  color: #a855f7; /* Purple */
+}
+
+@keyframes pulse-chill {
+  0%, 100% { box-shadow: 0 0 12px rgba(45, 212, 191, 0.1); }
+  50% { box-shadow: 0 0 20px rgba(45, 212, 191, 0.25); }
+}
+
+@keyframes pulse-hype {
+  0%, 100% { box-shadow: 0 0 12px rgba(249, 115, 22, 0.15); transform: scale(1); }
+  50% { box-shadow: 0 0 25px rgba(249, 115, 22, 0.4); transform: scale(1.03); }
+}
+
+@keyframes pulse-study {
+  0%, 100% { box-shadow: 0 0 10px rgba(168, 85, 247, 0.1); }
+  50% { box-shadow: 0 0 18px rgba(168, 85, 247, 0.25); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vibe-meter {
+    animation: none !important;
+    transform: none !important;
+  }
+}
