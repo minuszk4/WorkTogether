@@ -15,14 +15,28 @@ type Client struct {
 	Hub      *Hub
 }
 
+type MemberState struct {
+	IsPlaying  bool  `json:"is_playing"`
+	PositionMS int   `json:"position_ms"`
+	UpdatedAt  int64 `json:"updated_at"`
+}
+
+type RoomPresence struct {
+	sync.RWMutex
+	MemberStates    map[string]MemberState
+	RecentReactions map[string]int
+}
+
 type Hub struct {
 	sync.RWMutex
-	Rooms map[string]map[*Client]bool
+	Rooms         map[string]map[*Client]bool
+	RoomPresences map[string]*RoomPresence
 }
 
 func NewHub() *Hub {
 	return &Hub{
-		Rooms: make(map[string]map[*Client]bool),
+		Rooms:         make(map[string]map[*Client]bool),
+		RoomPresences: make(map[string]*RoomPresence),
 	}
 }
 
