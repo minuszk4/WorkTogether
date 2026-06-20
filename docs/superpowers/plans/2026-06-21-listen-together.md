@@ -15,17 +15,21 @@
 
 ---
 
-### Task 1: Database Migration for Lyrics & Bookmarks (`music-service`)
+### Task 1: Database Migrations (`music-service` & `room-service`)
 
 **Files:**
 - Create: `services/music-service/db/migrations/000002_add_lyrics_and_bookmarks.up.sql`
+- Create: `services/room-service/db/migrations/000002_add_room_settings.up.sql`
 - Modify: `services/music-service/internal/repository/postgres.go`
+- Modify: `services/room-service/internal/repository/postgres.go`
 
 **Interfaces:**
-- Consumes: PostgreSQL DB connection instance in repository package.
-- Produces: `track_lyrics` và `bookmarks` tables in Postgres database.
+- Consumes: PostgreSQL DB connection instance in repository packages.
+- Produces: 
+  - `track_lyrics` và `bookmarks` tables in Postgres database (`music-service`).
+  - `add_music_policy` column in `rooms` table (`room-service`).
 
-- [ ] **Step 1: Write migration SQL file**
+- [ ] **Step 1: Write migration SQL files**
   Create file `services/music-service/db/migrations/000002_add_lyrics_and_bookmarks.up.sql` with:
   ```sql
   CREATE TABLE IF NOT EXISTS track_lyrics (
@@ -47,6 +51,11 @@
       CONSTRAINT fk_track_bookmark FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE
   );
   CREATE INDEX IF NOT EXISTS idx_bookmarks_room ON bookmarks(room_id);
+  ```
+
+  Create file `services/room-service/db/migrations/000002_add_room_settings.up.sql` with:
+  ```sql
+  ALTER TABLE rooms ADD COLUMN IF NOT EXISTS add_music_policy VARCHAR(20) NOT NULL DEFAULT 'all';
   ```
 
 - [ ] **Step 2: Add table initialization logic in postgres.go**
@@ -80,13 +89,20 @@
   ```
 
 - [ ] **Step 3: Run migration verification**
-  Run: `docker compose restart music-service`
-  Expected: Service starts cleanly, prints logs: "Đã khởi tạo schema PostgreSQL cho music-service thành công."
+  Run:
+  ```powershell
+  # Chạy script migration cho room-service
+  .\migrate.ps1
+  
+  # Khởi động lại music-service để nó chạy initTables trong code
+  docker compose restart music-service
+  ```
+  Expected: Migrations succeed for both services. Bảng `rooms` có cột `add_music_policy`, và các bảng `track_lyrics`, `bookmarks` được tạo thành công.
 
 - [ ] **Step 4: Commit**
   ```bash
-  git add services/music-service/db/migrations/000002_add_lyrics_and_bookmarks.up.sql services/music-service/internal/repository/postgres.go
-  git commit -m "migration: add track_lyrics and bookmarks tables"
+  git add services/music-service/db/migrations/000002_add_lyrics_and_bookmarks.up.sql services/music-service/internal/repository/postgres.go services/room-service/db/migrations/000002_add_room_settings.up.sql
+  git commit -m "migration: add track_lyrics, bookmarks tables and add_music_policy column"
   ```
 
 ---
@@ -658,4 +674,69 @@
   ```bash
   git add web-client/src/app/features/room/components/poll-widget/ web-client/src/app/features/room/components/sidebar/sidebar.component.ts
   git commit -m "feat(client): implement poll widget overlay and guest DJ UI controls"
+  ```
+
+---
+
+### Task 12: Room Settings REST API (`room-service`)
+
+**Files:**
+- Modify: `services/room-service/internal/domain/room.go` (or models file)
+- Modify: `services/room-service/internal/repository/postgres.go`
+- Modify: `services/room-service/internal/usecase/room.go`
+- Modify: `services/room-service/internal/delivery/http/handlers.go`
+
+**Interfaces:**
+- Consumes: PostgreSQL DB connection.
+- Produces: HTTP API: `PUT /api/v1/rooms/:id/settings` (allowed only for Room Owner).
+
+- [ ] **Step 1: Update Domain struct**
+  Add field `AddMusicPolicy` to Room domain models.
+
+- [ ] **Step 2: Update Repository UpdateRoom**
+  Modify Postgres repository in `postgres.go` to include `add_music_policy` in the UPDATE statement.
+
+- [ ] **Step 3: Implement settings update endpoint**
+  In handlers.go, implement update handler, checking if requester is room owner. Register `PUT /:id/settings` route in `main.go`.
+
+- [ ] **Step 4: Commit**
+  ```bash
+  git add services/room-service/
+  git commit -m "feat(room): implement PUT settings API and policy storage"
+  ```
+
+---
+
+### Task 13: Web Client Room Settings & Policy Enforcement
+
+**Files:**
+- Modify: `web-client/src/app/core/services/api.service.ts`
+- Modify: `web-client/src/app/features/room/components/queue/queue.component.ts`
+- Modify: `web-client/src/app/features/room/components/queue/queue.component.html`
+- Modify: `web-client/src/app/features/room/room.component.ts`
+
+**Interfaces:**
+- Consumes: `updateRoomSettings` API.
+- Produces: 
+  - Room settings modal for Owner to toggle Add Music Policy.
+  - Conditional rendering/locking of the "Add Music" queue form.
+
+- [ ] **Step 1: Add update settings API in client**
+  Add `updateRoomSettings(roomId: string, settings: any)` in `api.service.ts`.
+
+- [ ] **Step 2: Add policy checks in QueueComponent**
+  In `queue.component.ts`, define a `canAddMusic` getter that checks:
+  - If policy is `'all'` -> true.
+  - If policy is `'nobody'` -> checks if user is Host/Moderator.
+  - If policy is `'dj_only'` -> checks if user is Host/Moderator OR is the active Guest DJ from WebSocket.
+  Wrap the form in `queue.component.html` with `@if (canAddMusic) { ... }`.
+
+- [ ] **Step 3: Verify all tests compile and pass**
+  Run: `npm run test -- --watch=false --browsers=ChromeHeadless`
+  Expected: 100% SUCCESS.
+
+- [ ] **Step 4: Commit**
+  ```bash
+  git add web-client/
+  git commit -m "feat(client): implement room settings policy enforcement UI"
   ```
