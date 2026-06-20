@@ -19,7 +19,27 @@ app-room-sidebar { grid-area: sidebar; }
   border-left: 1px solid var(--border-color);
   animation: panel-slide-in var(--transition-panel);
 }
-.room-player-bar { grid-area: player; }
+.room-player-bar { grid-area: player; position: relative; display: flex; flex-direction: column; align-items: center; }
+
+app-room-vibe-meter {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: var(--z-overlay);
+}
+
+app-room-reactions-canvas {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: var(--z-overlay);
+}
+
+app-room-quick-reactions {
+  position: absolute;
+  bottom: 96px;
+  z-index: var(--z-overlay);
+}
 .room-chat-dock {
   position: absolute; top: 0; right: 0; bottom: 80px; width: 340px; z-index: var(--z-overlay);
   background: var(--bg-glass); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);

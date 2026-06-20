@@ -15,13 +15,17 @@ import { VoicePillsComponent } from './components/voice-pills/voice-pills.compon
 import { ChatComponent } from './components/chat/chat.component';
 import { QueueComponent } from './components/queue/queue.component';
 import { PlayerBarComponent } from './components/player-bar/player-bar.component';
+import { QuickReactionsComponent } from './components/quick-reactions/quick-reactions.component';
+import { ReactionsCanvasComponent } from './components/reactions-canvas/reactions-canvas.component';
+import { RoomVibeMeterComponent } from './components/vibe-meter/vibe-meter.component';
 
 @Component({
   selector: 'app-room',
   standalone: true,
   imports: [
     CommonModule, SidebarComponent, StageComponent,
-    VoicePillsComponent, ChatComponent, QueueComponent, PlayerBarComponent
+    VoicePillsComponent, ChatComponent, QueueComponent, PlayerBarComponent,
+    QuickReactionsComponent, ReactionsCanvasComponent, RoomVibeMeterComponent
   ],
   templateUrl: './room.component.html',
   styleUrl: './room.component.css'

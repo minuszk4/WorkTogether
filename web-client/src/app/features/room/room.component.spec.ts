@@ -42,7 +42,10 @@ describe('RoomComponent', () => {
       disconnect: () => {},
       messageReceived$: new BehaviorSubject(null),
       messageDeleted$: new BehaviorSubject(null),
-      pinnedUpdate$: new BehaviorSubject(null)
+      pinnedUpdate$: new BehaviorSubject(null),
+      listenerStates$: new BehaviorSubject({}),
+      liveReaction$: new BehaviorSubject(null),
+      roomVibe$: new BehaviorSubject(null)
     };
     mockPlaybackWsService = {
       connect: () => {},
