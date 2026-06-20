@@ -60,6 +60,9 @@ export class RoomVideoTrackComponent implements AfterViewInit, OnDestroy, OnChan
       }
     } else {
       console.log('[RoomVideoTrackComponent Debug] Cannot attach track. Has track:', !!this.track, 'Has videoEl:', !!this.videoEl);
+      if (this.videoEl) {
+        this.videoEl.nativeElement.srcObject = null;
+      }
     }
   }
 
@@ -70,6 +73,9 @@ export class RoomVideoTrackComponent implements AfterViewInit, OnDestroy, OnChan
       } catch (e) {
         console.warn('Failed to detach track:', e);
       }
+    }
+    if (this.videoEl) {
+      this.videoEl.nativeElement.srcObject = null;
     }
   }
 }

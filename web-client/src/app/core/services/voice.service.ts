@@ -17,7 +17,8 @@ export class VoiceService {
   public isCameraActive$ = new BehaviorSubject<boolean>(false);
 
   constructor() {
-    this.forceWebRtcTcpOnly();
+    // TCP-only is disabled to allow high-performance UDP. WebRTC will automatically fallback to TCP if UDP is blocked.
+    // this.forceWebRtcTcpOnly();
   }
 
   private forceWebRtcTcpOnly(): void {

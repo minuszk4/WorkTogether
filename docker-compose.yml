@@ -53,6 +53,7 @@ services:
     ports:
       - "7880:7880"
       - "7881:7881"
+      - "50000-50050:50000-50050/udp"
     volumes:
       - ./docker/livekit/livekit.yaml:/etc/livekit.yaml
     restart: unless-stopped
