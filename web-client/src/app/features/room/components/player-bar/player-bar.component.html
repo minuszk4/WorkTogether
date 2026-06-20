@@ -1,0 +1,41 @@
+<!-- Hidden media hosts (by id, used by PlayerEngineService) -->
+<div class="media-host" aria-hidden="true">
+  <div id="youtube-player-element"></div>
+  <iframe id="soundcloud-player-element" width="1" height="1" scrolling="no" frameborder="no" allow="autoplay" src=""></iframe>
+</div>
+<audio id="html5-audio-element" style="display:none;"></audio>
+
+<div class="player-bar">
+  <div class="pb-left">
+    <app-room-now-playing [track]="engine.currentTrack"></app-room-now-playing>
+  </div>
+
+  <div class="pb-center">
+    <app-room-transport [isPlaying]="isPlaying"
+                        (playPause)="onPlayPause()"
+                        (prev)="onPrev()"
+                        (next)="onNext()"></app-room-transport>
+    <div class="pb-seek">
+      <span class="pb-time">{{ engine.formatTime(progressMs) }}</span>
+      <app-room-seekbar [pct]="pct" (seek)="onSeek($event)"></app-room-seekbar>
+      <span class="pb-time">{{ engine.formatTime(engine.currentTrack ? engine.currentTrack.duration_ms : 0) }}</span>
+    </div>
+  </div>
+
+  <div class="pb-right">
+    <app-room-volume-control [volumePct]="volumePct" (volume)="onVolume($event)"></app-room-volume-control>
+    
+    <app-icon-button [label]="queueOpen ? 'Ẩn hàng đợi' : 'Mở hàng đợi'" [variant]="queueOpen ? 'active' : 'default'" (clicked)="toggleQueue()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+    </app-icon-button>
+
+    <div class="chat-toggle-container">
+      <app-icon-button [label]="chatOpen ? 'Đóng chat' : 'Mở chat'" [variant]="chatOpen ? 'active' : 'default'" (clicked)="toggleChat()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      </app-icon-button>
+      @if (unreadCount > 0 && !chatOpen) {
+        <span class="unread-badge">{{ unreadCount }}</span>
+      }
+    </div>
+  </div>
+</div>
