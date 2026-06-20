@@ -116,7 +116,7 @@
 
 .queue-text-input:focus {
   border-color: var(--border-focus);
-  box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.12);
+  box-shadow: 0 0 0 3px var(--accent-dim);
   background-color: rgba(8, 9, 16, 0.8);
 }
 
@@ -143,7 +143,7 @@
 
 .btn-add-queue:hover:not(:disabled) {
   background-color: var(--accent-hover);
-  box-shadow: 0 0 16px rgba(108, 99, 255, 0.35);
+  box-shadow: 0 0 16px rgba(45, 212, 191, 0.35);
 }
 
 .btn-add-queue:active:not(:disabled) {
@@ -253,8 +253,8 @@
 
 .vote-badge:hover {
   color: var(--accent-primary);
-  background-color: var(--accent-glow);
-  border-color: rgba(108, 99, 255, 0.25);
+  background-color: var(--accent-dim);
+  border-color: rgba(45, 212, 191, 0.25);
 }
 
 .vote-badge:active {
@@ -262,10 +262,10 @@
 }
 
 .vote-badge.upvoted {
-  color: #fff;
+  color: #05121f;
   background-color: var(--accent-primary);
   border-color: var(--accent-primary);
-  box-shadow: 0 2px 8px rgba(108, 99, 255, 0.25);
+  box-shadow: 0 2px 8px rgba(45, 212, 191, 0.25);
 }
 
 .vote-badge.upvoted:hover {
@@ -443,9 +443,9 @@
 }
 
 .member-role-badge.owner {
-  background-color: rgba(108, 99, 255, 0.1);
+  background-color: var(--accent-dim);
   color: var(--accent-primary);
-  border-color: rgba(108, 99, 255, 0.2);
+  border-color: rgba(45, 212, 191, 0.2);
 }
 
 .member-role-badge.moderator {
@@ -630,6 +630,6 @@
   opacity: 0.45;
   border: 1px dashed var(--accent-primary);
   transform: scale(0.97) translateY(0);
-  background-color: rgba(108, 99, 255, 0.05);
+  background-color: rgba(45, 212, 191, 0.05);
   box-shadow: none;
 }
