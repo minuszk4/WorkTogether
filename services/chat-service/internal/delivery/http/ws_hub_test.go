@@ -46,3 +46,28 @@ func TestRecordReaction(t *testing.T) {
 		t.Errorf("Expected reaction count to be 1, got %d", count)
 	}
 }
+
+func TestDetermineVibe(t *testing.T) {
+	h := NewHub()
+	
+	// Case 1: Hype dominates
+	r1 := map[string]int{"🔥": 5, "❤️": 2}
+	vibe, _ := h.determineVibe(r1)
+	if vibe != "hype" {
+		t.Errorf("Expected hype, got %s", vibe)
+	}
+
+	// Case 2: Study dominates
+	r2 := map[string]int{"📚": 3, "👏": 1}
+	vibe, _ = h.determineVibe(r2)
+	if vibe != "study" {
+		t.Errorf("Expected study, got %s", vibe)
+	}
+
+	// Case 3: Chill dominates
+	r3 := map[string]int{"😮": 4, "📚": 1}
+	vibe, _ = h.determineVibe(r3)
+	if vibe != "chill" {
+		t.Errorf("Expected chill, got %s", vibe)
+	}
+}

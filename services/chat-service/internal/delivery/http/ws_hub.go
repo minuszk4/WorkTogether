@@ -1,10 +1,13 @@
 package http
 
 import (
+	"encoding/json"
 	"sync"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	"github.com/worktogether/services/chat-service/internal/domain"
 )
 
 type Client struct {
@@ -115,4 +118,61 @@ func (h *Hub) RecordReaction(roomID string, emoji string) {
 	presence.Lock()
 	presence.RecentReactions[emoji]++
 	presence.Unlock()
+}
+
+func (h *Hub) determineVibe(reactions map[string]int) (string, map[string]int) {
+	hypeCount := reactions["🔥"] + reactions["👏"]
+	chillCount := reactions["❤️"] + reactions["😮"]
+	studyCount := reactions["📚"]
+
+	currentVibe := "chill" // default
+	if hypeCount > chillCount && hypeCount > studyCount {
+		currentVibe = "hype"
+	} else if studyCount > chillCount && studyCount > hypeCount {
+		currentVibe = "study"
+	} else if chillCount > 0 {
+		currentVibe = "chill"
+	}
+
+	scores := map[string]int{
+		"chill": chillCount,
+		"hype":  hypeCount,
+		"study": studyCount,
+	}
+	return currentVibe, scores
+}
+
+func (h *Hub) StartVibeTicker() {
+	ticker := time.NewTicker(5 * time.Second)
+	go func() {
+		for range ticker.C {
+			h.Lock()
+			for roomID, presence := range h.RoomPresences {
+				presence.Lock()
+				
+				currentVibe, scores := h.determineVibe(presence.RecentReactions)
+
+				vibeMsg := domain.WSMessage{
+					Event:  "presence:vibe_tick",
+					RoomID: roomID,
+					Payload: gin.H{
+						"current_vibe": currentVibe,
+						"vibe_scores": gin.H{
+							"chill": scores["chill"],
+							"hype":  scores["hype"],
+							"study": scores["study"],
+						},
+					},
+				}
+				data, _ := json.Marshal(vibeMsg)
+
+				// Decay (clear for next tick)
+				presence.RecentReactions = make(map[string]int)
+				presence.Unlock()
+
+				go h.BroadcastToRoom(roomID, data)
+			}
+			h.Unlock()
+		}
+	}()
 }

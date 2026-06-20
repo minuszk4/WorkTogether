@@ -99,6 +99,7 @@ func main() {
 	repo := repository.NewPostgresRepository(db)
 	uc := usecase.NewChatUsecase(repo)
 	hub := delivery.NewHub()
+	hub.StartVibeTicker()
 	handler := delivery.NewChatHandler(uc, hub, roomClient)
 
 	// 5. Khởi chạy Redis Stream Worker (Ngắt socket khi bị kick/ban)
