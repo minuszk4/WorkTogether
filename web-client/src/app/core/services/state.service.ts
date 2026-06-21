@@ -34,12 +34,6 @@ export class StateService {
   });
 
   constructor() {
-    // Restore access token from local storage if exists
-    const savedToken = localStorage.getItem('accessToken');
-    if (savedToken) {
-      this.accessToken$.next(savedToken);
-    }
-
     // Restore user from local storage if exists
     const savedUser = localStorage.getItem('user');
     if (savedUser) {
@@ -49,15 +43,6 @@ export class StateService {
         localStorage.removeItem('user');
       }
     }
-
-    // Save access token to local storage on change
-    this.accessToken$.subscribe(token => {
-      if (token) {
-        localStorage.setItem('accessToken', token);
-      } else {
-        localStorage.removeItem('accessToken');
-      }
-    });
 
     // Save user to local storage on change
     this.user$.subscribe(user => {

@@ -1,5 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { StateService } from './state.service';
+import { environment } from '../../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
@@ -80,9 +81,13 @@ export class NotificationStreamService {
   }
 
   private buildStreamUrl(token: string): string {
-    const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
-    const hostname = window.location.hostname || 'localhost';
-    const port = '8080';
-    return `${protocol}//${hostname}:${port}/api/v1/notifications/stream?token=${encodeURIComponent(token)}`;
+    let baseUrl = environment.apiUrl;
+    if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
+      const protocol = window.location.protocol;
+      const host = window.location.host;
+      const separator = baseUrl.startsWith('/') ? '' : '/';
+      baseUrl = `${protocol}//${host}${separator}${baseUrl}`;
+    }
+    return `${baseUrl}/notifications/stream?token=${encodeURIComponent(token)}`;
   }
 }
