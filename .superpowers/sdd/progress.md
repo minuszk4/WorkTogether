@@ -2,7 +2,7 @@
 
 | Task | Status | Commits | Review Status |
 |------|--------|---------|---------------|
-| Task 1: Room-service Sub-rooms Migration & REST API | ⏳ Pending | | |
+| Task 1: Room-service Sub-rooms Migration & REST API | ✅ Complete | f75f3ca | review clean |
 | Task 2: Playback-service gRPC Server & Round-Robin Queue Selection | ⏳ Pending | | |
 | Task 3: Timer-service Scaffolding, WebSocket & Playback Integration | ⏳ Pending | | |
 | Task 4: Collab-service Scaffolding, DB Schema & WebSocket Notes Sync | ⏳ Pending | | |
