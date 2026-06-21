@@ -1,10 +1,11 @@
-# Progress Ledger — Phase 4: Bonding & Memories
+# Progress Ledger — Critical Production Readiness Fixes
 
 | Task | Status | Commits | Review Status |
 |------|--------|---------|---------------|
-| Task 1: Room-service Schema & Repository Identity Support | ⏳ Pending | | |
-| Task 2: Room-service Usecase & Settings HTTP Handlers | ⏳ Pending | | |
-| Task 3: Playback-service Log History Trigger | ⏳ Pending | | |
-| Task 4: Music-service Room Stats API | ⏳ Pending | | |
-| Task 5: Web Client Settings Identity Editor | ⏳ Pending | | |
-| Task 6: Web Client History and Stats Visualization | ⏳ Pending | | |
+| Task 1: Nginx Gateway Configuration (CORS & Log Masking) | ✅ Done | 91d89ea | |
+| Task 2: Frontend Environment & API/WS Url upgrades (C2) | ⏳ Pending | | |
+| Task 3: Backend Redirects (C2) | ⏳ Pending | | |
+| Task 4: JWT secret fail-fast validation in all 11 Go services (C3) | ⏳ Pending | | |
+| Task 5: Voice Service LiveKit secret fail-fast validation (M3) | ⏳ Pending | | |
+| Task 6: In-memory token storage (C4) in frontend & Async Guard | ⏳ Pending | | |
+| Task 7: Git cleanup & ignore build patterns (C6) | ⏳ Pending | | |
