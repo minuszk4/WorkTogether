@@ -166,7 +166,7 @@ func (r *PostgresRepository) SearchMessages(ctx context.Context, roomID, query s
 		return nil, err
 	}
 	defer rows.Close()
-	var list []*domain.Message
+	list := []*domain.Message{}
 	for rows.Next() {
 		msg := &domain.Message{}
 		var replyTo sql.NullString

@@ -147,6 +147,53 @@ func TestAuthUsecase_ResetPassword(t *testing.T) {
 		}
 	})
 
+	t.Run("missing sub claim", func(t *testing.T) {
+		missingSubToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+			"type": "password_reset",
+			"exp":  time.Now().Add(15 * time.Minute).Unix(),
+		})
+		missingSubTokenStr, _ := missingSubToken.SignedString([]byte(jwtSecret))
+
+		err := uc.ResetPassword(ctx, missingSubTokenStr, "newpassword123")
+		if err == nil {
+			t.Error("expected error, got nil")
+		} else if err.Error() != "token không hợp lệ" {
+			t.Errorf("unexpected error: %s", err.Error())
+		}
+	})
+
+	t.Run("empty sub claim", func(t *testing.T) {
+		emptySubToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+			"sub":  "",
+			"type": "password_reset",
+			"exp":  time.Now().Add(15 * time.Minute).Unix(),
+		})
+		emptySubTokenStr, _ := emptySubToken.SignedString([]byte(jwtSecret))
+
+		err := uc.ResetPassword(ctx, emptySubTokenStr, "newpassword123")
+		if err == nil {
+			t.Error("expected error, got nil")
+		} else if err.Error() != "token không hợp lệ" {
+			t.Errorf("unexpected error: %s", err.Error())
+		}
+	})
+
+	t.Run("invalid sub type", func(t *testing.T) {
+		invalidSubTypeToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+			"sub":  12345,
+			"type": "password_reset",
+			"exp":  time.Now().Add(15 * time.Minute).Unix(),
+		})
+		invalidSubTypeTokenStr, _ := invalidSubTypeToken.SignedString([]byte(jwtSecret))
+
+		err := uc.ResetPassword(ctx, invalidSubTypeTokenStr, "newpassword123")
+		if err == nil {
+			t.Error("expected error, got nil")
+		} else if err.Error() != "token không hợp lệ" {
+			t.Errorf("unexpected error: %s", err.Error())
+		}
+	})
+
 	t.Run("invalid secret key", func(t *testing.T) {
 		wrongToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 			"sub":  "acc-123",

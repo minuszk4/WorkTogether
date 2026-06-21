@@ -28,6 +28,17 @@ func NewChatUsecase(repo *repository.PostgresRepository, rdb *redis.Client) *Cha
 }
 
 func (u *ChatUsecase) SaveMessage(ctx context.Context, senderID, roomID string, req *domain.SendMessagePayload) (*domain.Message, error) {
+	// Filter and deduplicate mentions: skip empty strings, deduplicate list, and filter out senderID
+	var uniqueMentions []string
+	seen := make(map[string]bool)
+	for _, m := range req.Mentions {
+		if m != "" && m != senderID && !seen[m] {
+			seen[m] = true
+			uniqueMentions = append(uniqueMentions, m)
+		}
+	}
+	req.Mentions = uniqueMentions
+
 	msg := &domain.Message{
 		ID:        uuid.New().String(),
 		RoomID:    roomID,

@@ -17,6 +17,7 @@ type Client struct {
 	Conn     *websocket.Conn
 	Send     chan []byte
 	Hub      *Hub
+	CanChat  bool
 }
 
 type MemberState struct {

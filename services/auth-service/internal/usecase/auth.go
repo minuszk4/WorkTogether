@@ -365,7 +365,10 @@ func (u *AuthUsecase) ResetPassword(ctx context.Context, tokenStr, newPassword s
 	if !ok || claims["type"] != "password_reset" {
 		return errors.New("token không hợp lệ")
 	}
-	accountID, _ := claims["sub"].(string)
+	accountID, ok := claims["sub"].(string)
+	if !ok || accountID == "" {
+		return errors.New("token không hợp lệ")
+	}
 	hashedPassword, err := u.hashPassword(newPassword)
 	if err != nil {
 		return err

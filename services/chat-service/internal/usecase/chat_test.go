@@ -248,5 +248,36 @@ func TestSaveMessage(t *testing.T) {
 			t.Errorf("unexpected message state: %+v", msg)
 		}
 	})
+
+	t.Run("Success with Duplicate and Self Mentions", func(t *testing.T) {
+		senderID := "user-1"
+		roomID := "room-1"
+		req := &domain.SendMessagePayload{
+			Content:  "hello @user-2 @user-1",
+			Mentions: []string{"user-2", "user-1", "user-2", "", "user-3"},
+		}
+
+		mock.ExpectExec(regexp.QuoteMeta("INSERT INTO messages (id, room_id, sender_id, content, reply_to_id, is_edited, created_at)")).
+			WillReturnResult(sqlmock.NewResult(1, 1))
+
+		msg, err := uc.SaveMessage(ctx, senderID, roomID, req)
+		if err != nil {
+			t.Errorf("expected no error, got %v", err)
+		}
+		if msg == nil || msg.SenderID != senderID || msg.RoomID != roomID {
+			t.Errorf("unexpected message state: %+v", msg)
+		}
+		// Expect Mentions to have only "user-2" and "user-3"
+		expectedMentions := []string{"user-2", "user-3"}
+		if len(req.Mentions) != len(expectedMentions) {
+			t.Errorf("expected mentions %v, got %v", expectedMentions, req.Mentions)
+		} else {
+			for i, m := range req.Mentions {
+				if m != expectedMentions[i] {
+					t.Errorf("expected mention at %d to be %s, got %s", i, expectedMentions[i], m)
+				}
+			}
+		}
+	})
 }
 

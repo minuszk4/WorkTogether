@@ -63,11 +63,15 @@ func (h *ChatHandler) HandleWS(c *gin.Context) {
 		return
 	}
 
-	// Trích xuất permissions lưu vào phiên kết nối (cho phép canModerate)
+	// Trích xuất permissions lưu vào phiên kết nối (cho phép canModerate và canChat)
 	canModerate := false
+	canChat := false
 	for _, p := range res.Permissions {
 		if p == "CAN_MODERATE_MEMBERS" {
 			canModerate = true
+		}
+		if p == "CAN_CHAT" {
+			canChat = true
 		}
 	}
 
@@ -78,6 +82,7 @@ func (h *ChatHandler) HandleWS(c *gin.Context) {
 		Conn:     conn,
 		Send:     make(chan []byte, 256),
 		Hub:      h.hub,
+		CanChat:  canChat,
 	}
 
 	h.hub.Register(client)
@@ -261,6 +266,10 @@ func (c *Client) readPump(uc *usecase.ChatUsecase, canModerate bool) {
 			c.Hub.BroadcastToRoom(c.RoomID, data)
 
 		case "chat:send_message":
+			if !c.CanChat {
+				log.Printf("[WS WARN] Muted user %s tried to send message in room %s\n", c.UserID, c.RoomID)
+				continue
+			}
 			var payload domain.SendMessagePayload
 			payloadBytes, _ := json.Marshal(incoming.Payload)
 			_ = json.Unmarshal(payloadBytes, &payload)
@@ -284,6 +293,9 @@ func (c *Client) readPump(uc *usecase.ChatUsecase, canModerate bool) {
 			}
 
 		case "chat:typing":
+			if !c.CanChat {
+				continue
+			}
 			var payload domain.TypingPayload
 			payloadBytes, _ := json.Marshal(incoming.Payload)
 			_ = json.Unmarshal(payloadBytes, &payload)
