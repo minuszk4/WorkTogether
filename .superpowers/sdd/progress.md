@@ -2,7 +2,7 @@
 
 | Task | Status | Commits | Review Status |
 |------|--------|---------|---------------|
-| Task 1: Nginx Gateway Configuration (CORS & Log Masking) | ✅ Done | 91d89ea | |
+| Task 1: Nginx Gateway Configuration (CORS & Log Masking) | ✅ Done | b1b57a5..eac3935 | Review clean |
 | Task 2: Frontend Environment & API/WS Url upgrades (C2) | ⏳ Pending | | |
 | Task 3: Backend Redirects (C2) | ⏳ Pending | | |
 | Task 4: JWT secret fail-fast validation in all 11 Go services (C3) | ⏳ Pending | | |
