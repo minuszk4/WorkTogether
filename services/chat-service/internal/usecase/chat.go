@@ -45,13 +45,16 @@ func (u *ChatUsecase) GetMessagesByRoom(ctx context.Context, roomID string, befo
 	return u.repo.GetMessagesByRoom(ctx, roomID, beforeID, limit)
 }
 
-func (u *ChatUsecase) EditMessage(ctx context.Context, userID, msgID, content string) (*domain.Message, error) {
+func (u *ChatUsecase) EditMessage(ctx context.Context, userID, roomID, msgID, content string) (*domain.Message, error) {
 	msg, err := u.repo.GetMessageByID(ctx, msgID)
 	if err != nil {
 		return nil, err
 	}
 	if msg == nil {
 		return nil, ErrMessageNotFound
+	}
+	if msg.RoomID != roomID {
+		return nil, ErrUnauthorized
 	}
 
 	// Chỉ người gửi mới được sửa tin
@@ -73,13 +76,16 @@ func (u *ChatUsecase) EditMessage(ctx context.Context, userID, msgID, content st
 	return msg, nil
 }
 
-func (u *ChatUsecase) DeleteMessage(ctx context.Context, userID, msgID string, canModerate bool) error {
+func (u *ChatUsecase) DeleteMessage(ctx context.Context, userID, roomID, msgID string, canModerate bool) error {
 	msg, err := u.repo.GetMessageByID(ctx, msgID)
 	if err != nil {
 		return err
 	}
 	if msg == nil {
 		return ErrMessageNotFound
+	}
+	if msg.RoomID != roomID {
+		return ErrUnauthorized
 	}
 
 	// Người gửi có quyền xóa tin của mình, hoặc moderator có quyền xóa bất kỳ tin nào
@@ -90,7 +96,15 @@ func (u *ChatUsecase) DeleteMessage(ctx context.Context, userID, msgID string, c
 	return u.repo.DeleteMessage(ctx, msgID)
 }
 
-func (u *ChatUsecase) AddReaction(ctx context.Context, userID, msgID, emoji string) (*domain.MessageReaction, error) {
+func (u *ChatUsecase) AddReaction(ctx context.Context, userID, roomID, msgID, emoji string) (*domain.MessageReaction, error) {
+	msg, err := u.repo.GetMessageByID(ctx, msgID)
+	if err != nil {
+		return nil, err
+	}
+	if msg == nil || msg.RoomID != roomID {
+		return nil, ErrUnauthorized
+	}
+
 	rx := &domain.MessageReaction{
 		MessageID: msgID,
 		UserID:    userID,
@@ -103,11 +117,35 @@ func (u *ChatUsecase) AddReaction(ctx context.Context, userID, msgID, emoji stri
 	return rx, nil
 }
 
-func (u *ChatUsecase) RemoveReaction(ctx context.Context, userID, msgID, emoji string) error {
+func (u *ChatUsecase) RemoveReaction(ctx context.Context, userID, roomID, msgID, emoji string) error {
+	msg, err := u.repo.GetMessageByID(ctx, msgID)
+	if err != nil {
+		return err
+	}
+	if msg == nil || msg.RoomID != roomID {
+		return ErrUnauthorized
+	}
+
 	return u.repo.RemoveReaction(ctx, msgID, userID, emoji)
 }
 
 func (u *ChatUsecase) PinMessage(ctx context.Context, userID, roomID, msgID string) (*domain.MessagePin, error) {
+	msg, err := u.repo.GetMessageByID(ctx, msgID)
+	if err != nil {
+		return nil, err
+	}
+	if msg == nil || msg.RoomID != roomID {
+		return nil, ErrUnauthorized
+	}
+
+	pinnedCount, err := u.repo.GetPinnedCount(ctx, roomID)
+	if err != nil {
+		return nil, err
+	}
+	if pinnedCount >= 10 {
+		return nil, errors.New("vượt quá giới hạn 10 tin nhắn ghim cho phòng này")
+	}
+
 	pin := &domain.MessagePin{
 		MessageID: msgID,
 		RoomID:    roomID,
@@ -120,7 +158,15 @@ func (u *ChatUsecase) PinMessage(ctx context.Context, userID, roomID, msgID stri
 	return pin, nil
 }
 
-func (u *ChatUsecase) UnpinMessage(ctx context.Context, msgID string) error {
+func (u *ChatUsecase) UnpinMessage(ctx context.Context, userID, roomID, msgID string) error {
+	msg, err := u.repo.GetMessageByID(ctx, msgID)
+	if err != nil {
+		return err
+	}
+	if msg == nil || msg.RoomID != roomID {
+		return ErrUnauthorized
+	}
+
 	return u.repo.UnpinMessage(ctx, msgID)
 }
 

@@ -90,6 +90,24 @@ func (h *ChatHandler) HandleWS(c *gin.Context) {
 // 2. REST API: Lấy lịch sử chat
 func (h *ChatHandler) GetMessages(c *gin.Context) {
 	roomID := c.Param("id")
+	userID := c.GetString("userID")
+
+	res, err := h.roomClient.VerifyRoomMember(c.Request.Context(), &roomv1.VerifyRoomMemberRequest{
+		RoomID: roomID,
+		UserID: userID,
+	})
+	if err != nil || res == nil || !res.IsMember {
+		c.JSON(http.StatusForbidden, gin.H{
+			"success": false,
+			"data":    nil,
+			"error": gin.H{
+				"code":    "FORBIDDEN",
+				"message": "Bạn không phải thành viên của phòng này.",
+			},
+		})
+		return
+	}
+
 	beforeID := c.Query("before_id")
 	limit := 50 // default
 
@@ -116,6 +134,24 @@ func (h *ChatHandler) GetMessages(c *gin.Context) {
 // 3. REST API: Tìm kiếm tin nhắn
 func (h *ChatHandler) SearchMessages(c *gin.Context) {
 	roomID := c.Param("id")
+	userID := c.GetString("userID")
+
+	res, err := h.roomClient.VerifyRoomMember(c.Request.Context(), &roomv1.VerifyRoomMemberRequest{
+		RoomID: roomID,
+		UserID: userID,
+	})
+	if err != nil || res == nil || !res.IsMember {
+		c.JSON(http.StatusForbidden, gin.H{
+			"success": false,
+			"data":    nil,
+			"error": gin.H{
+				"code":    "FORBIDDEN",
+				"message": "Bạn không phải thành viên của phòng này.",
+			},
+		})
+		return
+	}
+
 	query := c.Query("q")
 	if query == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -270,9 +306,9 @@ func (c *Client) readPump(uc *usecase.ChatUsecase, canModerate bool) {
 
 			var err error
 			if payload.Action == "add" {
-				_, err = uc.AddReaction(context.Background(), c.UserID, payload.MessageID, payload.Emoji)
+				_, err = uc.AddReaction(context.Background(), c.UserID, c.RoomID, payload.MessageID, payload.Emoji)
 			} else {
-				err = uc.RemoveReaction(context.Background(), c.UserID, payload.MessageID, payload.Emoji)
+				err = uc.RemoveReaction(context.Background(), c.UserID, c.RoomID, payload.MessageID, payload.Emoji)
 			}
 
 			if err == nil {
@@ -297,7 +333,7 @@ func (c *Client) readPump(uc *usecase.ChatUsecase, canModerate bool) {
 			}
 			payloadBytes, _ := json.Marshal(incoming.Payload)
 			_ = json.Unmarshal(payloadBytes, &payload)
-			msg, err := uc.EditMessage(context.Background(), c.UserID, payload.MessageID, payload.Content)
+			msg, err := uc.EditMessage(context.Background(), c.UserID, c.RoomID, payload.MessageID, payload.Content)
 			if err == nil && msg != nil {
 				broadcastMsg := domain.WSMessage{
 					Event:  "chat:message_edited",
@@ -318,7 +354,7 @@ func (c *Client) readPump(uc *usecase.ChatUsecase, canModerate bool) {
 			}
 			payloadBytes, _ := json.Marshal(incoming.Payload)
 			_ = json.Unmarshal(payloadBytes, &payload)
-			err := uc.DeleteMessage(context.Background(), c.UserID, payload.MessageID, canModerate)
+			err := uc.DeleteMessage(context.Background(), c.UserID, c.RoomID, payload.MessageID, canModerate)
 			if err == nil {
 				broadcastMsg := domain.WSMessage{
 					Event:  "chat:message_deleted",
@@ -357,7 +393,7 @@ func (c *Client) readPump(uc *usecase.ChatUsecase, canModerate bool) {
 			}
 			payloadBytes, _ := json.Marshal(incoming.Payload)
 			_ = json.Unmarshal(payloadBytes, &payload)
-			err := uc.UnpinMessage(context.Background(), payload.MessageID)
+			err := uc.UnpinMessage(context.Background(), c.UserID, c.RoomID, payload.MessageID)
 			if err == nil {
 				broadcastMsg := domain.WSMessage{
 					Event:  "chat:message_unpinned",

@@ -146,6 +146,13 @@ func (r *PostgresRepository) UnpinMessage(ctx context.Context, msgID string) err
 	return err
 }
 
+func (r *PostgresRepository) GetPinnedCount(ctx context.Context, roomID string) (int, error) {
+	query := `SELECT COUNT(*) FROM message_pins WHERE room_id = $1`
+	var count int
+	err := r.db.QueryRowContext(ctx, query, roomID).Scan(&count)
+	return count, err
+}
+
 func (r *PostgresRepository) SearchMessages(ctx context.Context, roomID, query string) ([]*domain.Message, error) {
 	dbQuery := `
 		SELECT id, room_id, sender_id, content, reply_to_id, is_edited, created_at 
@@ -170,6 +177,9 @@ func (r *PostgresRepository) SearchMessages(ctx context.Context, roomID, query s
 			msg.ReplyToID = replyTo.String
 		}
 		list = append(list, msg)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 	return list, nil
 }
