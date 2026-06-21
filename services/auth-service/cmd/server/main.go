@@ -34,6 +34,7 @@ func main() {
 	}
 
 	port := getEnv("PORT", "8081")
+	frontendURL := getEnv("FRONTEND_URL", "http://localhost:4200")
 
 	// ── Kết nối PostgreSQL ────────────────────────────────────────────
 	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", dbUser, dbPassword, dbHost, dbPort, dbName)
@@ -60,7 +61,7 @@ func main() {
 	emailSvc := usecase.NewEmailService()
 	uc := usecase.NewAuthUsecase(repo, emailSvc, jwtSecret, jwtExpMins)
 	googleCfg := usecase.NewGoogleOAuthConfig()
-	handler := delivery.NewAuthHandler(uc, googleCfg)
+	handler := delivery.NewAuthHandler(uc, googleCfg, frontendURL)
 
 	// Log trạng thái tích hợp
 	if emailSvc.IsConfigured() {
