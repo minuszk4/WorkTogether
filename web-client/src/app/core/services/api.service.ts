@@ -139,6 +139,9 @@ export class ApiService {
 
     mute: (roomId: string, userId: string, durationSec = 600): Observable<any> =>
       this.post<any>(`/rooms/${roomId}/members/${userId}/mute`, { duration_seconds: durationSec }),
+
+    updateSettings: (roomId: string, name: string, description: string, addMusicPolicy: string): Observable<any> =>
+      this.put<any>(`/rooms/${roomId}/settings`, { name, description, add_music_policy: addMusicPolicy }),
   };
 
   // ─── Music APIs ───────────────────────────────────────────────────

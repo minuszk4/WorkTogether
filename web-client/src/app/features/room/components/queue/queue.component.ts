@@ -34,13 +34,18 @@ export class QueueComponent implements OnInit, OnDestroy {
   private playbackWs = inject(PlaybackWsService);
   private toast = inject(ToastService);
 
-  public activeTab: 'queue' | 'members' | 'lyrics' | 'bookmarks' = 'queue';
+  public activeTab: 'queue' | 'members' | 'lyrics' | 'bookmarks' | 'settings' = 'queue';
   public tracks: QueueTrack[] = [];
   public members: any[] = [];
   public newTrackUrl = '';
   public activePlaylistId = '';
   public isExtracting = false;
   public searchResults: any[] = [];
+
+  public settingsName = '';
+  public settingsDescription = '';
+  public settingsAddMusicPolicy = 'all';
+  public isSavingSettings = false;
 
   private roomId = '';
   private subs: Subscription[] = [];
@@ -51,6 +56,9 @@ export class QueueComponent implements OnInit, OnDestroy {
         if (room?.id) {
           this.roomId = room.id;
           this.setupPlaylist();
+          this.settingsName = room.name || '';
+          this.settingsDescription = room.description || '';
+          this.settingsAddMusicPolicy = room.add_music_policy || 'all';
         }
       }),
       this.state.activeRoomMembers$.subscribe(members => {
@@ -63,7 +71,7 @@ export class QueueComponent implements OnInit, OnDestroy {
     this.subs.forEach(sub => sub.unsubscribe());
   }
 
-  public switchTab(tab: 'queue' | 'members' | 'lyrics' | 'bookmarks'): void {
+  public switchTab(tab: 'queue' | 'members' | 'lyrics' | 'bookmarks' | 'settings'): void {
     this.activeTab = tab;
     if (tab === 'queue') {
       this.loadQueueTracks();
@@ -230,6 +238,50 @@ export class QueueComponent implements OnInit, OnDestroy {
     const currentUserId = this.state.user?.id;
     const isOwner = this.state.roomMemberRole$.value === 'OWNER';
     return currentUserId !== dj.userId && !isOwner;
+  }
+
+  get canAddMusic(): boolean {
+    const room = this.state.activeRoom$.value;
+    if (!room) return false;
+
+    const policy = room.add_music_policy || 'all';
+    if (policy === 'all') {
+      return true;
+    }
+
+    const role = this.state.roomMemberRole$.value;
+    const isHostOrMod = role === 'OWNER' || role === 'MODERATOR';
+
+    if (policy === 'nobody') {
+      return isHostOrMod;
+    }
+
+    if (policy === 'dj_only') {
+      if (isHostOrMod) return true;
+      const dj = this.playbackWs.guestDj$.value;
+      const currentUserId = this.state.user?.id;
+      return dj !== null && currentUserId === dj.userId;
+    }
+
+    return true;
+  }
+
+  public onSaveSettingsSubmit(event: Event): void {
+    event.preventDefault();
+    if (!this.roomId) return;
+
+    this.isSavingSettings = true;
+    this.api.room.updateSettings(this.roomId, this.settingsName, this.settingsDescription, this.settingsAddMusicPolicy).subscribe({
+      next: (updatedRoom) => {
+        this.isSavingSettings = false;
+        this.toast.success('Cập nhật cấu hình phòng thành công.');
+        this.state.activeRoom$.next(updatedRoom);
+      },
+      error: (err) => {
+        this.isSavingSettings = false;
+        this.toast.error('Cập nhật cấu hình thất bại: ' + (err.message || err));
+      }
+    });
   }
 
   public onTrackClick(track: QueueTrack): void {

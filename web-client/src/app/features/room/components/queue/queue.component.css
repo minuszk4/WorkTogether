@@ -633,3 +633,115 @@
   background-color: rgba(45, 212, 191, 0.05);
   box-shadow: none;
 }
+
+/* --- Settings Tab --- */
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settings-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+}
+
+.settings-textarea {
+  min-height: 90px;
+  padding: 10px 12px;
+  background-color: rgba(8, 9, 16, 0.4);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: var(--font-sans);
+  outline: none;
+  resize: vertical;
+  box-sizing: border-box;
+  transition: border-color 0.2s var(--ease-out-expo), box-shadow 0.2s var(--ease-out-expo), background-color 0.2s var(--ease-out-expo);
+}
+
+.settings-textarea:focus {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+  background-color: rgba(8, 9, 16, 0.8);
+}
+
+.settings-select {
+  height: 38px;
+  padding: 0 12px;
+  background-color: rgba(8, 9, 16, 0.4);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: var(--font-sans);
+  outline: none;
+  box-sizing: border-box;
+  cursor: pointer;
+  transition: border-color 0.2s var(--ease-out-expo), box-shadow 0.2s var(--ease-out-expo), background-color 0.2s var(--ease-out-expo);
+}
+
+.settings-select:focus {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+  background-color: rgba(8, 9, 16, 0.8);
+}
+
+.btn-save-settings {
+  height: 38px;
+  padding: 0 16px;
+  background-color: var(--accent-primary);
+  border: none;
+  border-radius: var(--radius-md);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s var(--ease-out-expo), background-color 0.15s var(--ease-out-expo), box-shadow 0.15s var(--ease-out-expo);
+  box-shadow: var(--shadow-accent);
+}
+
+.btn-save-settings:hover:not(:disabled) {
+  background-color: var(--accent-hover);
+  box-shadow: 0 0 16px rgba(45, 212, 191, 0.35);
+}
+
+.btn-save-settings:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.btn-save-settings:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  box-shadow: none;
+  background-color: var(--bg-surface);
+  color: var(--text-muted);
+  border: 1px solid var(--border-color);
+}
+
+.queue-form-wrapper.locked {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  background-color: rgba(8, 9, 16, 0.25);
+  border: 1px dashed var(--border-color);
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-align: center;
+}
