@@ -71,3 +71,19 @@ func (r *RedisRepository) GetPlaybackState(ctx context.Context, roomID string) (
 		SourceURL:      vals["source_url"],
 	}, nil
 }
+
+func (r *RedisRepository) SetGuestDJ(ctx context.Context, roomID string, userID string, ttl time.Duration) error {
+	return r.rdb.Set(ctx, "room:"+roomID+":guest_dj", userID, ttl).Err()
+}
+
+func (r *RedisRepository) GetGuestDJ(ctx context.Context, roomID string) (string, error) {
+	val, err := r.rdb.Get(ctx, "room:"+roomID+":guest_dj").Result()
+	if err == redis.Nil {
+		return "", nil
+	}
+	return val, err
+}
+
+func (r *RedisRepository) ClearGuestDJ(ctx context.Context, roomID string) error {
+	return r.rdb.Del(ctx, "room:"+roomID+":guest_dj").Err()
+}

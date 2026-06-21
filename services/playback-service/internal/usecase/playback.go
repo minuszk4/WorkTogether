@@ -68,3 +68,15 @@ func (u *PlaybackUsecase) UpdateState(ctx context.Context, roomID string, req *d
 
 	return state, nil
 }
+
+func (u *PlaybackUsecase) GetGuestDJ(ctx context.Context, roomID string) (string, error) {
+	return u.redisRepo.GetGuestDJ(ctx, roomID)
+}
+
+func (u *PlaybackUsecase) SetGuestDJ(ctx context.Context, roomID string, userID string, duration time.Duration) error {
+	return u.redisRepo.SetGuestDJ(ctx, roomID, userID, duration)
+}
+
+func (u *PlaybackUsecase) ClearGuestDJ(ctx context.Context, roomID string) error {
+	return u.redisRepo.ClearGuestDJ(ctx, roomID)
+}

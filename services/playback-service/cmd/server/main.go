@@ -10,6 +10,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	roomv1 "github.com/worktogether/services/playback-service/api/v1"
 	delivery "github.com/worktogether/services/playback-service/internal/delivery/http"
 	"github.com/worktogether/services/playback-service/internal/repository"
 	"github.com/worktogether/services/playback-service/internal/usecase"
@@ -59,8 +62,26 @@ func main() {
 	repo := repository.NewRedisRepository(rdb)
 	uc := usecase.NewPlaybackUsecase(repo)
 	
+	// Khởi tạo gRPC Client liên kết với room-service
+	roomServiceAddr := getEnv("ROOM_SERVICE_GRPC", "room-service:50051")
+	var conn *grpc.ClientConn
+	for i := 0; i < 10; i++ {
+		conn, err = grpc.Dial(roomServiceAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err == nil {
+			break
+		}
+		log.Printf("Chưa kết nối gRPC room-service (Thử lại %d/10): %v\n", i+1, err)
+		time.Sleep(3 * time.Second)
+	}
+	if err != nil {
+		log.Fatalf("Không thể kết nối gRPC đến room-service: %v\n", err)
+	}
+	defer conn.Close()
+	roomClient := roomv1.NewRoomInternalServiceClient(conn)
+	log.Println("Khởi tạo kết nối gRPC sang room-service thành công.")
+	
 	// Khởi chạy WebSocket Hub
-	hub := delivery.NewHub(uc, jwtSecret)
+	hub := delivery.NewHub(uc, roomClient, jwtSecret)
 	go hub.Run()
 
 	// Khởi tạo Gin
@@ -95,6 +116,108 @@ func main() {
 				"success": true,
 				"data":    state,
 				"error":   nil,
+			})
+		})
+
+		playbackGroup.POST("/dj", func(c *gin.Context) {
+			roomID := c.Param("room_id")
+			userIDVal, exists := c.Get("userID")
+			if !exists {
+				c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "Unauthorized"})
+				return
+			}
+			userID := userIDVal.(string)
+
+			// 1. Xác thực người gọi có phải là Host/Owner của phòng không
+			res, err := roomClient.VerifyRoomMember(c.Request.Context(), &roomv1.VerifyRoomMemberRequest{
+				RoomID: roomID,
+				UserID: userID,
+			})
+			if err != nil || res == nil || !res.IsMember || res.Role != "OWNER" {
+				c.JSON(http.StatusForbidden, gin.H{
+					"success": false,
+					"error": gin.H{
+						"code":    "FORBIDDEN",
+						"message": "Chỉ Host của phòng mới có quyền bổ nhiệm Guest DJ.",
+					},
+				})
+				return
+			}
+
+			var req struct {
+				UserID          string `json:"user_id" binding:"required"`
+				DurationSeconds int    `json:"duration_seconds" binding:"required"`
+			}
+			if err := c.ShouldBindJSON(&req); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
+				return
+			}
+
+			// 2. Lưu trạng thái Guest DJ vào Redis
+			ttl := time.Duration(req.DurationSeconds) * time.Second
+			if err := uc.SetGuestDJ(c.Request.Context(), roomID, req.UserID, ttl); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
+				return
+			}
+
+			// 3. Broadcast sự kiện takeover qua Hub tới cả phòng
+			endsAt := time.Now().Add(ttl).UnixNano() / int64(time.Millisecond)
+			hub.BroadcastToRoom(roomID, "dj:takeover", gin.H{
+				"user_id": req.UserID,
+				"ends_at": endsAt,
+			})
+
+			c.JSON(http.StatusOK, gin.H{
+				"success": true,
+				"data": gin.H{
+					"message": "Đã nhường quyền Guest DJ thành công.",
+					"user_id": req.UserID,
+					"ends_at": endsAt,
+				},
+			})
+		})
+
+		playbackGroup.DELETE("/dj", func(c *gin.Context) {
+			roomID := c.Param("room_id")
+			userIDVal, exists := c.Get("userID")
+			if !exists {
+				c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "Unauthorized"})
+				return
+			}
+			userID := userIDVal.(string)
+
+			// 1. Xác thực người gọi có phải là Host/Owner của phòng không
+			res, err := roomClient.VerifyRoomMember(c.Request.Context(), &roomv1.VerifyRoomMemberRequest{
+				RoomID: roomID,
+				UserID: userID,
+			})
+			if err != nil || res == nil || !res.IsMember || res.Role != "OWNER" {
+				c.JSON(http.StatusForbidden, gin.H{
+					"success": false,
+					"error": gin.H{
+						"code":    "FORBIDDEN",
+						"message": "Chỉ Host của phòng mới có quyền thu hồi Guest DJ.",
+					},
+				})
+				return
+			}
+
+			// 2. Xóa trạng thái Guest DJ trong Redis
+			if err := uc.ClearGuestDJ(c.Request.Context(), roomID); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
+				return
+			}
+
+			// 3. Broadcast sự kiện released qua Hub tới cả phòng
+			hub.BroadcastToRoom(roomID, "dj:released", gin.H{
+				"reason": "revoked",
+			})
+
+			c.JSON(http.StatusOK, gin.H{
+				"success": true,
+				"data": gin.H{
+					"message": "Đã thu hồi quyền Guest DJ thành công.",
+				},
 			})
 		})
 	}

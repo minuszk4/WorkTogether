@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/websocket"
+	roomv1 "github.com/worktogether/services/playback-service/api/v1"
 	"github.com/worktogether/services/playback-service/internal/domain"
 	"github.com/worktogether/services/playback-service/internal/usecase"
 )
@@ -39,10 +40,11 @@ type Hub struct {
 	register   chan *Client
 	unregister chan *Client
 	broadcast  chan *domain.WSMessage
+	roomClient roomv1.RoomInternalServiceClient
 	mutex      sync.RWMutex
 }
 
-func NewHub(u *usecase.PlaybackUsecase, jwtSecret string) *Hub {
+func NewHub(u *usecase.PlaybackUsecase, rc roomv1.RoomInternalServiceClient, jwtSecret string) *Hub {
 	return &Hub{
 		usecase:    u,
 		jwtSecret:  jwtSecret,
@@ -50,6 +52,7 @@ func NewHub(u *usecase.PlaybackUsecase, jwtSecret string) *Hub {
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
 		broadcast:  make(chan *domain.WSMessage),
+		roomClient: rc,
 	}
 }
 
@@ -183,6 +186,34 @@ func (c *Client) ReadPump() {
 				continue
 			}
 
+			// Kiểm tra xem phòng có Guest DJ đang hoạt động không
+			guestDJ, err := c.Hub.usecase.GetGuestDJ(ctx, c.RoomID)
+			if err == nil && guestDJ != "" {
+				// Nếu người gửi không phải là Guest DJ hiện tại
+				if c.UserID != guestDJ {
+					// Kiểm tra xem người gửi có phải là Host (OWNER) không
+					res, err := c.Hub.roomClient.VerifyRoomMember(ctx, &roomv1.VerifyRoomMemberRequest{
+						RoomID: c.RoomID,
+						UserID: c.UserID,
+					})
+					if err != nil || res == nil || res.Role != "OWNER" {
+						// Không phải Host cũng không phải Guest DJ -> Trả lỗi và bỏ qua lệnh
+						payloadBytes, _ := json.Marshal(map[string]interface{}{
+							"code":    "FORBIDDEN",
+							"message": "Phòng đang có Guest DJ làm chủ bàn nhạc. Chỉ Host hoặc Guest DJ hiện tại mới có quyền thay đổi phát nhạc.",
+						})
+						resp := domain.WSMessage{
+							Event:   "playback:error",
+							RoomID:  c.RoomID,
+							Payload: json.RawMessage(payloadBytes),
+						}
+						respBytes, _ := json.Marshal(resp)
+						c.Send <- respBytes
+						continue
+					}
+				}
+			}
+
 			// Lưu trạng thái mới vào Redis
 			state, err := c.Hub.usecase.UpdateState(ctx, c.RoomID, &ctrl)
 			if err != nil {
@@ -291,5 +322,14 @@ func ServePlaybackWS(hub *Hub) gin.HandlerFunc {
 
 		go client.WritePump()
 		go client.ReadPump()
+	}
+}
+
+func (h *Hub) BroadcastToRoom(roomID string, event string, payload interface{}) {
+	payloadBytes, _ := json.Marshal(payload)
+	h.broadcast <- &domain.WSMessage{
+		Event:   event,
+		RoomID:  roomID,
+		Payload: json.RawMessage(payloadBytes),
 	}
 }
