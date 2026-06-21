@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
 import { Participant, Room, RoomEvent } from 'livekit-client';
+import { environment } from '../../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
@@ -280,7 +281,7 @@ export class VoiceService {
   }
 
   private normalizeLiveKitUrl(serverUrl: string): string {
-    let normalizedUrl = serverUrl || 'ws://localhost:7880';
+    let normalizedUrl = serverUrl || environment.livekitUrl;
     normalizedUrl = normalizedUrl.replace(/^http:\/\//i, 'ws://').replace(/^https:\/\//i, 'wss://');
 
     try {
@@ -290,7 +291,7 @@ export class VoiceService {
       }
       return parsed.toString();
     } catch {
-      return 'ws://localhost:7880';
+      return environment.livekitUrl;
     }
   }
 

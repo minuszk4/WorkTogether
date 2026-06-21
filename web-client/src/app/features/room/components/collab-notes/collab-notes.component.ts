@@ -5,6 +5,7 @@ import { StateService } from '../../../../core/services/state.service';
 import { ToastService } from '../../../../shared/services/toast.service';
 import { Subscription, Subject } from 'rxjs';
 import { debounceTime } from 'rxjs/operators';
+import { environment } from '../../../../../environments/environment';
 
 export interface NoteBlock {
   id: string;
@@ -69,9 +70,7 @@ export class CollabNotesComponent implements OnInit, OnDestroy {
     const token = this.state.accessToken;
     if (!token) return;
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.host;
-    const wsUrl = `${protocol}//${host}/api/v1/rooms/${this.roomId}/collab/ws?token=${token}`;
+    const wsUrl = `${environment.wsUrl}/api/v1/rooms/${this.roomId}/collab/ws?token=${token}`;
 
     this.ws = new WebSocket(wsUrl);
 
