@@ -45,3 +45,8 @@ logs/
 # Compiled Service Binaries
 *-linux
 *service-linux
+
+# ----- AI/Agentic Documents -----
+.superpowers/
+docs/superpowers/
+
