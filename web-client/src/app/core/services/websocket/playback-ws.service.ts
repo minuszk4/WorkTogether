@@ -32,6 +32,11 @@ export class PlaybackWsService {
 
   public playbackSync$ = new BehaviorSubject<PlaybackState | null>(null);
   public connected$ = new BehaviorSubject<boolean>(false);
+  public guestDj$ = new BehaviorSubject<{ userId: string; endsAt: number } | null>(null);
+  public poll$ = new BehaviorSubject<{ candidates: any[]; duration: number } | null>(null);
+  public pollVotes$ = new BehaviorSubject<Record<string, number>>({});
+  public pollEnd$ = new Subject<{ winner: { track_id: string; title: string } | null }>();
+  public error$ = new Subject<{ code: string; message: string }>();
 
   constructor() {}
 
@@ -87,6 +92,38 @@ export class PlaybackWsService {
           break;
         case 'playback:sync':
           this.handlePlaybackSync(msg.payload);
+          break;
+        case 'dj:takeover':
+          this.guestDj$.next({
+            userId: msg.payload?.user_id,
+            endsAt: msg.payload?.ends_at
+          });
+          break;
+        case 'dj:released':
+          this.guestDj$.next(null);
+          break;
+        case 'poll:start':
+          this.poll$.next({
+            candidates: msg.payload?.candidates || [],
+            duration: msg.payload?.duration || 30000
+          });
+          this.pollVotes$.next({});
+          break;
+        case 'poll:update':
+          this.pollVotes$.next(msg.payload || {});
+          break;
+        case 'poll:end':
+          this.poll$.next(null);
+          this.pollVotes$.next({});
+          this.pollEnd$.next({
+            winner: msg.payload?.winner || null
+          });
+          break;
+        case 'playback:error':
+          this.error$.next({
+            code: msg.payload?.code || 'UNKNOWN_ERROR',
+            message: msg.payload?.message || ''
+          });
           break;
         default:
           console.log('[Playback WS] Sự kiện chưa xử lý:', msg.event);
@@ -157,6 +194,20 @@ export class PlaybackWsService {
     this.socket.send(JSON.stringify(payload));
   }
 
+  public voteForTrack(trackId: string): void {
+    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+      console.error('Không thể vote. Kênh playback chưa sẵn sàng.');
+      return;
+    }
+    const payload = {
+      event: 'poll:vote',
+      payload: {
+        track_id: trackId
+      }
+    };
+    this.socket.send(JSON.stringify(payload));
+  }
+
   public getEstimatedServerTime(): number {
     return Date.now() + this.clockOffset;
   }
@@ -174,6 +225,9 @@ export class PlaybackWsService {
       this.socket = null;
     }
     this.roomId = null;
+    this.guestDj$.next(null);
+    this.poll$.next(null);
+    this.pollVotes$.next({});
     this.cleanup();
   }
 }
