@@ -101,3 +101,82 @@ app-room-quick-reactions {
   to { opacity: 1; transform: translateX(0); }
 }
 
+.room-identity-panel {
+  position: absolute;
+  top: 80px;
+  right: 16px;
+  bottom: 96px;
+  width: 340px;
+  z-index: var(--z-overlay);
+  animation: panel-slide-in var(--transition-panel, 0.3s ease);
+}
+
+.room-stats-panel {
+  position: absolute;
+  top: 80px;
+  right: 16px;
+  bottom: 96px;
+  width: 340px;
+  z-index: var(--z-overlay);
+  animation: panel-slide-in var(--transition-panel, 0.3s ease);
+}
+
+/* Theme variables overrides */
+.room-shell.theme-sunset-glow {
+  --bg-base:       #190b08;
+  --bg-primary:    #190b08;
+  --bg-surface:    #26120e;
+  --bg-secondary:  #26120e;
+  --bg-elevated:   #361a15;
+  --bg-hover:      #361a15;
+  --bg-glass:      rgba(38, 18, 14, 0.65);
+  --border-color:  #3b1d16;
+  --border-focus:  #f97316;
+  --accent-primary:   #f97316;
+  --accent-hover:     #fb923c;
+  --accent-dim:       rgba(249, 115, 22, 0.12);
+  --accent-glow:      0 0 20px rgba(249, 115, 22, 0.18);
+  --accent-glow-color: rgba(249, 115, 22, 0.18);
+  --accent-gradient:  linear-gradient(135deg, #f97316 0%, #f43f5e 50%, #881337 100%);
+  --border-focus:     #f97316;
+}
+
+.room-shell.theme-emerald-forest {
+  --bg-base:       #022c22;
+  --bg-primary:    #022c22;
+  --bg-surface:    #064e3b;
+  --bg-secondary:  #064e3b;
+  --bg-elevated:   #065f46;
+  --bg-hover:      #065f46;
+  --bg-glass:      rgba(6, 78, 59, 0.65);
+  --border-color:  #065f46;
+  --border-focus:  #10b981;
+  --accent-primary:   #10b981;
+  --accent-hover:     #34d399;
+  --accent-dim:       rgba(16, 185, 129, 0.12);
+  --accent-glow:      0 0 20px rgba(16, 185, 129, 0.18);
+  --accent-glow-color: rgba(16, 185, 129, 0.18);
+  --accent-gradient:  linear-gradient(135deg, #10b981 0%, #059669 50%, #047857 100%);
+  --border-focus:     #10b981;
+}
+
+.room-shell.theme-midnight-dark {
+  --bg-base:       #090d16;
+  --bg-primary:    #090d16;
+  --bg-surface:    #0e1726;
+  --bg-secondary:  #0e1726;
+  --bg-elevated:   #16243b;
+  --bg-hover:      #16243b;
+  --bg-glass:      rgba(14, 23, 38, 0.65);
+  --border-color:  #1a2c47;
+  --border-focus:  #3b82f6;
+  --accent-primary:   #3b82f6;
+  --accent-hover:     #60a5fa;
+  --accent-dim:       rgba(59, 130, 246, 0.12);
+  --accent-glow:      0 0 20px rgba(59, 130, 246, 0.18);
+  --accent-glow-color: rgba(59, 130, 246, 0.18);
+  --accent-gradient:  linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  --border-focus:     #3b82f6;
+}
+
+

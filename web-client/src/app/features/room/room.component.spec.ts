@@ -68,8 +68,8 @@ describe('RoomComponent', () => {
       info: () => {}
     };
     mockRoomUiStateService = {
-      changes$: new BehaviorSubject({ isChatOpen: false, isQueueOpen: true, stageMode: 'music-only', unreadCount: 0 }),
-      uiState: { isChatOpen: false, isQueueOpen: true, stageMode: 'music-only', unreadCount: 0 },
+      changes$: new BehaviorSubject({ isChatOpen: false, isQueueOpen: true, stageMode: 'music-only', unreadCount: 0, isIdentityOpen: false, isStatsOpen: false }),
+      uiState: { isChatOpen: false, isQueueOpen: true, stageMode: 'music-only', unreadCount: 0, isIdentityOpen: false, isStatsOpen: false },
       setStageMode: () => {}
     };
 

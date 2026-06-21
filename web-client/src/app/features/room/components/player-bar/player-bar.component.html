@@ -49,6 +49,14 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
     </app-icon-button>
 
+    <app-icon-button [label]="statsOpen ? 'Đóng thống kê' : 'Thống kê phòng'" [variant]="statsOpen ? 'active' : 'default'" (clicked)="toggleStats()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+    </app-icon-button>
+
+    <app-icon-button [label]="identityOpen ? 'Đóng cấu hình phòng' : 'Bản sắc phòng'" [variant]="identityOpen ? 'active' : 'default'" (clicked)="toggleIdentity()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    </app-icon-button>
+
     <div class="chat-toggle-container">
       <app-icon-button [label]="chatOpen ? 'Đóng chat' : 'Mở chat'" [variant]="chatOpen ? 'active' : 'default'" (clicked)="toggleChat()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>

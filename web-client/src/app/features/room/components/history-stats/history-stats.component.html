@@ -1,0 +1,85 @@
+<div class="stats-container h-full flex flex-col">
+  <!-- Header -->
+  <div class="panel-header">
+    <div class="header-title flex items-center gap-2">
+      <span class="header-icon">📊</span>
+      <h3>Thống kê & Lịch sử</h3>
+    </div>
+    <div class="flex items-center gap-1">
+      <button class="panel-refresh-btn" type="button" aria-label="Làm mới" (click)="refreshData()" [disabled]="isLoading">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;" [class.animate-spin]="isLoading"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+      </button>
+      <button class="panel-close-btn" type="button" aria-label="Đóng" (click)="close()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="panel-body flex-1 overflow-y-auto p-4">
+    <!-- General Stats -->
+    <div class="stats-grid grid grid-cols-2 gap-4 mb-6">
+      <div class="stats-metric-card p-4">
+        <span class="metric-label">Tổng bài đã phát</span>
+        <h4 class="metric-value">{{ stats?.total_tracks_played || 0 }}</h4>
+        <span class="metric-icon">🎵</span>
+      </div>
+      <div class="stats-metric-card p-4">
+        <span class="metric-label">Thời gian nghe chung</span>
+        <h4 class="metric-value text-ellipsis overflow-hidden whitespace-nowrap" [title]="formatPlayTime(stats?.total_play_time_ms)">
+          {{ formatPlayTime(stats?.total_play_time_ms) }}
+        </h4>
+        <span class="metric-icon">⏱️</span>
+      </div>
+    </div>
+
+    <!-- Top Tracks -->
+    <div class="section-card p-4 mb-6">
+      <h5 class="section-title mb-3">🔥 Top 5 bài hát yêu thích</h5>
+      @if (stats?.top_tracks && stats.top_tracks.length > 0) {
+        <div class="top-tracks-list flex flex-col gap-3">
+          @for (track of stats.top_tracks; track track.id; let i = $index) {
+            <div class="top-track-item flex items-center gap-3">
+              <span class="track-rank">{{ i + 1 }}</span>
+              <img [src]="track.thumbnail_url || 'assets/default-track.png'" class="track-thumb" alt="Thumbnail">
+              <div class="track-info flex-1">
+                <span class="track-title" [title]="track.title">{{ track.title }}</span>
+                <span class="track-artist">{{ track.artist }}</span>
+              </div>
+              <div class="track-actions flex items-center gap-2">
+                <span class="play-count-badge">{{ track.play_count }} lượt</span>
+                <button class="btn-queue-add" (click)="addToQueue(track, $event)" [disabled]="isQueueing" title="Thêm vào hàng đợi">
+                  +
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      } @else {
+        <p class="empty-text">Chưa đủ dữ liệu để xếp hạng bài hát.</p>
+      }
+    </div>
+
+    <!-- History Timeline -->
+    <div class="section-card p-4">
+      <h5 class="section-title mb-4">⏳ Lịch sử phát nhạc gần đây</h5>
+      @if (history && history.length > 0) {
+        <div class="timeline">
+          @for (item of history; track item.id) {
+            <div class="timeline-item flex gap-3">
+              <div class="timeline-node"></div>
+              <div class="timeline-content flex-1 pb-4">
+                <div class="flex justify-between items-start gap-2 mb-1">
+                  <span class="hist-title" [title]="item.track?.title">{{ item.track?.title }}</span>
+                  <span class="hist-time">{{ formatTimeAgo(item.played_at) }}</span>
+                </div>
+                <span class="hist-artist">{{ item.track?.artist || 'Unknown' }}</span>
+              </div>
+            </div>
+          }
+        </div>
+      } @else {
+        <p class="empty-text">Chưa có bài hát nào được phát trong phòng này.</p>
+      }
+    </div>
+  </div>
+</div>

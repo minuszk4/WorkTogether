@@ -11,6 +11,8 @@ export interface RoomUIState {
   isNotesOpen: boolean;
   isTimerOpen: boolean;
   unreadCount: number;
+  isIdentityOpen: boolean;
+  isStatsOpen: boolean;
 }
 
 const VALID_MODES: StageMode[] = ['music-only', 'music-voice', 'screenshare', 'video'];
@@ -25,7 +27,9 @@ export class RoomUiStateService {
     isSubroomsOpen: false,
     isNotesOpen: false,
     isTimerOpen: false,
-    unreadCount: 0
+    unreadCount: 0,
+    isIdentityOpen: false,
+    isStatsOpen: false
   });
 
   public get uiState(): RoomUIState {
@@ -59,6 +63,16 @@ export class RoomUiStateService {
   public toggleTimer(open?: boolean): void {
     const next = open === undefined ? !this.state$.value.isTimerOpen : open;
     this.patch({ isTimerOpen: next });
+  }
+
+  public toggleIdentity(open?: boolean): void {
+    const next = open === undefined ? !this.state$.value.isIdentityOpen : open;
+    this.patch({ isIdentityOpen: next });
+  }
+
+  public toggleStats(open?: boolean): void {
+    const next = open === undefined ? !this.state$.value.isStatsOpen : open;
+    this.patch({ isStatsOpen: next });
   }
 
   public markUnread(n: number): void {

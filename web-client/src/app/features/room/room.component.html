@@ -1,4 +1,4 @@
-<div class="room-shell">
+<div class="room-shell" [ngClass]="'theme-' + ((state.activeRoom$ | async)?.theme || 'cool-ocean')">
   <app-room-sidebar
     [isMicActive]="isMicActive"
     [isMuted]="isMuted"
@@ -58,6 +58,18 @@
   @if (isTimerOpen) {
     <div class="room-timer-overlay">
       <app-room-timer [roomId]="roomId"></app-room-timer>
+    </div>
+  }
+
+  @if (isIdentityOpen) {
+    <div class="room-identity-panel">
+      <app-room-identity></app-room-identity>
+    </div>
+  }
+
+  @if (isStatsOpen) {
+    <div class="room-stats-panel">
+      <app-history-stats></app-history-stats>
     </div>
   }
 

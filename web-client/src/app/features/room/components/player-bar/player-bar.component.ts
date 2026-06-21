@@ -52,6 +52,8 @@ export class PlayerBarComponent implements AfterViewInit, OnDestroy {
   public subroomsOpen = false;
   public notesOpen = false;
   public timerOpen = false;
+  public identityOpen = false;
+  public statsOpen = false;
 
   private subs: Subscription[] = [];
 
@@ -72,6 +74,8 @@ export class PlayerBarComponent implements AfterViewInit, OnDestroy {
         this.notesOpen = st.isNotesOpen;
         this.timerOpen = st.isTimerOpen;
         this.unreadCount = st.unreadCount;
+        this.identityOpen = st.isIdentityOpen;
+        this.statsOpen = st.isStatsOpen;
       })
     );
   }
@@ -90,4 +94,6 @@ export class PlayerBarComponent implements AfterViewInit, OnDestroy {
   toggleSubrooms(): void { this.uiState.toggleSubrooms(); }
   toggleNotes(): void { this.uiState.toggleNotes(); }
   toggleTimer(): void { this.uiState.toggleTimer(); }
+  toggleIdentity(): void { this.uiState.toggleIdentity(); }
+  toggleStats(): void { this.uiState.toggleStats(); }
 }

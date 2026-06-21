@@ -140,8 +140,8 @@ export class ApiService {
     mute: (roomId: string, userId: string, durationSec = 600): Observable<any> =>
       this.post<any>(`/rooms/${roomId}/members/${userId}/mute`, { duration_seconds: durationSec }),
 
-    updateSettings: (roomId: string, name: string, description: string, addMusicPolicy: string): Observable<any> =>
-      this.put<any>(`/rooms/${roomId}/settings`, { name, description, add_music_policy: addMusicPolicy }),
+    updateSettings: (roomId: string, name: string, description: string, addMusicPolicy: string, avatarUrl?: string | null, rules?: string | null, theme?: string): Observable<any> =>
+      this.put<any>(`/rooms/${roomId}/settings`, { name, description, add_music_policy: addMusicPolicy, avatar_url: avatarUrl, rules, theme }),
   };
 
   // ─── Music APIs ───────────────────────────────────────────────────
@@ -157,6 +157,9 @@ export class ApiService {
 
     getHistory: (roomId: string): Observable<any[]> =>
       this.get<any[]>(`/music/history/${roomId}`),
+
+    getStats: (roomId: string): Observable<any> =>
+      this.get<any>(`/music/rooms/${roomId}/stats`),
   };
 
   // ─── Playlist & Queue APIs ────────────────────────────────────────

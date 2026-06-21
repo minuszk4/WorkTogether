@@ -1,0 +1,97 @@
+<div class="room-identity-container h-full flex flex-col">
+  <!-- Header -->
+  <div class="panel-header">
+    <div class="header-title flex items-center gap-2">
+      <span class="header-icon">🛡️</span>
+      <h3>Bản sắc phòng</h3>
+    </div>
+    <button class="panel-close-btn" type="button" aria-label="Đóng" (click)="close()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+
+  <div class="panel-body flex-1 overflow-y-auto p-4">
+    <!-- Room Avatar & Profile Card -->
+    <div class="identity-card flex flex-col items-center text-center p-6 mb-6">
+      <div class="room-identity-avatar-container mb-3">
+        @if ((state.activeRoom$ | async)?.avatar_url) {
+          <img [src]="(state.activeRoom$ | async)?.avatar_url" class="room-identity-avatar" alt="Room Avatar">
+        } @else {
+          <div class="room-identity-avatar-placeholder">
+            <span>{{ ((state.activeRoom$ | async)?.name || 'WT').slice(0, 2).toUpperCase() }}</span>
+          </div>
+        }
+      </div>
+      <h4 class="room-name-title">{{ (state.activeRoom$ | async)?.name }}</h4>
+      <p class="room-desc-subtitle">{{ (state.activeRoom$ | async)?.description || 'Không có mô tả cho phòng này.' }}</p>
+    </div>
+
+    <!-- Rules Card -->
+    <div class="rules-card p-5 mb-6">
+      <h5 class="rules-title flex items-center gap-2 mb-3">
+        <span>📜</span> Nội quy phòng
+      </h5>
+      @if ((state.activeRoom$ | async)?.rules) {
+        <div class="rules-content">
+          {{ (state.activeRoom$ | async)?.rules }}
+        </div>
+      } @else {
+        <div class="rules-contentempty">
+          Chưa thiết lập nội quy cho phòng này. Tôn trọng mọi người và học tập vui vẻ!
+        </div>
+      }
+    </div>
+
+    <!-- Settings Form (Only for Owner) -->
+    @if (isOwner) {
+      <div class="settings-divider my-6">
+        <span>Cài đặt phòng</span>
+      </div>
+
+      <form (submit)="onSaveSettingsSubmit($event)" class="settings-form flex flex-col gap-4">
+        <div class="settings-group">
+          <label class="settings-label">Tên phòng *</label>
+          <input type="text" [(ngModel)]="settingsName" name="settingsName" class="form-input" required>
+        </div>
+
+        <div class="settings-group">
+          <label class="settings-label">Mô tả phòng</label>
+          <textarea [(ngModel)]="settingsDescription" name="settingsDescription" class="form-textarea" placeholder="Nhập mô tả phòng..."></textarea>
+        </div>
+
+        <div class="settings-group">
+          <label class="settings-label">Ảnh đại diện phòng (URL)</label>
+          <input type="url" [(ngModel)]="settingsAvatarUrl" name="settingsAvatarUrl" class="form-input" placeholder="https://example.com/avatar.png">
+        </div>
+
+        <div class="settings-group">
+          <label class="settings-label">Nội quy phòng</label>
+          <textarea [(ngModel)]="settingsRules" name="settingsRules" class="form-textarea" placeholder="Không spam nhạc rác, tập trung học tập..." rows="3"></textarea>
+        </div>
+
+        <div class="settings-group">
+          <label class="settings-label">Giao diện (Theme)</label>
+          <select [(ngModel)]="settingsTheme" name="settingsTheme" class="form-select">
+            <option value="cool-ocean">Cool Ocean</option>
+            <option value="sunset-glow">Sunset Glow</option>
+            <option value="emerald-forest">Emerald Forest</option>
+            <option value="midnight-dark">Midnight Dark</option>
+          </select>
+        </div>
+
+        <div class="settings-group">
+          <label class="settings-label">Chính sách thêm nhạc</label>
+          <select [(ngModel)]="settingsAddMusicPolicy" name="settingsAddMusicPolicy" class="form-select">
+            <option value="all">Tất cả mọi người</option>
+            <option value="dj_only">Host/Mod & Guest DJ</option>
+            <option value="nobody">Chỉ Host/Mod</option>
+          </select>
+        </div>
+
+        <button type="submit" class="btn-submit mt-2" [disabled]="isSavingSettings">
+          {{ isSavingSettings ? 'Đang lưu cấu hình...' : 'Lưu cài đặt' }}
+        </button>
+      </form>
+    }
+  </div>
+</div>

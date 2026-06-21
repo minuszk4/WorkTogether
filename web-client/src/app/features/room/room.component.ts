@@ -23,6 +23,8 @@ import { SubroomsComponent } from './components/subrooms/subrooms.component';
 import { TimerComponent } from './components/timer/timer.component';
 import { CollabNotesComponent } from './components/collab-notes/collab-notes.component';
 import { PlayerEngineService } from './components/player-engine/player-engine.service';
+import { RoomIdentityComponent } from './components/room-identity/room-identity.component';
+import { HistoryStatsComponent } from './components/history-stats/history-stats.component';
 
 @Component({
   selector: 'app-room',
@@ -31,7 +33,8 @@ import { PlayerEngineService } from './components/player-engine/player-engine.se
     CommonModule, SidebarComponent, StageComponent,
     VoicePillsComponent, ChatComponent, QueueComponent, PlayerBarComponent,
     QuickReactionsComponent, ReactionsCanvasComponent, RoomVibeMeterComponent,
-    PollWidgetComponent, SubroomsComponent, TimerComponent, CollabNotesComponent
+    PollWidgetComponent, SubroomsComponent, TimerComponent, CollabNotesComponent,
+    RoomIdentityComponent, HistoryStatsComponent
   ],
   templateUrl: './room.component.html',
   styleUrl: './room.component.css'
@@ -302,6 +305,8 @@ export class RoomComponent implements OnInit, OnDestroy {
   get isSubroomsOpen(): boolean { return this.uiState.uiState.isSubroomsOpen; }
   get isNotesOpen(): boolean { return this.uiState.uiState.isNotesOpen; }
   get isTimerOpen(): boolean { return this.uiState.uiState.isTimerOpen; }
+  get isIdentityOpen(): boolean { return this.uiState.uiState.isIdentityOpen; }
+  get isStatsOpen(): boolean { return this.uiState.uiState.isStatsOpen; }
 
   private handleVoiceSubRoomSwitch(subRoomId: string | null): void {
     this.voiceService.disconnect();
