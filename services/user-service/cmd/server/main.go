@@ -79,7 +79,10 @@ func main() {
 	uc := usecase.NewUserUsecase(pgRepo, redisRepo)
 	handler := delivery.NewUserHandler(uc)
 
-	jwtSecret := getEnv("JWT_SECRET", "worktogether_secret_key_12345")
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		log.Fatal("FATAL: Environment variable JWT_SECRET is not set. Service cannot start.")
+	}
 	port := getEnv("PORT", "8082")
 
 	// 4. Khởi tạo Gin

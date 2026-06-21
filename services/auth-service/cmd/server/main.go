@@ -26,7 +26,10 @@ func main() {
 	dbPassword := getEnv("DB_PASSWORD", "postgres_password")
 	dbName := getEnv("DB_NAME", "worktogether_auth")
 
-	jwtSecret := getEnv("JWT_SECRET", "worktogether_dev_secret")
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		log.Fatal("FATAL: Environment variable JWT_SECRET is not set. Service cannot start.")
+	}
 	jwtExpMinsStr := getEnv("JWT_EXP_MINS", "15")
 	jwtExpMins, err := strconv.Atoi(jwtExpMinsStr)
 	if err != nil {

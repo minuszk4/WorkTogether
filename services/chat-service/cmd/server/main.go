@@ -108,7 +108,10 @@ func main() {
 
 	// 6. Khởi chạy Gin HTTP Server
 	port := getEnv("PORT", "8084")
-	jwtSecret := getEnv("JWT_SECRET", "worktogether_secret_key_12345")
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		log.Fatal("FATAL: Environment variable JWT_SECRET is not set. Service cannot start.")
+	}
 
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
