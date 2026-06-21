@@ -68,8 +68,14 @@ func main() {
 
 	// 3. Cấu hình LiveKit
 	livekitURL := getEnv("LIVEKIT_URL", "ws://localhost:7880")
-	livekitKey := getEnv("LIVEKIT_API_KEY", "devkey")
-	livekitSecret := getEnv("LIVEKIT_API_SECRET", "worktogether_livekit_dev_secret_1234567890")
+	livekitKey := os.Getenv("LIVEKIT_API_KEY")
+	livekitSecret := os.Getenv("LIVEKIT_API_SECRET")
+	if livekitKey == "" || livekitSecret == "" {
+		log.Fatal("FATAL: LiveKit API credentials (LIVEKIT_API_KEY / LIVEKIT_API_SECRET) are not configured.")
+	}
+	if livekitKey == "devkey" {
+		log.Println("WARNING: Running voice-service with default LiveKit development credentials ('devkey')")
+	}
 
 	uc := usecase.NewVoiceUsecase(livekitURL, livekitKey, livekitSecret, rdb)
 	handler := delivery.NewVoiceHandler(uc, roomClient, livekitURL)
