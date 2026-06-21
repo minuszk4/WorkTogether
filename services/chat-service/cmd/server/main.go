@@ -124,6 +124,7 @@ func main() {
 	{
 		chatGroup.GET("/ws", handler.HandleWS)
 		chatGroup.GET("/messages", handler.GetMessages)
+		chatGroup.GET("/search", handler.SearchMessages)
 	}
 
 	r.GET("/health", func(c *gin.Context) {

@@ -113,6 +113,40 @@ func (h *ChatHandler) GetMessages(c *gin.Context) {
 	})
 }
 
+// 3. REST API: Tìm kiếm tin nhắn
+func (h *ChatHandler) SearchMessages(c *gin.Context) {
+	roomID := c.Param("id")
+	query := c.Query("q")
+	if query == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"data":    nil,
+			"error": gin.H{
+				"code":    "BAD_REQUEST",
+				"message": "Query parameter q is required",
+			},
+		})
+		return
+	}
+	list, err := h.usecase.SearchMessages(c.Request.Context(), roomID, query)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"data":    nil,
+			"error": gin.H{
+				"code":    "SEARCH_MESSAGES_ERROR",
+				"message": err.Error(),
+			},
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    list,
+		"error":   nil,
+	})
+}
+
 // WebSocket client pumps implementation
 func (c *Client) readPump(uc *usecase.ChatUsecase, canModerate bool) {
 	defer func() {
@@ -250,6 +284,86 @@ func (c *Client) readPump(uc *usecase.ChatUsecase, canModerate bool) {
 						"user_id":    c.UserID,
 						"emoji":      payload.Emoji,
 						"action":     payload.Action,
+					},
+				}
+				data, _ := json.Marshal(broadcastMsg)
+				c.Hub.BroadcastToRoom(c.RoomID, data)
+			}
+
+		case "chat:edit_message":
+			var payload struct {
+				MessageID string `json:"message_id"`
+				Content   string `json:"content"`
+			}
+			payloadBytes, _ := json.Marshal(incoming.Payload)
+			_ = json.Unmarshal(payloadBytes, &payload)
+			msg, err := uc.EditMessage(context.Background(), c.UserID, payload.MessageID, payload.Content)
+			if err == nil && msg != nil {
+				broadcastMsg := domain.WSMessage{
+					Event:  "chat:message_edited",
+					RoomID: c.RoomID,
+					Payload: gin.H{
+						"message_id": msg.ID,
+						"content":    msg.Content,
+						"is_edited":  true,
+					},
+				}
+				data, _ := json.Marshal(broadcastMsg)
+				c.Hub.BroadcastToRoom(c.RoomID, data)
+			}
+
+		case "chat:delete_message":
+			var payload struct {
+				MessageID string `json:"message_id"`
+			}
+			payloadBytes, _ := json.Marshal(incoming.Payload)
+			_ = json.Unmarshal(payloadBytes, &payload)
+			err := uc.DeleteMessage(context.Background(), c.UserID, payload.MessageID, canModerate)
+			if err == nil {
+				broadcastMsg := domain.WSMessage{
+					Event:  "chat:message_deleted",
+					RoomID: c.RoomID,
+					Payload: gin.H{
+						"message_id": payload.MessageID,
+					},
+				}
+				data, _ := json.Marshal(broadcastMsg)
+				c.Hub.BroadcastToRoom(c.RoomID, data)
+			}
+
+		case "chat:pin_message":
+			var payload struct {
+				MessageID string `json:"message_id"`
+			}
+			payloadBytes, _ := json.Marshal(incoming.Payload)
+			_ = json.Unmarshal(payloadBytes, &payload)
+			pin, err := uc.PinMessage(context.Background(), c.UserID, c.RoomID, payload.MessageID)
+			if err == nil && pin != nil {
+				broadcastMsg := domain.WSMessage{
+					Event:  "chat:message_pinned",
+					RoomID: c.RoomID,
+					Payload: gin.H{
+						"message_id": pin.MessageID,
+						"pinned_by":  pin.PinnedBy,
+					},
+				}
+				data, _ := json.Marshal(broadcastMsg)
+				c.Hub.BroadcastToRoom(c.RoomID, data)
+			}
+
+		case "chat:unpin_message":
+			var payload struct {
+				MessageID string `json:"message_id"`
+			}
+			payloadBytes, _ := json.Marshal(incoming.Payload)
+			_ = json.Unmarshal(payloadBytes, &payload)
+			err := uc.UnpinMessage(context.Background(), payload.MessageID)
+			if err == nil {
+				broadcastMsg := domain.WSMessage{
+					Event:  "chat:message_unpinned",
+					RoomID: c.RoomID,
+					Payload: gin.H{
+						"message_id": payload.MessageID,
 					},
 				}
 				data, _ := json.Marshal(broadcastMsg)

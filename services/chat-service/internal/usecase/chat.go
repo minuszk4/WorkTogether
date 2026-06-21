@@ -123,3 +123,8 @@ func (u *ChatUsecase) PinMessage(ctx context.Context, userID, roomID, msgID stri
 func (u *ChatUsecase) UnpinMessage(ctx context.Context, msgID string) error {
 	return u.repo.UnpinMessage(ctx, msgID)
 }
+
+func (u *ChatUsecase) SearchMessages(ctx context.Context, roomID, query string) ([]*domain.Message, error) {
+	return u.repo.SearchMessages(ctx, roomID, query)
+}
+

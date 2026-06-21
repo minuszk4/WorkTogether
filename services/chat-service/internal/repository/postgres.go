@@ -145,3 +145,32 @@ func (r *PostgresRepository) UnpinMessage(ctx context.Context, msgID string) err
 	_, err := r.db.ExecContext(ctx, query, msgID)
 	return err
 }
+
+func (r *PostgresRepository) SearchMessages(ctx context.Context, roomID, query string) ([]*domain.Message, error) {
+	dbQuery := `
+		SELECT id, room_id, sender_id, content, reply_to_id, is_edited, created_at 
+		FROM messages 
+		WHERE room_id = $1 AND content ILIKE $2
+		ORDER BY created_at DESC 
+		LIMIT 50
+	`
+	rows, err := r.db.QueryContext(ctx, dbQuery, roomID, "%"+query+"%")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var list []*domain.Message
+	for rows.Next() {
+		msg := &domain.Message{}
+		var replyTo sql.NullString
+		if err := rows.Scan(&msg.ID, &msg.RoomID, &msg.SenderID, &msg.Content, &replyTo, &msg.IsEdited, &msg.CreatedAt); err != nil {
+			return nil, err
+		}
+		if replyTo.Valid {
+			msg.ReplyToID = replyTo.String
+		}
+		list = append(list, msg)
+	}
+	return list, nil
+}
+
