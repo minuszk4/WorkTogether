@@ -20,21 +20,26 @@ func (r *PostgresRepository) CreateRoom(ctx context.Context, rm *domain.Room) er
 	if rm.AddMusicPolicy == "" {
 		rm.AddMusicPolicy = "all"
 	}
+	if rm.Theme == "" {
+		rm.Theme = "cool-ocean"
+	}
 	query := `
-		INSERT INTO rooms (name, description, privacy, password_hash, invite_code, owner_id, add_music_policy, parent_id)
-		VALUES ($1, $2, UPPER($3), $4, $5, $6, $7, $8)
-		RETURNING id, add_music_policy, created_at, updated_at
+		INSERT INTO rooms (name, description, privacy, password_hash, invite_code, owner_id, add_music_policy, parent_id, avatar_url, rules, theme)
+		VALUES ($1, $2, UPPER($3), $4, $5, $6, $7, $8, $9, $10, $11)
+		RETURNING id, add_music_policy, theme, created_at, updated_at
 	`
-	return r.db.QueryRowContext(ctx, query, rm.Name, rm.Description, rm.Privacy, rm.PasswordHash, rm.InviteCode, rm.OwnerID, rm.AddMusicPolicy, rm.ParentID).
-		Scan(&rm.ID, &rm.AddMusicPolicy, &rm.CreatedAt, &rm.UpdatedAt)
+	return r.db.QueryRowContext(ctx, query, rm.Name, rm.Description, rm.Privacy, rm.PasswordHash, rm.InviteCode, rm.OwnerID, rm.AddMusicPolicy, rm.ParentID, rm.AvatarURL, rm.Rules, rm.Theme).
+		Scan(&rm.ID, &rm.AddMusicPolicy, &rm.Theme, &rm.CreatedAt, &rm.UpdatedAt)
 }
 
 func (r *PostgresRepository) GetRoomByID(ctx context.Context, id string) (*domain.Room, error) {
-	query := `SELECT id, name, description, privacy, password_hash, invite_code, owner_id, add_music_policy, parent_id, created_at, updated_at FROM rooms WHERE id = $1`
+	query := `SELECT id, name, description, privacy, password_hash, invite_code, owner_id, add_music_policy, parent_id, avatar_url, rules, theme, created_at, updated_at FROM rooms WHERE id = $1`
 	rm := &domain.Room{}
 	var parentID sql.NullString
+	var avatarURL sql.NullString
+	var rules sql.NullString
 	err := r.db.QueryRowContext(ctx, query, id).
-		Scan(&rm.ID, &rm.Name, &rm.Description, &rm.Privacy, &rm.PasswordHash, &rm.InviteCode, &rm.OwnerID, &rm.AddMusicPolicy, &parentID, &rm.CreatedAt, &rm.UpdatedAt)
+		Scan(&rm.ID, &rm.Name, &rm.Description, &rm.Privacy, &rm.PasswordHash, &rm.InviteCode, &rm.OwnerID, &rm.AddMusicPolicy, &parentID, &avatarURL, &rules, &rm.Theme, &rm.CreatedAt, &rm.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
@@ -43,16 +48,24 @@ func (r *PostgresRepository) GetRoomByID(ctx context.Context, id string) (*domai
 	}
 	if parentID.Valid {
 		rm.ParentID = &parentID.String
+	}
+	if avatarURL.Valid {
+		rm.AvatarURL = &avatarURL.String
+	}
+	if rules.Valid {
+		rm.Rules = &rules.String
 	}
 	return rm, nil
 }
 
 func (r *PostgresRepository) GetRoomByInviteCode(ctx context.Context, code string) (*domain.Room, error) {
-	query := `SELECT id, name, description, privacy, password_hash, invite_code, owner_id, add_music_policy, parent_id, created_at, updated_at FROM rooms WHERE invite_code = $1`
+	query := `SELECT id, name, description, privacy, password_hash, invite_code, owner_id, add_music_policy, parent_id, avatar_url, rules, theme, created_at, updated_at FROM rooms WHERE invite_code = $1`
 	rm := &domain.Room{}
 	var parentID sql.NullString
+	var avatarURL sql.NullString
+	var rules sql.NullString
 	err := r.db.QueryRowContext(ctx, query, code).
-		Scan(&rm.ID, &rm.Name, &rm.Description, &rm.Privacy, &rm.PasswordHash, &rm.InviteCode, &rm.OwnerID, &rm.AddMusicPolicy, &parentID, &rm.CreatedAt, &rm.UpdatedAt)
+		Scan(&rm.ID, &rm.Name, &rm.Description, &rm.Privacy, &rm.PasswordHash, &rm.InviteCode, &rm.OwnerID, &rm.AddMusicPolicy, &parentID, &avatarURL, &rules, &rm.Theme, &rm.CreatedAt, &rm.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
@@ -61,13 +74,19 @@ func (r *PostgresRepository) GetRoomByInviteCode(ctx context.Context, code strin
 	}
 	if parentID.Valid {
 		rm.ParentID = &parentID.String
+	}
+	if avatarURL.Valid {
+		rm.AvatarURL = &avatarURL.String
+	}
+	if rules.Valid {
+		rm.Rules = &rules.String
 	}
 	return rm, nil
 }
 
 func (r *PostgresRepository) GetRooms(ctx context.Context, search string, limit, offset int) ([]*domain.Room, error) {
 	query := `
-		SELECT id, name, description, privacy, invite_code, owner_id, add_music_policy, parent_id, created_at, updated_at 
+		SELECT id, name, description, privacy, invite_code, owner_id, add_music_policy, parent_id, avatar_url, rules, theme, created_at, updated_at 
 		FROM rooms 
 		WHERE privacy = 'PUBLIC' AND (name ILIKE $1 OR description ILIKE $1) AND parent_id IS NULL
 		ORDER BY created_at DESC 
@@ -83,11 +102,19 @@ func (r *PostgresRepository) GetRooms(ctx context.Context, search string, limit,
 	for rows.Next() {
 		rm := &domain.Room{}
 		var parentID sql.NullString
-		if err := rows.Scan(&rm.ID, &rm.Name, &rm.Description, &rm.Privacy, &rm.InviteCode, &rm.OwnerID, &rm.AddMusicPolicy, &parentID, &rm.CreatedAt, &rm.UpdatedAt); err != nil {
+		var avatarURL sql.NullString
+		var rules sql.NullString
+		if err := rows.Scan(&rm.ID, &rm.Name, &rm.Description, &rm.Privacy, &rm.InviteCode, &rm.OwnerID, &rm.AddMusicPolicy, &parentID, &avatarURL, &rules, &rm.Theme, &rm.CreatedAt, &rm.UpdatedAt); err != nil {
 			return nil, err
 		}
 		if parentID.Valid {
 			rm.ParentID = &parentID.String
+		}
+		if avatarURL.Valid {
+			rm.AvatarURL = &avatarURL.String
+		}
+		if rules.Valid {
+			rm.Rules = &rules.String
 		}
 		list = append(list, rm)
 	}
@@ -98,12 +125,15 @@ func (r *PostgresRepository) UpdateRoom(ctx context.Context, rm *domain.Room) er
 	if rm.AddMusicPolicy == "" {
 		rm.AddMusicPolicy = "all"
 	}
+	if rm.Theme == "" {
+		rm.Theme = "cool-ocean"
+	}
 	query := `
 		UPDATE rooms 
-		SET name = $1, description = $2, privacy = UPPER($3), password_hash = $4, add_music_policy = $5, updated_at = NOW() 
-		WHERE id = $6
+		SET name = $1, description = $2, privacy = UPPER($3), password_hash = $4, add_music_policy = $5, avatar_url = $6, rules = $7, theme = $8, updated_at = NOW() 
+		WHERE id = $9
 	`
-	_, err := r.db.ExecContext(ctx, query, rm.Name, rm.Description, rm.Privacy, rm.PasswordHash, rm.AddMusicPolicy, rm.ID)
+	_, err := r.db.ExecContext(ctx, query, rm.Name, rm.Description, rm.Privacy, rm.PasswordHash, rm.AddMusicPolicy, rm.AvatarURL, rm.Rules, rm.Theme, rm.ID)
 	return err
 }
 
@@ -276,7 +306,7 @@ func (r *PostgresRepository) RemoveBan(ctx context.Context, roomID, userID strin
 }
 
 func (r *PostgresRepository) GetSubRooms(ctx context.Context, parentID string) ([]*domain.Room, error) {
-	query := `SELECT id, name, description, privacy, invite_code, owner_id, add_music_policy, parent_id, created_at, updated_at FROM rooms WHERE parent_id = $1`
+	query := `SELECT id, name, description, privacy, invite_code, owner_id, add_music_policy, parent_id, avatar_url, rules, theme, created_at, updated_at FROM rooms WHERE parent_id = $1`
 	rows, err := r.db.QueryContext(ctx, query, parentID)
 	if err != nil {
 		return nil, err
@@ -287,11 +317,19 @@ func (r *PostgresRepository) GetSubRooms(ctx context.Context, parentID string) (
 	for rows.Next() {
 		rm := &domain.Room{}
 		var parentIDStr sql.NullString
-		if err := rows.Scan(&rm.ID, &rm.Name, &rm.Description, &rm.Privacy, &rm.InviteCode, &rm.OwnerID, &rm.AddMusicPolicy, &parentIDStr, &rm.CreatedAt, &rm.UpdatedAt); err != nil {
+		var avatarURL sql.NullString
+		var rules sql.NullString
+		if err := rows.Scan(&rm.ID, &rm.Name, &rm.Description, &rm.Privacy, &rm.InviteCode, &rm.OwnerID, &rm.AddMusicPolicy, &parentIDStr, &avatarURL, &rules, &rm.Theme, &rm.CreatedAt, &rm.UpdatedAt); err != nil {
 			return nil, err
 		}
 		if parentIDStr.Valid {
 			rm.ParentID = &parentIDStr.String
+		}
+		if avatarURL.Valid {
+			rm.AvatarURL = &avatarURL.String
+		}
+		if rules.Valid {
+			rm.Rules = &rules.String
 		}
 		list = append(list, rm)
 	}

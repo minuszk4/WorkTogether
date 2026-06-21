@@ -12,6 +12,9 @@ type Room struct {
 	OwnerID        string    `json:"owner_id"`
 	AddMusicPolicy string    `json:"add_music_policy"`
 	ParentID       *string   `json:"parent_id,omitempty"`
+	AvatarURL      *string   `json:"avatar_url,omitempty"`
+	Rules          *string   `json:"rules,omitempty"`
+	Theme          string    `json:"theme"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
 }
