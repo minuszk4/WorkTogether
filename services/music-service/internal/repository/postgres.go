@@ -53,6 +53,38 @@ func (r *PostgresRepository) initTables() error {
 		return err
 	}
 
+	// Khởi tạo bảng track_lyrics
+	lyricsSchema := `
+	CREATE TABLE IF NOT EXISTS track_lyrics (
+		track_id VARCHAR(36) PRIMARY KEY REFERENCES tracks(id) ON DELETE CASCADE,
+		content TEXT NOT NULL,
+		created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+	);`
+	if _, err := r.db.ExecContext(ctx, lyricsSchema); err != nil {
+		return err
+	}
+
+	// Khởi tạo bảng bookmarks
+	bookmarksSchema := `
+	CREATE TABLE IF NOT EXISTS bookmarks (
+		id VARCHAR(36) PRIMARY KEY,
+		room_id VARCHAR(36) NOT NULL,
+		user_id VARCHAR(36) NOT NULL,
+		track_id VARCHAR(36) REFERENCES tracks(id) ON DELETE CASCADE,
+		position_ms INTEGER NOT NULL,
+		note VARCHAR(255) NOT NULL,
+		created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+	);`
+	if _, err := r.db.ExecContext(ctx, bookmarksSchema); err != nil {
+		return err
+	}
+	
+	// Tạo chỉ mục cho bookmarks.room_id
+	if _, err := r.db.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS idx_bookmarks_room ON bookmarks(room_id);`); err != nil {
+		return err
+	}
+
 	log.Println("Đã khởi tạo schema PostgreSQL cho music-service thành công.")
 	return nil
 }
