@@ -15,10 +15,11 @@ import (
 type AuthHandler struct {
 	usecase     *usecase.AuthUsecase
 	googleCfg   *oauth2.Config
+	frontendURL string
 }
 
-func NewAuthHandler(uc *usecase.AuthUsecase, googleCfg *oauth2.Config) *AuthHandler {
-	return &AuthHandler{usecase: uc, googleCfg: googleCfg}
+func NewAuthHandler(uc *usecase.AuthUsecase, googleCfg *oauth2.Config, frontendURL string) *AuthHandler {
+	return &AuthHandler{usecase: uc, googleCfg: googleCfg, frontendURL: frontendURL}
 }
 
 // ─── Register ────────────────────────────────────────────────────────────────
@@ -70,7 +71,7 @@ func (h *AuthHandler) VerifyEmail(c *gin.Context) {
 	}
 
 	// Redirect về frontend với thông báo thành công
-	c.Redirect(http.StatusFound, "http://localhost:4200/auth?verified=true")
+	c.Redirect(http.StatusFound, h.frontendURL+"/auth?verified=true")
 }
 
 // ─── Login ────────────────────────────────────────────────────────────────────
@@ -128,20 +129,20 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 	stateCookie, _ := c.Cookie("oauth_state")
 	stateParam := c.Query("state")
 	if stateCookie == "" || stateCookie != stateParam {
-		c.Redirect(http.StatusFound, "http://localhost:4200/auth?error=invalid_state")
+		c.Redirect(http.StatusFound, h.frontendURL+"/auth?error=invalid_state")
 		return
 	}
 
 	code := c.Query("code")
 	if code == "" {
-		c.Redirect(http.StatusFound, "http://localhost:4200/auth?error=no_code")
+		c.Redirect(http.StatusFound, h.frontendURL+"/auth?error=no_code")
 		return
 	}
 
 	// Exchange code lấy user info từ Google
 	googleUser, err := usecase.ExchangeGoogleCode(c.Request.Context(), h.googleCfg, code)
 	if err != nil {
-		c.Redirect(http.StatusFound, "http://localhost:4200/auth?error=google_exchange_failed")
+		c.Redirect(http.StatusFound, h.frontendURL+"/auth?error=google_exchange_failed")
 		return
 	}
 
@@ -150,7 +151,7 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 		c.Request.Context(), googleUser, c.ClientIP(), c.Request.UserAgent(),
 	)
 	if err != nil {
-		c.Redirect(http.StatusFound, "http://localhost:4200/auth?error=login_failed")
+		c.Redirect(http.StatusFound, h.frontendURL+"/auth?error=login_failed")
 		return
 	}
 
@@ -162,7 +163,7 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 
 	// Redirect về frontend kèm access token (fragment để không lưu vào server log)
 	c.Redirect(http.StatusFound,
-		"http://localhost:4200/auth/callback#access_token="+accessToken+"&user_id="+acc.ID+"&username="+acc.Username)
+		h.frontendURL+"/auth/callback#access_token="+accessToken+"&user_id="+acc.ID+"&username="+acc.Username)
 }
 
 // ─── Refresh & Logout ─────────────────────────────────────────────────────────

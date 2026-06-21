@@ -11,11 +11,12 @@ import (
 
 // EmailService gửi email qua SMTP (Gmail hoặc bất kỳ provider nào)
 type EmailService struct {
-	host     string
-	port     int
-	username string
-	password string
-	from     string
+	host        string
+	port        int
+	username    string
+	password    string
+	from        string
+	frontendURL string
 }
 
 func NewEmailService() *EmailService {
@@ -23,12 +24,17 @@ func NewEmailService() *EmailService {
 	if port == 0 {
 		port = 587
 	}
+	frontendURL := os.Getenv("FRONTEND_URL")
+	if frontendURL == "" {
+		frontendURL = "http://localhost:4200"
+	}
 	return &EmailService{
-		host:     os.Getenv("SMTP_HOST"),
-		port:     port,
-		username: os.Getenv("SMTP_USER"),
-		password: os.Getenv("SMTP_PASSWORD"),
-		from:     os.Getenv("SMTP_FROM"),
+		host:        os.Getenv("SMTP_HOST"),
+		port:        port,
+		username:    os.Getenv("SMTP_USER"),
+		password:    os.Getenv("SMTP_PASSWORD"),
+		from:        os.Getenv("SMTP_FROM"),
+		frontendURL: frontendURL,
 	}
 }
 
@@ -58,7 +64,7 @@ func (e *EmailService) SendWelcomeEmail(toEmail, username string) error {
 	}
 
 	subject := "Chào mừng đến với WorkTogether! 🎵"
-	body := buildWelcomeEmailHTML(username)
+	body := buildWelcomeEmailHTML(username, e.frontendURL)
 	return e.sendHTML(toEmail, subject, body)
 }
 
@@ -173,7 +179,7 @@ func buildVerificationEmailHTML(username, verifyURL string) string {
 </html>`, username, verifyURL)
 }
 
-func buildWelcomeEmailHTML(username string) string {
+func buildWelcomeEmailHTML(username, frontendURL string) string {
 	return fmt.Sprintf(`<!DOCTYPE html>
 <html>
 <head><meta charset="UTF-8"></head>
@@ -188,7 +194,7 @@ func buildWelcomeEmailHTML(username string) string {
           <div style="font-size:48px;margin-bottom:16px;">🎵</div>
           <h2 style="color:#fff;margin:0 0 12px;">Chào mừng, %s!</h2>
           <p style="color:#9ca3af;line-height:1.6;">Tài khoản của bạn đã được xác thực. Bạn có thể đăng nhập và bắt đầu ngay bây giờ.</p>
-          <a href="http://localhost:4200/auth" style="display:inline-block;margin-top:24px;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;text-decoration:none;padding:14px 36px;border-radius:8px;font-weight:600;">
+          <a href="%s/auth" style="display:inline-block;margin-top:24px;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;text-decoration:none;padding:14px 36px;border-radius:8px;font-weight:600;">
             Vào WorkTogether →
           </a>
         </td></tr>
@@ -199,5 +205,5 @@ func buildWelcomeEmailHTML(username string) string {
     </td></tr>
   </table>
 </body>
-</html>`, username)
+</html>`, username, frontendURL)
 }
