@@ -40,3 +40,17 @@ type Bookmark struct {
 	Note       string    `json:"note"`
 	CreatedAt  time.Time `json:"created_at"`
 }
+
+type TopTrack struct {
+	ID           string `json:"id"`
+	Title        string `json:"title"`
+	Artist       string `json:"artist"`
+	ThumbnailURL string `json:"thumbnail_url"`
+	PlayCount    int    `json:"play_count"`
+}
+
+type RoomStats struct {
+	TotalTracksPlayed int         `json:"total_tracks_played"`
+	TotalPlayTimeMS   int64       `json:"total_play_time_ms"`
+	TopTracks         []*TopTrack `json:"top_tracks"`
+}

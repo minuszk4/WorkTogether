@@ -364,3 +364,25 @@ func (h *MusicHandler) DeleteBookmark(c *gin.Context) {
 		"error":   nil,
 	})
 }
+
+func (h *MusicHandler) GetStats(c *gin.Context) {
+	roomID := c.Param("room_id")
+	stats, err := h.usecase.GetRoomStats(c.Request.Context(), roomID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"data":    nil,
+			"error": gin.H{
+				"code":    "SERVER_ERROR",
+				"message": err.Error(),
+			},
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    stats,
+		"error":   nil,
+	})
+}

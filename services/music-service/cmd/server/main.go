@@ -80,6 +80,7 @@ func main() {
 		musicGroup.GET("/:id", handler.GetTrack)
 		musicGroup.POST("/history", handler.LogPlayback)
 		musicGroup.GET("/history/:room_id", handler.GetHistory)
+		musicGroup.GET("/rooms/:room_id/stats", handler.GetStats)
 
 		// Lyrics endpoints
 		musicGroup.GET("/tracks/:track_id/lyrics", handler.GetLyrics)

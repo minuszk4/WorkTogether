@@ -245,3 +245,46 @@ func (r *PostgresRepository) DeleteBookmark(ctx context.Context, id string) erro
 	_, err := r.db.ExecContext(ctx, `DELETE FROM bookmarks WHERE id = $1`, id)
 	return err
 }
+
+func (r *PostgresRepository) GetRoomStats(ctx context.Context, roomID string) (*domain.RoomStats, error) {
+	stats := &domain.RoomStats{TopTracks: []*domain.TopTrack{}}
+
+	// 1. Total tracks
+	err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM history WHERE room_id = $1", roomID).Scan(&stats.TotalTracksPlayed)
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. Total play time
+	timeQuery := `SELECT COALESCE(SUM(t.duration_ms), 0) FROM history h JOIN tracks t ON h.track_id = t.id WHERE h.room_id = $1`
+	err = r.db.QueryRowContext(ctx, timeQuery, roomID).Scan(&stats.TotalPlayTimeMS)
+	if err != nil {
+		return nil, err
+	}
+
+	// 3. Top tracks
+	topQuery := `
+		SELECT t.id, t.title, t.artist, t.thumbnail_url, COUNT(h.id) AS play_count
+		FROM history h
+		JOIN tracks t ON h.track_id = t.id
+		WHERE h.room_id = $1
+		GROUP BY t.id, t.title, t.artist, t.thumbnail_url
+		ORDER BY play_count DESC
+		LIMIT 5
+	`
+	rows, err := r.db.QueryContext(ctx, topQuery, roomID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var t domain.TopTrack
+		if err := rows.Scan(&t.ID, &t.Title, &t.Artist, &t.ThumbnailURL, &t.PlayCount); err != nil {
+			return nil, err
+		}
+		stats.TopTracks = append(stats.TopTracks, &t)
+	}
+
+	return stats, nil
+}

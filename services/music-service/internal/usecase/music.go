@@ -530,3 +530,7 @@ func (u *MusicUsecase) GetBookmarks(ctx context.Context, roomID string) ([]*doma
 func (u *MusicUsecase) DeleteBookmark(ctx context.Context, id string) error {
 	return u.postgresRepo.DeleteBookmark(ctx, id)
 }
+
+func (u *MusicUsecase) GetRoomStats(ctx context.Context, roomID string) (*domain.RoomStats, error) {
+	return u.postgresRepo.GetRoomStats(ctx, roomID)
+}
