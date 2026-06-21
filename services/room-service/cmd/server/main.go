@@ -91,6 +91,7 @@ func main() {
 	roomsGroup.Use(middleware.AuthMiddleware(jwtSecret))
 	{
 		roomsGroup.POST("", handler.CreateRoom)
+		roomsGroup.DELETE("/:id", handler.DeleteRoom)
 		roomsGroup.GET("", handler.GetRooms)
 		roomsGroup.GET("/invite/:code", handler.GetRoomByInviteCode)
 		roomsGroup.GET("/:id", handler.GetRoomByID)
@@ -106,6 +107,8 @@ func main() {
 		// Vi phạm
 		roomsGroup.POST("/:id/members/:user_id/kick", handler.KickMember)
 		roomsGroup.POST("/:id/members/:user_id/ban", handler.BanMember)
+		roomsGroup.POST("/:id/members/:user_id/mute", handler.MuteMember)
+		roomsGroup.POST("/:id/members/:user_id/unmute", handler.UnmuteMember)
 
 		// Subrooms
 		roomsGroup.POST("/:id/subrooms", handler.CreateSubRoom)

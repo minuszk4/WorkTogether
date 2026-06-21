@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"context"
+	"time"
 
 	roomv1 "github.com/worktogether/services/room-service/api/v1"
 	"github.com/worktogether/services/room-service/internal/usecase"
@@ -55,6 +56,16 @@ func (s *RoomGrpcServer) VerifyRoomMember(ctx context.Context, req *roomv1.Verif
 				permissions = append(permissions, "CAN_USE_VOICE")
 			}
 		}
+	}
+
+	if m.MutedUntil != nil && m.MutedUntil.After(time.Now()) {
+		filtered := []string{}
+		for _, p := range permissions {
+			if p != "CAN_CHAT" && p != "CAN_USE_VOICE" {
+				filtered = append(filtered, p)
+			}
+		}
+		permissions = filtered
 	}
 
 	return &roomv1.VerifyRoomMemberResponse{

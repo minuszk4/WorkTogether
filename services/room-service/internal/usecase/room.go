@@ -419,3 +419,49 @@ func (u *RoomUsecase) MoveMember(ctx context.Context, requesterID string, roomID
 	return u.repo.MoveMember(ctx, roomID, userID, subRoomID)
 }
 
+func (u *RoomUsecase) DeleteRoom(ctx context.Context, userID, roomID string) error {
+	member, err := u.repo.GetMember(ctx, roomID, userID)
+	if err != nil {
+		return err
+	}
+	if member == nil || member.RoleType != "OWNER" {
+		return ErrUnauthorized
+	}
+	return u.repo.DeleteRoom(ctx, roomID)
+}
+
+func (u *RoomUsecase) MuteMember(ctx context.Context, requesterID, roomID, targetUserID string, durationSecs int) error {
+	reqMember, err := u.repo.GetMember(ctx, roomID, requesterID)
+	if err != nil || reqMember == nil || (reqMember.RoleType != "OWNER" && reqMember.RoleType != "MODERATOR") {
+		return ErrUnauthorized
+	}
+	targetMember, err := u.repo.GetMember(ctx, roomID, targetUserID)
+	if err != nil {
+		return err
+	}
+	if targetMember == nil {
+		return errors.New("thành viên mục tiêu không tồn tại")
+	}
+	if targetMember.RoleType == "OWNER" {
+		return errors.New("không thể mute chủ phòng")
+	}
+	mutedUntil := time.Now().Add(time.Duration(durationSecs) * time.Second)
+	return u.repo.UpdateMemberMute(ctx, roomID, targetUserID, &mutedUntil)
+}
+
+func (u *RoomUsecase) UnmuteMember(ctx context.Context, requesterID, roomID, targetUserID string) error {
+	reqMember, err := u.repo.GetMember(ctx, roomID, requesterID)
+	if err != nil || reqMember == nil || (reqMember.RoleType != "OWNER" && reqMember.RoleType != "MODERATOR") {
+		return ErrUnauthorized
+	}
+	targetMember, err := u.repo.GetMember(ctx, roomID, targetUserID)
+	if err != nil {
+		return err
+	}
+	if targetMember == nil {
+		return errors.New("thành viên mục tiêu không tồn tại")
+	}
+	return u.repo.UpdateMemberMute(ctx, roomID, targetUserID, nil)
+}
+
+
