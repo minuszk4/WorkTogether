@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"os"
@@ -369,7 +370,13 @@ func (u *AuthUsecase) ResetPassword(ctx context.Context, tokenStr, newPassword s
 	if err != nil {
 		return err
 	}
-	return u.repo.UpdatePassword(ctx, accountID, hashedPassword)
+	if err := u.repo.UpdatePassword(ctx, accountID, hashedPassword); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return errors.New("tài khoản không tồn tại")
+		}
+		return err
+	}
+	return u.repo.DeleteSessionsByAccountID(ctx, accountID)
 }
 
 func (u *AuthUsecase) ChangePassword(ctx context.Context, userID, oldPassword, newPassword string) error {
@@ -384,7 +391,10 @@ func (u *AuthUsecase) ChangePassword(ctx context.Context, userID, oldPassword, n
 	if err != nil {
 		return err
 	}
-	return u.repo.UpdatePassword(ctx, userID, hashedPassword)
+	if err := u.repo.UpdatePassword(ctx, userID, hashedPassword); err != nil {
+		return err
+	}
+	return u.repo.DeleteSessionsByAccountID(ctx, userID)
 }
 
 func (u *AuthUsecase) hashPassword(password string) (string, error) {

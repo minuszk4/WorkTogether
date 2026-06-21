@@ -144,8 +144,18 @@ func (r *PostgresRepository) DeleteSessionsByAccountID(ctx context.Context, acco
 
 func (r *PostgresRepository) UpdatePassword(ctx context.Context, id, passwordHash string) error {
 	query := `UPDATE accounts SET password_hash = $1, updated_at = NOW() WHERE id = $2`
-	_, err := r.db.ExecContext(ctx, query, passwordHash, id)
-	return err
+	res, err := r.db.ExecContext(ctx, query, passwordHash, id)
+	if err != nil {
+		return err
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
 }
 
 // nullableString chuyển empty string thành nil (NULL trong DB)

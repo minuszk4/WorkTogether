@@ -92,14 +92,38 @@ func TestAuthUsecase_ResetPassword(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		newPassword := "newpassword123"
 		expectedUpdateQuery := regexp.QuoteMeta("UPDATE accounts SET password_hash = $1, updated_at = NOW() WHERE id = $2")
+		expectedDeleteSessionsQuery := regexp.QuoteMeta("DELETE FROM sessions WHERE account_id = $1")
 
 		mock.ExpectExec(expectedUpdateQuery).
 			WithArgs(sqlmock.AnyArg(), "acc-123").
 			WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectExec(expectedDeleteSessionsQuery).
+			WithArgs("acc-123").
+			WillReturnResult(sqlmock.NewResult(0, 1))
 
 		err := uc.ResetPassword(ctx, tokenStr, newPassword)
 		if err != nil {
 			t.Errorf("expected no error, got %v", err)
+		}
+
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("sqlmock expectations not met: %s", err)
+		}
+	})
+
+	t.Run("account not found", func(t *testing.T) {
+		newPassword := "newpassword123"
+		expectedUpdateQuery := regexp.QuoteMeta("UPDATE accounts SET password_hash = $1, updated_at = NOW() WHERE id = $2")
+
+		mock.ExpectExec(expectedUpdateQuery).
+			WithArgs(sqlmock.AnyArg(), "acc-123").
+			WillReturnResult(sqlmock.NewResult(0, 0))
+
+		err := uc.ResetPassword(ctx, tokenStr, newPassword)
+		if err == nil {
+			t.Error("expected error, got nil")
+		} else if err.Error() != "tài khoản không tồn tại" {
+			t.Errorf("unexpected error: %s", err.Error())
 		}
 
 		if err := mock.ExpectationsWereMet(); err != nil {
@@ -163,12 +187,14 @@ func TestAuthUsecase_ChangePassword(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		expectedGetQuery := regexp.QuoteMeta("SELECT id, email, username, COALESCE(password_hash,''), is_verified, COALESCE(google_id,''), created_at, updated_at FROM accounts WHERE id = $1")
 		expectedUpdateQuery := regexp.QuoteMeta("UPDATE accounts SET password_hash = $1, updated_at = NOW() WHERE id = $2")
+		expectedDeleteSessionsQuery := regexp.QuoteMeta("DELETE FROM sessions WHERE account_id = $1")
 
 		rows := sqlmock.NewRows([]string{"id", "email", "username", "password_hash", "is_verified", "google_id", "created_at", "updated_at"}).
 			AddRow(userID, "test@example.com", "testuser", string(hashedOldPassword), true, "", time.Now(), time.Now())
 
 		mock.ExpectQuery(expectedGetQuery).WithArgs(userID).WillReturnRows(rows)
 		mock.ExpectExec(expectedUpdateQuery).WithArgs(sqlmock.AnyArg(), userID).WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectExec(expectedDeleteSessionsQuery).WithArgs(userID).WillReturnResult(sqlmock.NewResult(0, 1))
 
 		err := uc.ChangePassword(ctx, userID, oldPassword, newPassword)
 		if err != nil {
