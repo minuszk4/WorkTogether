@@ -11,6 +11,7 @@ type Room struct {
 	InviteCode     string    `json:"invite_code"`
 	OwnerID        string    `json:"owner_id"`
 	AddMusicPolicy string    `json:"add_music_policy"`
+	ParentID       *string   `json:"parent_id,omitempty"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
 }
@@ -29,12 +30,13 @@ type RoomRole struct {
 }
 
 type RoomMember struct {
-	ID       string    `json:"id"`
-	RoomID   string    `json:"room_id"`
-	UserID   string    `json:"user_id"`
-	RoleID   string    `json:"role_id,omitempty"`   // custom role
-	RoleType string    `json:"role_type"`           // OWNER, MODERATOR, MEMBER
-	JoinedAt time.Time `json:"joined_at"`
+	ID              string    `json:"id"`
+	RoomID          string    `json:"room_id"`
+	UserID          string    `json:"user_id"`
+	RoleID          string    `json:"role_id,omitempty"`   // custom role
+	RoleType        string    `json:"role_type"`           // OWNER, MODERATOR, MEMBER
+	ActiveSubRoomID *string   `json:"active_sub_room_id,omitempty"`
+	JoinedAt        time.Time `json:"joined_at"`
 }
 
 type RoomBan struct {

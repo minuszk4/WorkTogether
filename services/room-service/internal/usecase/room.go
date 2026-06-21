@@ -362,3 +362,57 @@ func (u *RoomUsecase) UpdateRoomSettings(ctx context.Context, userID string, roo
 
 	return rm, nil
 }
+
+func (u *RoomUsecase) CreateSubRoom(ctx context.Context, ownerID string, parentID string, name string, description string) (*domain.Room, error) {
+	member, err := u.repo.GetMember(ctx, parentID, ownerID)
+	if err != nil {
+		return nil, err
+	}
+	if member == nil || member.RoleType != "OWNER" {
+		return nil, ErrUnauthorized
+	}
+
+	rm := &domain.Room{
+		Name:         name,
+		Description:  description,
+		Privacy:      "public",
+		InviteCode:   u.generateInviteCode(),
+		OwnerID:      ownerID,
+		ParentID:     &parentID,
+	}
+
+	if err := u.repo.CreateRoom(ctx, rm); err != nil {
+		return nil, err
+	}
+
+	return rm, nil
+}
+
+func (u *RoomUsecase) GetSubRooms(ctx context.Context, parentID string) ([]*domain.Room, error) {
+	return u.repo.GetSubRooms(ctx, parentID)
+}
+
+func (u *RoomUsecase) MoveMember(ctx context.Context, requesterID string, roomID string, userID string, subRoomID *string) error {
+	if requesterID != userID {
+		member, err := u.repo.GetMember(ctx, roomID, requesterID)
+		if err != nil {
+			return err
+		}
+		if member == nil || (member.RoleType != "OWNER" && member.RoleType != "MODERATOR") {
+			return ErrUnauthorized
+		}
+	}
+
+	if subRoomID != nil && *subRoomID != "" {
+		subRoom, err := u.repo.GetRoomByID(ctx, *subRoomID)
+		if err != nil {
+			return err
+		}
+		if subRoom == nil || subRoom.ParentID == nil || *subRoom.ParentID != roomID {
+			return errors.New("phòng con không hợp lệ")
+		}
+	}
+
+	return u.repo.MoveMember(ctx, roomID, userID, subRoomID)
+}
+

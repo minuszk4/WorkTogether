@@ -473,3 +473,113 @@ func (h *RoomHandler) UpdateRoomSettings(c *gin.Context) {
 		"error":   nil,
 	})
 }
+
+func (h *RoomHandler) CreateSubRoom(c *gin.Context) {
+	parentID := c.Param("id")
+	userID, _ := c.Get("userID")
+
+	var req struct {
+		Name        string `json:"name" binding:"required,min=3,max=100"`
+		Description string `json:"description" binding:"max=500"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "INVALID_PARAMETERS",
+				"message": err.Error(),
+			},
+		})
+		return
+	}
+
+	sub, err := h.usecase.CreateSubRoom(c.Request.Context(), userID.(string), parentID, req.Name, req.Description)
+	if err != nil {
+		status := http.StatusInternalServerError
+		code := "CREATE_SUBROOM_FAILED"
+		if errors.Is(err, usecase.ErrUnauthorized) {
+			status = http.StatusForbidden
+			code = "FORBIDDEN"
+		}
+		c.JSON(status, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    code,
+				"message": err.Error(),
+			},
+		})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"success": true,
+		"data":    sub,
+	})
+}
+
+func (h *RoomHandler) GetSubRooms(c *gin.Context) {
+	parentID := c.Param("id")
+
+	subs, err := h.usecase.GetSubRooms(c.Request.Context(), parentID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "GET_SUBROOMS_FAILED",
+				"message": err.Error(),
+			},
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    subs,
+	})
+}
+
+func (h *RoomHandler) MoveMember(c *gin.Context) {
+	roomID := c.Param("id")
+	userID := c.Param("user_id")
+	requesterID, _ := c.Get("userID")
+
+	var req struct {
+		SubRoomID *string `json:"sub_room_id"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "INVALID_PARAMETERS",
+				"message": err.Error(),
+			},
+		})
+		return
+	}
+
+	err := h.usecase.MoveMember(c.Request.Context(), requesterID.(string), roomID, userID, req.SubRoomID)
+	if err != nil {
+		status := http.StatusInternalServerError
+		code := "MOVE_MEMBER_FAILED"
+		if errors.Is(err, usecase.ErrUnauthorized) {
+			status = http.StatusForbidden
+			code = "FORBIDDEN"
+		}
+		c.JSON(status, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    code,
+				"message": err.Error(),
+			},
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    gin.H{"message": "Di chuyển thành viên thành công."},
+	})
+}
+

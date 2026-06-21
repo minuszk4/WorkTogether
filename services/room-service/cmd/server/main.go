@@ -103,6 +103,11 @@ func main() {
 		// Vi phạm
 		roomsGroup.POST("/:id/members/:user_id/kick", handler.KickMember)
 		roomsGroup.POST("/:id/members/:user_id/ban", handler.BanMember)
+
+		// Subrooms
+		roomsGroup.POST("/:id/subrooms", handler.CreateSubRoom)
+		roomsGroup.GET("/:id/subrooms", handler.GetSubRooms)
+		roomsGroup.PUT("/:id/members/:user_id/move", handler.MoveMember)
 	}
 
 	// Liveness & Readiness probe
