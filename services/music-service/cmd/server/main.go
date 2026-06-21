@@ -80,6 +80,15 @@ func main() {
 		musicGroup.GET("/:id", handler.GetTrack)
 		musicGroup.POST("/history", handler.LogPlayback)
 		musicGroup.GET("/history/:room_id", handler.GetHistory)
+
+		// Lyrics endpoints
+		musicGroup.GET("/tracks/:track_id/lyrics", handler.GetLyrics)
+		musicGroup.POST("/tracks/:track_id/lyrics", handler.SaveLyrics)
+
+		// Bookmarks endpoints
+		musicGroup.GET("/rooms/:room_id/bookmarks", handler.GetBookmarks)
+		musicGroup.POST("/rooms/:room_id/bookmarks", handler.SaveBookmark)
+		musicGroup.DELETE("/rooms/:room_id/bookmarks/:id", handler.DeleteBookmark)
 	}
 
 	// Liveness & Readiness probe

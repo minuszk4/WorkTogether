@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/worktogether/services/music-service/internal/domain"
 	"github.com/worktogether/services/music-service/internal/usecase"
 )
@@ -206,6 +207,160 @@ func (h *MusicHandler) GetHistory(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data":    tracks,
+		"error":   nil,
+	})
+}
+
+func (h *MusicHandler) GetLyrics(c *gin.Context) {
+	trackID := c.Param("track_id")
+	content, err := h.usecase.GetLyrics(c.Request.Context(), trackID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"data":    nil,
+			"error": gin.H{
+				"code":    "LYRICS_NOT_FOUND",
+				"message": "Chưa có lời.",
+			},
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"track_id": trackID,
+			"content":  content,
+		},
+		"error": nil,
+	})
+}
+
+func (h *MusicHandler) SaveLyrics(c *gin.Context) {
+	trackID := c.Param("track_id")
+	var req struct {
+		Content string `json:"content" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"data":    nil,
+			"error": gin.H{
+				"code":    "BAD_REQUEST",
+				"message": err.Error(),
+			},
+		})
+		return
+	}
+	if err := h.usecase.SaveLyrics(c.Request.Context(), trackID, req.Content); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"data":    nil,
+			"error": gin.H{
+				"code":    "SERVER_ERROR",
+				"message": err.Error(),
+			},
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    gin.H{"message": "Cập nhật thành công."},
+		"error":   nil,
+	})
+}
+
+func (h *MusicHandler) GetBookmarks(c *gin.Context) {
+	roomID := c.Param("room_id")
+	list, err := h.usecase.GetBookmarks(c.Request.Context(), roomID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"data":    nil,
+			"error": gin.H{
+				"code":    "SERVER_ERROR",
+				"message": err.Error(),
+			},
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    list,
+		"error":   nil,
+	})
+}
+
+func (h *MusicHandler) SaveBookmark(c *gin.Context) {
+	roomID := c.Param("room_id")
+	userID := c.GetString("user_id")
+	if userID == "" {
+		userID = c.GetHeader("X-User-Id")
+	}
+	if userID == "" {
+		userID = "anonymous"
+	}
+
+	var req struct {
+		TrackID    string `json:"track_id" binding:"required"`
+		PositionMS int    `json:"position_ms" binding:"required"`
+		Note       string `json:"note" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"data":    nil,
+			"error": gin.H{
+				"code":    "BAD_REQUEST",
+				"message": err.Error(),
+			},
+		})
+		return
+	}
+
+	b := &domain.Bookmark{
+		ID:         uuid.NewString(),
+		RoomID:     roomID,
+		UserID:     userID,
+		TrackID:    req.TrackID,
+		PositionMS: req.PositionMS,
+		Note:       req.Note,
+	}
+
+	if err := h.usecase.SaveBookmark(c.Request.Context(), b); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"data":    nil,
+			"error": gin.H{
+				"code":    "SERVER_ERROR",
+				"message": err.Error(),
+			},
+		})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"success": true,
+		"data":    b,
+		"error":   nil,
+	})
+}
+
+func (h *MusicHandler) DeleteBookmark(c *gin.Context) {
+	id := c.Param("id")
+	if err := h.usecase.DeleteBookmark(c.Request.Context(), id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"data":    nil,
+			"error": gin.H{
+				"code":    "SERVER_ERROR",
+				"message": err.Error(),
+			},
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    gin.H{"message": "Đã xóa bookmark thành công."},
 		"error":   nil,
 	})
 }
