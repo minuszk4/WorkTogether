@@ -7,5 +7,5 @@
 | Task 3: Backend Redirects (C2) | ✅ Done | 2b5010a..33f291c | Review clean |
 | Task 4: JWT secret fail-fast validation in all 11 Go services (C3) | ✅ Done | 7c27c36..8f21daf | Review clean |
 | Task 5: Voice Service LiveKit secret fail-fast validation (M3) | ✅ Done | 81e744d..8f2a2c1 | Review clean |
-| Task 6: In-memory token storage (C4) in frontend & Async Guard | ⏳ Pending | | |
+| Task 6: In-memory token storage (C4) in frontend & Async Guard | ✅ Done | e4abddb..7c2a817 | Review clean |
 | Task 7: Git cleanup & ignore build patterns (C6) | ⏳ Pending | | |
