@@ -106,6 +106,11 @@ func main() {
 		usersGroup.POST("/friends/request", handler.SendFriendRequest)
 		usersGroup.PUT("/friends/request/:id", handler.RespondFriendRequest)
 		usersGroup.POST("/friends/block", handler.BlockUser)
+
+		// Hủy / xóa quan hệ bạn bè
+		usersGroup.DELETE("/friends/request/:id", handler.CancelFriendRequest)
+		usersGroup.DELETE("/friends/:id", handler.Unfriend)
+		usersGroup.DELETE("/friends/block/:id", handler.UnblockUser)
 	}
 
 	// Sửa lỗi cú pháp nhỏ ở dòng 104, handler thay vì h.

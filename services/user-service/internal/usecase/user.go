@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"time"
 
@@ -10,9 +11,12 @@ import (
 )
 
 var (
-	ErrProfileNotFound    = errors.New("không tìm thấy hồ sơ người dùng")
-	ErrFriendshipNotFound = errors.New("không tìm thấy mối quan hệ bạn bè")
-	ErrSelfFriendRequest  = errors.New("không thể kết bạn với chính mình")
+	ErrProfileNotFound      = errors.New("không tìm thấy hồ sơ người dùng")
+	ErrFriendshipNotFound   = errors.New("không tìm thấy mối quan hệ bạn bè")
+	ErrSelfFriendRequest    = errors.New("không thể kết bạn với chính mình")
+	ErrFriendRequestNotFound = errors.New("không tìm thấy lời mời kết bạn hoặc bạn không có quyền hủy")
+	ErrFriendshipNotActive   = errors.New("mối quan hệ bạn bè không tồn tại hoặc chưa được chấp nhận")
+	ErrBlockNotFound         = errors.New("không tìm thấy trạng thái chặn")
 )
 
 type UserUsecase struct {
@@ -127,4 +131,37 @@ func (u *UserUsecase) GetFriends(ctx context.Context, userID, status string) ([]
 
 func (u *UserUsecase) BlockUser(ctx context.Context, userID, targetID string) error {
 	return u.postgresRepo.BlockUser(ctx, userID, targetID)
+}
+
+func (u *UserUsecase) CancelFriendRequest(ctx context.Context, userID, friendshipID string) error {
+	err := u.postgresRepo.CancelFriendRequest(ctx, friendshipID, userID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrFriendRequestNotFound
+		}
+		return err
+	}
+	return nil
+}
+
+func (u *UserUsecase) Unfriend(ctx context.Context, userID, friendshipID string) error {
+	err := u.postgresRepo.Unfriend(ctx, friendshipID, userID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrFriendshipNotActive
+		}
+		return err
+	}
+	return nil
+}
+
+func (u *UserUsecase) UnblockUser(ctx context.Context, userID, friendshipID string) error {
+	err := u.postgresRepo.UnblockUser(ctx, friendshipID, userID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrBlockNotFound
+		}
+		return err
+	}
+	return nil
 }

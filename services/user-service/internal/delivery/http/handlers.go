@@ -296,3 +296,105 @@ func (h *UserHandler) BlockUser(c *gin.Context) {
 		"error": nil,
 	})
 }
+
+func (h *UserHandler) CancelFriendRequest(c *gin.Context) {
+	userID, _ := c.Get("userID")
+	id := userID.(string)
+	friendshipID := c.Param("id")
+	if friendshipID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false, "data": nil,
+			"error": gin.H{"code": "INVALID_PARAMETERS", "message": "Thiếu mã lời mời kết bạn."},
+		})
+		return
+	}
+
+	err := h.usecase.CancelFriendRequest(c.Request.Context(), id, friendshipID)
+	if err != nil {
+		status := http.StatusInternalServerError
+		code := "CANCEL_FRIEND_REQUEST_ERROR"
+		if errors.Is(err, usecase.ErrFriendRequestNotFound) {
+			status = http.StatusNotFound
+			code = "FRIEND_REQUEST_NOT_FOUND"
+		}
+		c.JSON(status, gin.H{
+			"success": false, "data": nil,
+			"error": gin.H{"code": code, "message": err.Error()},
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    gin.H{"message": "Đã hủy lời mời kết bạn."},
+		"error":   nil,
+	})
+}
+
+func (h *UserHandler) Unfriend(c *gin.Context) {
+	userID, _ := c.Get("userID")
+	id := userID.(string)
+	friendshipID := c.Param("id")
+	if friendshipID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false, "data": nil,
+			"error": gin.H{"code": "INVALID_PARAMETERS", "message": "Thiếu mã mối quan hệ."},
+		})
+		return
+	}
+
+	err := h.usecase.Unfriend(c.Request.Context(), id, friendshipID)
+	if err != nil {
+		status := http.StatusInternalServerError
+		code := "UNFRIEND_ERROR"
+		if errors.Is(err, usecase.ErrFriendshipNotActive) {
+			status = http.StatusNotFound
+			code = "FRIENDSHIP_NOT_FOUND"
+		}
+		c.JSON(status, gin.H{
+			"success": false, "data": nil,
+			"error": gin.H{"code": code, "message": err.Error()},
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    gin.H{"message": "Đã hủy kết bạn thành công."},
+		"error":   nil,
+	})
+}
+
+func (h *UserHandler) UnblockUser(c *gin.Context) {
+	userID, _ := c.Get("userID")
+	id := userID.(string)
+	friendshipID := c.Param("id")
+	if friendshipID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false, "data": nil,
+			"error": gin.H{"code": "INVALID_PARAMETERS", "message": "Thiếu mã mối quan hệ."},
+		})
+		return
+	}
+
+	err := h.usecase.UnblockUser(c.Request.Context(), id, friendshipID)
+	if err != nil {
+		status := http.StatusInternalServerError
+		code := "UNBLOCK_ERROR"
+		if errors.Is(err, usecase.ErrBlockNotFound) {
+			status = http.StatusNotFound
+			code = "BLOCK_NOT_FOUND"
+		}
+		c.JSON(status, gin.H{
+			"success": false, "data": nil,
+			"error": gin.H{"code": code, "message": err.Error()},
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    gin.H{"message": "Đã bỏ chặn người dùng thành công."},
+		"error":   nil,
+	})
+}

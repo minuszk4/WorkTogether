@@ -116,3 +116,54 @@ func (r *PostgresRepository) BlockUser(ctx context.Context, userID, targetID str
 	_, err := r.db.ExecContext(ctx, queryInsert, userID, targetID)
 	return err
 }
+
+// CancelFriendRequest deletes a PENDING friendship where userID is the sender.
+func (r *PostgresRepository) CancelFriendRequest(ctx context.Context, friendshipID, userID string) error {
+	query := `DELETE FROM friendships WHERE id = $1 AND user_id = $2 AND status = 'PENDING'`
+	res, err := r.db.ExecContext(ctx, query, friendshipID, userID)
+	if err != nil {
+		return err
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
+// Unfriend deletes an ACCEPTED friendship involving userID.
+func (r *PostgresRepository) Unfriend(ctx context.Context, friendshipID, userID string) error {
+	query := `DELETE FROM friendships WHERE id = $1 AND (user_id = $2 OR friend_id = $2) AND status = 'ACCEPTED'`
+	res, err := r.db.ExecContext(ctx, query, friendshipID, userID)
+	if err != nil {
+		return err
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
+// UnblockUser deletes a BLOCKED friendship where userID is the blocker.
+func (r *PostgresRepository) UnblockUser(ctx context.Context, friendshipID, userID string) error {
+	query := `DELETE FROM friendships WHERE id = $1 AND user_id = $2 AND status = 'BLOCKED'`
+	res, err := r.db.ExecContext(ctx, query, friendshipID, userID)
+	if err != nil {
+		return err
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
