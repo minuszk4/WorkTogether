@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { Observable, of, throwError } from 'rxjs';
 import { catchError, finalize, shareReplay, switchMap } from 'rxjs/operators';
 import { StateService } from '../services/state.service';
+import { environment } from '../../../environments/environment';
 
 let refreshTokenRequest$: Observable<string> | null = null;
 
@@ -53,7 +54,7 @@ function handle401Error(
 ): Observable<HttpEvent<unknown>> {
   if (!refreshTokenRequest$) {
     refreshTokenRequest$ = http
-      .post<any>('http://localhost:8080/api/v1/auth/refresh', {}, { withCredentials: true })
+      .post<any>(environment.apiUrl + '/auth/refresh', {}, { withCredentials: true })
       .pipe(
         switchMap((res: any) => {
           if (res?.success && res?.data?.access_token) {
