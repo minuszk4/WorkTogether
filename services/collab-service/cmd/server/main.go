@@ -23,7 +23,10 @@ func main() {
 	dbUser := getEnv("DB_USER", "postgres")
 	dbPassword := getEnv("DB_PASSWORD", "postgres_password")
 	dbName := getEnv("DB_NAME", "worktogether_collab")
-	jwtSecret := getEnv("JWT_SECRET", "worktogether_secret_key_12345")
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		log.Fatal("FATAL: Environment variable JWT_SECRET is not set. Service cannot start.")
+	}
 	port := getEnv("PORT", "8094")
 
 	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", dbUser, dbPassword, dbHost, dbPort, dbName)

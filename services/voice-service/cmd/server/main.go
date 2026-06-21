@@ -75,7 +75,10 @@ func main() {
 	handler := delivery.NewVoiceHandler(uc, roomClient, livekitURL)
 
 	port := getEnv("PORT", "8088")
-	jwtSecret := getEnv("JWT_SECRET", "worktogether_secret_key_12345")
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		log.Fatal("FATAL: Environment variable JWT_SECRET is not set. Service cannot start.")
+	}
 
 	// 4. Khởi chạy Gin HTTP Server
 	gin.SetMode(gin.ReleaseMode)
