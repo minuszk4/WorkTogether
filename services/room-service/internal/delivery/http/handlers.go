@@ -421,3 +421,55 @@ func (h *RoomHandler) BanMember(c *gin.Context) {
 		"error": nil,
 	})
 }
+
+func (h *RoomHandler) UpdateRoomSettings(c *gin.Context) {
+	userID, _ := c.Get("userID")
+	roomID := c.Param("id")
+
+	var req struct {
+		Name           string `json:"name" binding:"required,min=3,max=100"`
+		Description    string `json:"description" binding:"max=500"`
+		AddMusicPolicy string `json:"add_music_policy" binding:"required,oneof=all nobody dj_only"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"data":    nil,
+			"error": gin.H{
+				"code":    "INVALID_PARAMETERS",
+				"message": err.Error(),
+			},
+		})
+		return
+	}
+
+	rm, err := h.usecase.UpdateRoomSettings(c.Request.Context(), userID.(string), roomID, req.Name, req.Description, req.AddMusicPolicy)
+	if err != nil {
+		status := http.StatusInternalServerError
+		code := "UPDATE_SETTINGS_FAILED"
+		if errors.Is(err, usecase.ErrUnauthorized) {
+			status = http.StatusForbidden
+			code = "FORBIDDEN"
+		} else if errors.Is(err, usecase.ErrRoomNotFound) {
+			status = http.StatusNotFound
+			code = "ROOM_NOT_FOUND"
+		}
+
+		c.JSON(status, gin.H{
+			"success": false,
+			"data":    nil,
+			"error": gin.H{
+				"code":    code,
+				"message": err.Error(),
+			},
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    rm,
+		"error":   nil,
+	})
+}

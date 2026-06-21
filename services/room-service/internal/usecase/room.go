@@ -337,3 +337,28 @@ func (u *RoomUsecase) ResolvePermissions(ctx context.Context, member *domain.Roo
 
 	return customPermissions
 }
+
+func (u *RoomUsecase) UpdateRoomSettings(ctx context.Context, userID string, roomID string, name string, description string, addMusicPolicy string) (*domain.Room, error) {
+	member, err := u.repo.GetMember(ctx, roomID, userID)
+	if err != nil || member == nil || member.RoleType != "OWNER" {
+		return nil, ErrUnauthorized
+	}
+
+	rm, err := u.repo.GetRoomByID(ctx, roomID)
+	if err != nil {
+		return nil, err
+	}
+	if rm == nil {
+		return nil, ErrRoomNotFound
+	}
+
+	rm.Name = name
+	rm.Description = description
+	rm.AddMusicPolicy = addMusicPolicy
+
+	if err := u.repo.UpdateRoom(ctx, rm); err != nil {
+		return nil, err
+	}
+
+	return rm, nil
+}
