@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/worktogether/services/auth-service/internal/domain"
@@ -13,13 +14,19 @@ import (
 )
 
 type AuthHandler struct {
-	usecase     *usecase.AuthUsecase
-	googleCfg   *oauth2.Config
-	frontendURL string
+	usecase      *usecase.AuthUsecase
+	googleCfg    *oauth2.Config
+	frontendURL  string
+	cookieSecure bool
 }
 
 func NewAuthHandler(uc *usecase.AuthUsecase, googleCfg *oauth2.Config, frontendURL string) *AuthHandler {
-	return &AuthHandler{usecase: uc, googleCfg: googleCfg, frontendURL: frontendURL}
+	return &AuthHandler{
+		usecase:      uc,
+		googleCfg:    googleCfg,
+		frontendURL:  frontendURL,
+		cookieSecure: strings.HasPrefix(frontendURL, "https://"),
+	}
 }
 
 // ─── Register ────────────────────────────────────────────────────────────────
@@ -96,7 +103,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	c.SetSameSite(http.SameSiteStrictMode)
-	c.SetCookie("refresh_token", refreshToken, 7*24*3600, "/api/v1/auth", "", false, true)
+	c.SetCookie("refresh_token", refreshToken, 7*24*3600, "/api/v1/auth", "", h.cookieSecure, true)
 
 	c.JSON(http.StatusOK, successResp(gin.H{
 		"access_token": accessToken,
@@ -118,7 +125,7 @@ func (h *AuthHandler) GoogleLogin(c *gin.Context) {
 
 	state := generateState()
 	// Lưu state vào cookie để verify ở callback
-	c.SetCookie("oauth_state", state, 600, "/", "", false, true)
+	c.SetCookie("oauth_state", state, 600, "/", "", h.cookieSecure, true)
 	url := usecase.GetGoogleAuthURL(h.googleCfg, state)
 	c.Redirect(http.StatusTemporaryRedirect, url)
 }
@@ -156,10 +163,10 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 	}
 
 	// Xóa state cookie
-	c.SetCookie("oauth_state", "", -1, "/", "", false, true)
+	c.SetCookie("oauth_state", "", -1, "/", "", h.cookieSecure, true)
 	// Set refresh token cookie
 	c.SetSameSite(http.SameSiteStrictMode)
-	c.SetCookie("refresh_token", refreshToken, 7*24*3600, "/api/v1/auth", "", false, true)
+	c.SetCookie("refresh_token", refreshToken, 7*24*3600, "/api/v1/auth", "", h.cookieSecure, true)
 
 	// Redirect về frontend kèm access token (fragment để không lưu vào server log)
 	c.Redirect(http.StatusFound,
@@ -182,7 +189,7 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 	}
 
 	c.SetSameSite(http.SameSiteStrictMode)
-	c.SetCookie("refresh_token", newRefreshToken, 7*24*3600, "/api/v1/auth", "", false, true)
+	c.SetCookie("refresh_token", newRefreshToken, 7*24*3600, "/api/v1/auth", "", h.cookieSecure, true)
 	c.JSON(http.StatusOK, successResp(gin.H{"access_token": accessToken, "expires_in": 900}))
 }
 
@@ -193,7 +200,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	}
 
 	c.SetSameSite(http.SameSiteStrictMode)
-	c.SetCookie("refresh_token", "", -1, "/api/v1/auth", "", false, true)
+	c.SetCookie("refresh_token", "", -1, "/api/v1/auth", "", h.cookieSecure, true)
 	c.JSON(http.StatusOK, successResp(gin.H{"message": "Đăng xuất thành công."}))
 }
 
