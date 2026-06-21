@@ -1,0 +1,92 @@
+<div class="timer-panel">
+  <div class="panel-header">
+    <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"></circle>
+      <polyline points="12 6 12 12 16 14"></polyline>
+    </svg>
+    <span>Focus Timer</span>
+  </div>
+
+  <div class="timer-display-container">
+    <!-- SVG Circular Countdown -->
+    <svg class="progress-ring" width="120" height="120">
+      <circle class="progress-ring-bg" stroke="rgba(255, 255, 255, 0.05)" stroke-width="6" fill="transparent" r="40" cx="60" cy="60" />
+      <circle class="progress-ring-fg" 
+              [class.focus-ring]="timerState.status === 'focus'"
+              [class.break-ring]="timerState.status === 'break'"
+              [class.paused-ring]="timerState.status === 'paused'"
+              [style.strokeDashoffset]="progressStrokeDashoffset"
+              stroke-width="6" 
+              fill="transparent" 
+              r="40" 
+              cx="60" 
+              cy="60" />
+    </svg>
+
+    <div class="time-overlay">
+      <span class="time-text">{{ formattedTime }}</span>
+      <span class="cycle-text" *ngIf="timerState.status !== 'idle'">
+        Cycle {{ timerState.current_cycle }}/{{ timerState.total_cycles }}
+      </span>
+    </div>
+  </div>
+
+  <!-- Status indicator -->
+  <div class="status-badge" [class]="'status-' + timerState.status">
+    <span class="dot"></span>
+    <span class="status-text">
+      @switch (timerState.status) {
+        @case ('focus') { Tập trung }
+        @case ('break') { Giải lao }
+        @case ('paused') { Tạm dừng }
+        @case ('idle') { Sẵn sàng }
+      }
+    </span>
+  </div>
+
+  <!-- Config Panel (Visible when Idle) -->
+  <div *ngIf="timerState.status === 'idle'" class="config-panel">
+    <div class="config-row">
+      <div class="config-field">
+        <label>Tập trung</label>
+        <div class="input-unit">
+          <input type="number" [(ngModel)]="focusMinutes" min="1" max="180">
+          <span>phút</span>
+        </div>
+      </div>
+      <div class="config-field">
+        <label>Nghỉ ngơi</label>
+        <div class="input-unit">
+          <input type="number" [(ngModel)]="breakMinutes" min="1" max="60">
+          <span>phút</span>
+        </div>
+      </div>
+    </div>
+    <div class="config-field cycle-field">
+      <label>Số chu kỳ</label>
+      <div class="input-unit">
+        <input type="number" [(ngModel)]="cyclesCount" min="1" max="10">
+        <span>lần</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Control Buttons (Admins only, members only see the countdown sync) -->
+  <div class="controls-row" *ngIf="isModeratorOrOwner">
+    <!-- Play / Resume -->
+    <button *ngIf="timerState.status === 'idle'" class="btn-control btn-start" (click)="onStartTimer()">
+      Bắt đầu
+    </button>
+    <button *ngIf="timerState.status === 'paused'" class="btn-control btn-resume" (click)="onResumeTimer()">
+      Tiếp tục
+    </button>
+    <!-- Pause -->
+    <button *ngIf="timerState.status === 'focus' || timerState.status === 'break'" class="btn-control btn-pause" (click)="onPauseTimer()">
+      Tạm dừng
+    </button>
+    <!-- Stop / Reset -->
+    <button *ngIf="timerState.status !== 'idle'" class="btn-control btn-stop" (click)="onStopTimer()">
+      Dừng lại
+    </button>
+  </div>
+</div>

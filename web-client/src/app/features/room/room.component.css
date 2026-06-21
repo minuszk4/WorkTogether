@@ -66,3 +66,38 @@ app-room-quick-reactions {
   .room-shell { grid-template-columns: auto 1fr; grid-template-areas: "sidebar main" "player player"; }
   .room-chat-dock { width: 100%; bottom: 0; }
 }
+
+.room-subrooms-panel {
+  position: absolute;
+  top: 16px;
+  left: 80px;
+  bottom: 96px;
+  width: 320px;
+  z-index: var(--z-overlay);
+  animation: panel-slide-in-left var(--transition-panel, 0.3s ease);
+}
+
+.room-notes-panel {
+  position: absolute;
+  top: 80px;
+  right: 16px;
+  bottom: 96px;
+  width: 340px;
+  z-index: var(--z-overlay);
+  animation: panel-slide-in var(--transition-panel, 0.3s ease);
+}
+
+.room-timer-overlay {
+  position: absolute;
+  top: 80px;
+  right: 16px;
+  width: 260px;
+  z-index: var(--z-overlay);
+  animation: panel-slide-in var(--transition-panel, 0.3s ease);
+}
+
+@keyframes panel-slide-in-left {
+  from { opacity: 0; transform: translateX(-20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+

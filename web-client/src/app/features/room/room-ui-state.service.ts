@@ -7,6 +7,9 @@ export interface RoomUIState {
   stageMode: StageMode;
   isChatOpen: boolean;
   isQueueOpen: boolean;
+  isSubroomsOpen: boolean;
+  isNotesOpen: boolean;
+  isTimerOpen: boolean;
   unreadCount: number;
 }
 
@@ -19,6 +22,9 @@ export class RoomUiStateService {
     stageMode: 'music-only',
     isChatOpen: false,
     isQueueOpen: true,
+    isSubroomsOpen: false,
+    isNotesOpen: false,
+    isTimerOpen: false,
     unreadCount: 0
   });
 
@@ -38,6 +44,21 @@ export class RoomUiStateService {
   public toggleQueue(open?: boolean): void {
     const next = open === undefined ? !this.state$.value.isQueueOpen : open;
     this.patch({ isQueueOpen: next });
+  }
+
+  public toggleSubrooms(open?: boolean): void {
+    const next = open === undefined ? !this.state$.value.isSubroomsOpen : open;
+    this.patch({ isSubroomsOpen: next });
+  }
+
+  public toggleNotes(open?: boolean): void {
+    const next = open === undefined ? !this.state$.value.isNotesOpen : open;
+    this.patch({ isNotesOpen: next });
+  }
+
+  public toggleTimer(open?: boolean): void {
+    const next = open === undefined ? !this.state$.value.isTimerOpen : open;
+    this.patch({ isTimerOpen: next });
   }
 
   public markUnread(n: number): void {

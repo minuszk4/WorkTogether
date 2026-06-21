@@ -19,6 +19,10 @@ import { QuickReactionsComponent } from './components/quick-reactions/quick-reac
 import { ReactionsCanvasComponent } from './components/reactions-canvas/reactions-canvas.component';
 import { RoomVibeMeterComponent } from './components/vibe-meter/vibe-meter.component';
 import { PollWidgetComponent } from './components/poll-widget/poll-widget.component';
+import { SubroomsComponent } from './components/subrooms/subrooms.component';
+import { TimerComponent } from './components/timer/timer.component';
+import { CollabNotesComponent } from './components/collab-notes/collab-notes.component';
+import { PlayerEngineService } from './components/player-engine/player-engine.service';
 
 @Component({
   selector: 'app-room',
@@ -27,7 +31,7 @@ import { PollWidgetComponent } from './components/poll-widget/poll-widget.compon
     CommonModule, SidebarComponent, StageComponent,
     VoicePillsComponent, ChatComponent, QueueComponent, PlayerBarComponent,
     QuickReactionsComponent, ReactionsCanvasComponent, RoomVibeMeterComponent,
-    PollWidgetComponent
+    PollWidgetComponent, SubroomsComponent, TimerComponent, CollabNotesComponent
   ],
   templateUrl: './room.component.html',
   styleUrl: './room.component.css'
@@ -42,6 +46,7 @@ export class RoomComponent implements OnInit, OnDestroy {
   public voiceService = inject(VoiceService);
   private toast = inject(ToastService);
   private uiState = inject(RoomUiStateService);
+  private playerEngine = inject(PlayerEngineService);
 
   public roomId = '';
   public isMicActive = false;
@@ -52,6 +57,8 @@ export class RoomComponent implements OnInit, OnDestroy {
   public isScreenShareBusy = false;
   public isCameraBusy = false;
   public isLeavingRoom = false;
+  public currentSubRoomId: string | null = null;
+  public savedVolume: number | null = null;
 
   private subs: Subscription[] = [];
   private presenceTimer: any = null;
@@ -105,7 +112,17 @@ export class RoomComponent implements OnInit, OnDestroy {
       this.voiceService.isMuted$.subscribe(m => (this.isMuted = m)),
       this.voiceService.isScreenSharing$.subscribe(s => { this.isScreenSharing = s; this.recomputeStageMode(); }),
       this.voiceService.isCameraActive$.subscribe(a => { this.isCameraActive = a; this.recomputeStageMode(); }),
-      this.voiceService.participants$.subscribe(() => this.recomputeStageMode())
+      this.voiceService.participants$.subscribe(() => this.recomputeStageMode()),
+      this.state.activeRoomMembers$.subscribe(members => {
+        const me = members.find(m => m.isCurrentUser);
+        if (me) {
+          const targetSubRoomId = me.active_sub_room_id || null;
+          if (targetSubRoomId !== this.currentSubRoomId) {
+            this.currentSubRoomId = targetSubRoomId;
+            this.handleVoiceSubRoomSwitch(targetSubRoomId);
+          }
+        }
+      })
     );
   }
 
@@ -255,7 +272,7 @@ export class RoomComponent implements OnInit, OnDestroy {
     this.stopMembersPolling();
     this.membersPollTimer = setInterval(() => {
       this.loadRoomMembers();
-    }, 20000);
+    }, 4000);
   }
 
   private stopMembersPolling(): void {
@@ -282,4 +299,57 @@ export class RoomComponent implements OnInit, OnDestroy {
   }
   get isChatOpen(): boolean { return this.uiState.uiState.isChatOpen; }
   get isQueueOpen(): boolean { return this.uiState.uiState.isQueueOpen; }
+  get isSubroomsOpen(): boolean { return this.uiState.uiState.isSubroomsOpen; }
+  get isNotesOpen(): boolean { return this.uiState.uiState.isNotesOpen; }
+  get isTimerOpen(): boolean { return this.uiState.uiState.isTimerOpen; }
+
+  private handleVoiceSubRoomSwitch(subRoomId: string | null): void {
+    this.voiceService.disconnect();
+    this.isMicActive = false;
+    
+    if (subRoomId) {
+      // Mute main music player when entering breakout subroom
+      if (this.savedVolume === null) {
+        this.savedVolume = this.playerEngine.volume;
+      }
+      this.playerEngine.setVolumeFromFraction(0);
+
+      this.toast.info('Đang kết nối voice phòng con...');
+      const voiceRoomName = `room-${this.roomId}-sub-${subRoomId}`;
+      this.api.voice.getToken(voiceRoomName).subscribe({
+        next: async (res) => {
+          try {
+            await this.voiceService.connect(res.livekit_url, res.token);
+            this.toast.success('Đã vào thảo luận nhóm con.');
+          } catch (err: any) {
+            this.toast.error('Lỗi voice phòng con: ' + err.message);
+          }
+        },
+        error: (err) => {
+          this.toast.error('Không xin được token voice phòng con: ' + err.message);
+        }
+      });
+    } else {
+      // Restore main music player volume when returning to lobby
+      if (this.savedVolume !== null) {
+        this.playerEngine.setVolumeFromFraction(this.savedVolume / 100);
+        this.savedVolume = null;
+      }
+
+      this.toast.info('Đang quay lại voice sảnh chính...');
+      this.api.voice.getToken(this.roomId).subscribe({
+        next: async (res) => {
+          try {
+            await this.voiceService.connect(res.livekit_url, res.token);
+            this.toast.success('Đã quay lại voice sảnh chính.');
+          } catch (err: any) {
+            this.toast.error('Lỗi voice sảnh chính: ' + err.message);
+          }
+        },
+        error: (err) => {
+          this.toast.error('Không xin được token voice sảnh chính: ' + err.message);
+        }
+      });
+    }
+  }
 }

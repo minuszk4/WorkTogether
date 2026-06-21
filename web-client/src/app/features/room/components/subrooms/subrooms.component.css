@@ -1,0 +1,352 @@
+.subrooms-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 16px;
+  background: var(--bg-glass, rgba(10, 22, 40, 0.25));
+  backdrop-filter: blur(16px);
+  border-radius: 16px;
+  border: 1px solid var(--border-color, rgba(45, 212, 191, 0.15));
+  color: var(--text-primary, #ffffff);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+  font-family: 'Inter', sans-serif;
+  overflow-y: auto;
+}
+
+/* Custom Scrollbar */
+.subrooms-panel::-webkit-scrollbar {
+  width: 6px;
+}
+.subrooms-panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+.subrooms-panel::-webkit-scrollbar-thumb {
+  background: rgba(45, 212, 191, 0.2);
+  border-radius: 99px;
+}
+.subrooms-panel::-webkit-scrollbar-thumb:hover {
+  background: rgba(45, 212, 191, 0.4);
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text-primary, #ffffff);
+}
+
+.header-icon {
+  width: 20px;
+  height: 20px;
+  color: #2dd4bf; /* Teal accent */
+}
+
+.btn-create-toggle {
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1px solid rgba(45, 212, 191, 0.4);
+  background: rgba(45, 212, 191, 0.1);
+  color: #2dd4bf;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-create-toggle:hover {
+  background: rgba(45, 212, 191, 0.25);
+  box-shadow: 0 0 10px rgba(45, 212, 191, 0.2);
+}
+
+/* Create Form */
+.create-form-card {
+  margin-bottom: 20px;
+  padding: 16px;
+  background: rgba(15, 30, 54, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.form-group label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary, #94a3b8);
+}
+
+.form-group input,
+.form-group textarea {
+  padding: 8px 12px;
+  background: rgba(10, 20, 35, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+  border-color: rgba(45, 212, 191, 0.5);
+}
+
+.btn-submit {
+  width: 100%;
+  padding: 10px;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #0d9488, #0f766e);
+  color: #ffffff;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.btn-submit:hover {
+  opacity: 0.9;
+}
+
+.btn-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Cards styling */
+.subroom-card {
+  margin-bottom: 16px;
+  padding: 16px;
+  background: rgba(13, 27, 48, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.subroom-card:hover {
+  border-color: rgba(45, 212, 191, 0.2);
+  background: rgba(13, 27, 48, 0.5);
+}
+
+.lobby-card {
+  background: rgba(15, 32, 58, 0.3);
+  border-style: dashed;
+}
+
+.active-subroom {
+  border-color: rgba(45, 212, 191, 0.4);
+  box-shadow: 0 0 16px rgba(45, 212, 191, 0.1);
+}
+
+.subroom-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.subroom-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.subroom-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.subroom-desc {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-secondary, #94a3b8);
+}
+
+.member-count {
+  font-size: 12px;
+  font-weight: 500;
+  color: #2dd4bf;
+}
+
+/* Button Join / Leave */
+.btn-join {
+  padding: 6px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: none;
+  background: #2dd4bf;
+  color: #0b1528;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-join:hover {
+  background: #14b8a6;
+  transform: translateY(-1px);
+}
+
+.btn-leave {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #f87171;
+}
+
+.btn-leave:hover {
+  background: rgba(239, 68, 68, 0.25);
+  color: #ef4444;
+}
+
+/* Avatars & Members lists */
+.members-avatars-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.member-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+}
+
+.avatar-wrapper {
+  position: relative;
+  width: 28px;
+  height: 28px;
+}
+
+.member-avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.member-avatar-fallback {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: rgba(45, 212, 191, 0.15);
+  color: #2dd4bf;
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.presence-dot {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #94a3b8;
+  border: 1.5px solid #0d1b30;
+}
+
+.presence-dot.online {
+  background: #10b981;
+}
+
+.member-name {
+  font-size: 13px;
+  color: var(--text-secondary, #e2e8f0);
+  flex-grow: 1;
+}
+
+/* Admin controls */
+.admin-actions {
+  display: flex;
+  align-items: center;
+}
+
+.select-move {
+  background: rgba(10, 20, 35, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: #94a3b8;
+  font-size: 11px;
+  padding: 4px 6px;
+  outline: none;
+  cursor: pointer;
+}
+
+.select-move:hover {
+  border-color: rgba(45, 212, 191, 0.3);
+  color: #2dd4bf;
+}
+
+.btn-kick-lobby {
+  background: transparent;
+  border: none;
+  color: #ef4444;
+  padding: 4px;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+  display: flex;
+  align-items: center;
+}
+
+.btn-kick-lobby:hover {
+  opacity: 1;
+}
+
+.btn-kick-lobby svg {
+  width: 16px;
+  height: 16px;
+}
+
+.empty-members {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.3);
+  text-align: center;
+  padding: 8px 0;
+}
+
+.empty-subrooms {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px 0;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.empty-icon {
+  width: 32px;
+  height: 32px;
+  color: rgba(255, 255, 255, 0.25);
+}
+
+.empty-subrooms p {
+  margin: 0;
+  font-size: 13px;
+}

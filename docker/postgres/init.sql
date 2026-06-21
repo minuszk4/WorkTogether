@@ -5,3 +5,5 @@ CREATE DATABASE worktogether_chat;
 CREATE DATABASE worktogether_music;
 CREATE DATABASE worktogether_playlist;
 CREATE DATABASE worktogether_notification;
+CREATE DATABASE worktogether_collab;
+

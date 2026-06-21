@@ -12,8 +12,10 @@ $services = @(
     @{ Name = "auth-service";    DB = "worktogether_auth" },
     @{ Name = "user-service";    DB = "worktogether_user" },
     @{ Name = "room-service";    DB = "worktogether_room" },
-    @{ Name = "chat-service";    DB = "worktogether_chat" }
+    @{ Name = "chat-service";    DB = "worktogether_chat" },
+    @{ Name = "collab-service";  DB = "worktogether_collab" }
 )
+
 
 foreach ($svc in $services) {
     $migDir = "services/$($svc.Name)/db/migrations"

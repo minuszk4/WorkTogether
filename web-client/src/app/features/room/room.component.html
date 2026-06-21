@@ -43,5 +43,23 @@
     </div>
   }
 
+  @if (isSubroomsOpen) {
+    <div class="room-subrooms-panel">
+      <app-room-subrooms [roomId]="roomId"></app-room-subrooms>
+    </div>
+  }
+
+  @if (isNotesOpen) {
+    <div class="room-notes-panel">
+      <app-room-collab-notes [roomId]="roomId"></app-room-collab-notes>
+    </div>
+  }
+
+  @if (isTimerOpen) {
+    <div class="room-timer-overlay">
+      <app-room-timer [roomId]="roomId"></app-room-timer>
+    </div>
+  }
+
   <app-room-poll-widget></app-room-poll-widget>
 </div>

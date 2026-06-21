@@ -49,6 +49,9 @@ export class PlayerBarComponent implements AfterViewInit, OnDestroy {
   public queueOpen = true;
   public chatOpen = false;
   public unreadCount = 0;
+  public subroomsOpen = false;
+  public notesOpen = false;
+  public timerOpen = false;
 
   private subs: Subscription[] = [];
 
@@ -65,6 +68,9 @@ export class PlayerBarComponent implements AfterViewInit, OnDestroy {
       this.uiState.changes$.subscribe(st => {
         this.queueOpen = st.isQueueOpen;
         this.chatOpen = st.isChatOpen;
+        this.subroomsOpen = st.isSubroomsOpen;
+        this.notesOpen = st.isNotesOpen;
+        this.timerOpen = st.isTimerOpen;
         this.unreadCount = st.unreadCount;
       })
     );
@@ -81,4 +87,7 @@ export class PlayerBarComponent implements AfterViewInit, OnDestroy {
   onNext(): void { /* no-op hook for future */ }
   toggleQueue(): void { this.uiState.toggleQueue(); }
   toggleChat(): void { this.uiState.toggleChat(); }
+  toggleSubrooms(): void { this.uiState.toggleSubrooms(); }
+  toggleNotes(): void { this.uiState.toggleNotes(); }
+  toggleTimer(): void { this.uiState.toggleTimer(); }
 }

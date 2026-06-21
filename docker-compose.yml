@@ -245,6 +245,42 @@ services:
     networks:
       - worktogether_network
 
+  timer-service:
+    build:
+      context: ./services/timer-service
+      dockerfile: Dockerfile
+    container_name: worktogether_timer_service
+    env_file: .env
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - PORT=8093
+    depends_on:
+      - redis
+      - playback-service
+    restart: unless-stopped
+    networks:
+      - worktogether_network
+
+  collab-service:
+    build:
+      context: ./services/collab-service
+      dockerfile: Dockerfile
+    container_name: worktogether_collab_service
+    env_file: .env
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=${POSTGRES_USER}
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      - DB_NAME=worktogether_collab
+      - PORT=8094
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    networks:
+      - worktogether_network
+
   # ----------------------------------------------------
   # API Gateway
   # ----------------------------------------------------
@@ -265,6 +301,8 @@ services:
       - playback-service
       - voice-service
       - notification-service
+      - timer-service
+      - collab-service
     restart: unless-stopped
     networks:
       - worktogether_network

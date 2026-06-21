@@ -1,0 +1,82 @@
+<div class="notes-panel">
+  <div class="panel-header">
+    <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+      <polyline points="14 2 14 8 20 8"></polyline>
+      <line x1="16" y1="13" x2="8" y2="13"></line>
+      <line x1="16" y1="17" x2="8" y2="17"></line>
+      <polyline points="10 9 9 9 8 9"></polyline>
+    </svg>
+    <span>{{ noteTitle }}</span>
+  </div>
+
+  <!-- Note blocks list -->
+  <div class="blocks-container">
+    <div *ngFor="let block of blocks; let i = index" class="block-row" [class.block-todo]="block.block_type === 'todo'">
+      <!-- Sort & Edit actions -->
+      <div class="block-actions">
+        <button class="btn-action-move" (click)="onMoveBlock(block, 'up')" [disabled]="i === 0" title="Di chuyển lên">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"></polyline></svg>
+        </button>
+        <button class="btn-action-move" (click)="onMoveBlock(block, 'down')" [disabled]="i === blocks.length - 1" title="Di chuyển xuống">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </button>
+      </div>
+
+      <!-- Main Input block content -->
+      <div class="block-content-wrapper">
+        <!-- Todo checkbox -->
+        <label *ngIf="block.block_type === 'todo'" class="checkbox-container">
+          <input type="checkbox" [(ngModel)]="block.is_checked" (change)="onCheckboxToggle(block)">
+          <span class="checkmark"></span>
+        </label>
+
+        <!-- Dynamic input based on block type -->
+        <input [id]="'input-' + block.id" 
+               type="text" 
+               class="block-input" 
+               [class.checked-text]="block.block_type === 'todo' && block.is_checked"
+               [(ngModel)]="block.content" 
+               (input)="onBlockChange(block)" 
+               [placeholder]="block.block_type === 'todo' ? 'Nhiệm vụ cần làm...' : 'Viết nội dung ở đây...'"
+               autocomplete="off">
+      </div>
+
+      <!-- Delete button -->
+      <button class="btn-delete" (click)="onDeleteBlock(block.id)" title="Xóa dòng này">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Empty state -->
+    <div *ngIf="blocks.length === 0" class="empty-notes">
+      <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M12 20h9"></path>
+        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+      </svg>
+      <p>Chưa có nội dung ghi chú nào.</p>
+      <span>Chọn bên dưới để bắt đầu soạn thảo cùng nhau.</span>
+    </div>
+  </div>
+
+  <!-- Footer buttons to add blocks -->
+  <div class="panel-footer">
+    <button class="btn-add-block btn-add-text" (click)="onAddBlock('text')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="5" x2="12" y2="19"></line>
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+      </svg>
+      <span>+ Đoạn văn</span>
+    </button>
+    <button class="btn-add-block btn-add-todo" (click)="onAddBlock('todo')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="9 11 12 14 22 4"></polyline>
+        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+      </svg>
+      <span>+ Checklist</span>
+    </button>
+  </div>
+</div>

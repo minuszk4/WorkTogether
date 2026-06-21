@@ -15,7 +15,7 @@
 
 ---
 
-### Task 1: Room-service Sub-rooms Migration & REST API
+### [/] Task 1: Room-service Sub-rooms Migration & REST API
 
 **Files:**
 - Create: `services/room-service/db/migrations/000003_add_subrooms.up.sql`
