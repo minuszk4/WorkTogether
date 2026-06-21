@@ -13,14 +13,16 @@ import (
 )
 
 var (
-	ErrRoomNotFound      = errors.New("không tìm thấy phòng")
-	ErrBannedFromRoom    = errors.New("bạn đã bị cấm khỏi phòng này")
-	ErrIncorrectPassword = errors.New("mật khẩu phòng không chính xác")
-	ErrUnauthorized      = errors.New("bạn không có quyền thực hiện hành động này")
-	ErrAlreadyMember     = errors.New("bạn đã là thành viên của phòng này")
-	ErrNotMember         = errors.New("bạn không phải là thành viên của phòng này")
-	ErrCannotKickOwner   = errors.New("không thể kick chủ phòng")
-	ErrRoleNotFound      = errors.New("không tìm thấy vai trò")
+	ErrRoomNotFound         = errors.New("không tìm thấy phòng")
+	ErrBannedFromRoom       = errors.New("bạn đã bị cấm khỏi phòng này")
+	ErrIncorrectPassword    = errors.New("mật khẩu phòng không chính xác")
+	ErrUnauthorized         = errors.New("bạn không có quyền thực hiện hành động này")
+	ErrAlreadyMember        = errors.New("bạn đã là thành viên của phòng này")
+	ErrNotMember            = errors.New("bạn không phải là thành viên của phòng này")
+	ErrCannotKickOwner      = errors.New("không thể kick chủ phòng")
+	ErrRoleNotFound         = errors.New("không tìm thấy vai trò")
+	ErrTargetMemberNotFound = errors.New("thành viên mục tiêu không tồn tại")
+	ErrCannotMuteOwner      = errors.New("không thể mute chủ phòng")
 )
 
 type RoomUsecase struct {
@@ -432,7 +434,10 @@ func (u *RoomUsecase) DeleteRoom(ctx context.Context, userID, roomID string) err
 
 func (u *RoomUsecase) MuteMember(ctx context.Context, requesterID, roomID, targetUserID string, durationSecs int) error {
 	reqMember, err := u.repo.GetMember(ctx, roomID, requesterID)
-	if err != nil || reqMember == nil || (reqMember.RoleType != "OWNER" && reqMember.RoleType != "MODERATOR") {
+	if err != nil {
+		return err
+	}
+	if reqMember == nil || (reqMember.RoleType != "OWNER" && reqMember.RoleType != "MODERATOR") {
 		return ErrUnauthorized
 	}
 	targetMember, err := u.repo.GetMember(ctx, roomID, targetUserID)
@@ -440,10 +445,10 @@ func (u *RoomUsecase) MuteMember(ctx context.Context, requesterID, roomID, targe
 		return err
 	}
 	if targetMember == nil {
-		return errors.New("thành viên mục tiêu không tồn tại")
+		return ErrTargetMemberNotFound
 	}
 	if targetMember.RoleType == "OWNER" {
-		return errors.New("không thể mute chủ phòng")
+		return ErrCannotMuteOwner
 	}
 	mutedUntil := time.Now().Add(time.Duration(durationSecs) * time.Second)
 	return u.repo.UpdateMemberMute(ctx, roomID, targetUserID, &mutedUntil)
@@ -451,7 +456,10 @@ func (u *RoomUsecase) MuteMember(ctx context.Context, requesterID, roomID, targe
 
 func (u *RoomUsecase) UnmuteMember(ctx context.Context, requesterID, roomID, targetUserID string) error {
 	reqMember, err := u.repo.GetMember(ctx, roomID, requesterID)
-	if err != nil || reqMember == nil || (reqMember.RoleType != "OWNER" && reqMember.RoleType != "MODERATOR") {
+	if err != nil {
+		return err
+	}
+	if reqMember == nil || (reqMember.RoleType != "OWNER" && reqMember.RoleType != "MODERATOR") {
 		return ErrUnauthorized
 	}
 	targetMember, err := u.repo.GetMember(ctx, roomID, targetUserID)
@@ -459,7 +467,7 @@ func (u *RoomUsecase) UnmuteMember(ctx context.Context, requesterID, roomID, tar
 		return err
 	}
 	if targetMember == nil {
-		return errors.New("thành viên mục tiêu không tồn tại")
+		return ErrTargetMemberNotFound
 	}
 	return u.repo.UpdateMemberMute(ctx, roomID, targetUserID, nil)
 }

@@ -161,8 +161,79 @@ func TestMuteMember(t *testing.T) {
 			WillReturnRows(targetRows)
 
 		err := u.MuteMember(ctx, requesterID, roomID, targetID, 60)
-		if err == nil || !strings.Contains(err.Error(), "không thể mute chủ phòng") {
-			t.Errorf("Expected error containing 'không thể mute chủ phòng', got: %v", err)
+		if !errors.Is(err, ErrCannotMuteOwner) {
+			t.Errorf("Expected ErrCannotMuteOwner, got: %v", err)
+		}
+
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("Expectations were not met: %s", err)
+		}
+	})
+
+	t.Run("Target Member Not Found", func(t *testing.T) {
+		requesterID := "owner-123"
+		targetID := "member-123"
+		roomID := "room-123"
+
+		reqRows := sqlmock.NewRows([]string{"id", "room_id", "user_id", "role_id", "role_type", "active_sub_room_id", "muted_until", "joined_at"}).
+			AddRow("mem-1", roomID, requesterID, "", "OWNER", nil, nil, time.Now())
+		mock.ExpectQuery("SELECT id, room_id, user_id, role_id, role_type, active_sub_room_id, muted_until, joined_at FROM room_members").
+			WithArgs(roomID, requesterID).
+			WillReturnRows(reqRows)
+
+		mock.ExpectQuery("SELECT id, room_id, user_id, role_id, role_type, active_sub_room_id, muted_until, joined_at FROM room_members").
+			WithArgs(roomID, targetID).
+			WillReturnRows(sqlmock.NewRows([]string{"id", "room_id", "user_id", "role_id", "role_type", "active_sub_room_id", "muted_until", "joined_at"}))
+
+		err := u.MuteMember(ctx, requesterID, roomID, targetID, 60)
+		if !errors.Is(err, ErrTargetMemberNotFound) {
+			t.Errorf("Expected ErrTargetMemberNotFound, got: %v", err)
+		}
+
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("Expectations were not met: %s", err)
+		}
+	})
+
+	t.Run("Database error on requester check", func(t *testing.T) {
+		requesterID := "owner-123"
+		targetID := "member-123"
+		roomID := "room-123"
+		dbErr := errors.New("db connection failed")
+
+		mock.ExpectQuery("SELECT id, room_id, user_id, role_id, role_type, active_sub_room_id, muted_until, joined_at FROM room_members").
+			WithArgs(roomID, requesterID).
+			WillReturnError(dbErr)
+
+		err := u.MuteMember(ctx, requesterID, roomID, targetID, 60)
+		if !errors.Is(err, dbErr) {
+			t.Errorf("Expected dbErr, got: %v", err)
+		}
+
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("Expectations were not met: %s", err)
+		}
+	})
+
+	t.Run("Database error on target check", func(t *testing.T) {
+		requesterID := "owner-123"
+		targetID := "member-123"
+		roomID := "room-123"
+		dbErr := errors.New("db connection failed")
+
+		reqRows := sqlmock.NewRows([]string{"id", "room_id", "user_id", "role_id", "role_type", "active_sub_room_id", "muted_until", "joined_at"}).
+			AddRow("mem-1", roomID, requesterID, "", "OWNER", nil, nil, time.Now())
+		mock.ExpectQuery("SELECT id, room_id, user_id, role_id, role_type, active_sub_room_id, muted_until, joined_at FROM room_members").
+			WithArgs(roomID, requesterID).
+			WillReturnRows(reqRows)
+
+		mock.ExpectQuery("SELECT id, room_id, user_id, role_id, role_type, active_sub_room_id, muted_until, joined_at FROM room_members").
+			WithArgs(roomID, targetID).
+			WillReturnError(dbErr)
+
+		err := u.MuteMember(ctx, requesterID, roomID, targetID, 60)
+		if !errors.Is(err, dbErr) {
+			t.Errorf("Expected dbErr, got: %v", err)
 		}
 
 		if err := mock.ExpectationsWereMet(); err != nil {
@@ -207,6 +278,77 @@ func TestUnmuteMember(t *testing.T) {
 		err := u.UnmuteMember(ctx, requesterID, roomID, targetID)
 		if err != nil {
 			t.Errorf("Unexpected error: %s", err)
+		}
+
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("Expectations were not met: %s", err)
+		}
+	})
+
+	t.Run("Target Member Not Found", func(t *testing.T) {
+		requesterID := "owner-123"
+		targetID := "member-123"
+		roomID := "room-123"
+
+		reqRows := sqlmock.NewRows([]string{"id", "room_id", "user_id", "role_id", "role_type", "active_sub_room_id", "muted_until", "joined_at"}).
+			AddRow("mem-1", roomID, requesterID, "", "OWNER", nil, nil, time.Now())
+		mock.ExpectQuery("SELECT id, room_id, user_id, role_id, role_type, active_sub_room_id, muted_until, joined_at FROM room_members").
+			WithArgs(roomID, requesterID).
+			WillReturnRows(reqRows)
+
+		mock.ExpectQuery("SELECT id, room_id, user_id, role_id, role_type, active_sub_room_id, muted_until, joined_at FROM room_members").
+			WithArgs(roomID, targetID).
+			WillReturnRows(sqlmock.NewRows([]string{"id", "room_id", "user_id", "role_id", "role_type", "active_sub_room_id", "muted_until", "joined_at"}))
+
+		err := u.UnmuteMember(ctx, requesterID, roomID, targetID)
+		if !errors.Is(err, ErrTargetMemberNotFound) {
+			t.Errorf("Expected ErrTargetMemberNotFound, got: %v", err)
+		}
+
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("Expectations were not met: %s", err)
+		}
+	})
+
+	t.Run("Database error on requester check", func(t *testing.T) {
+		requesterID := "owner-123"
+		targetID := "member-123"
+		roomID := "room-123"
+		dbErr := errors.New("db connection failed")
+
+		mock.ExpectQuery("SELECT id, room_id, user_id, role_id, role_type, active_sub_room_id, muted_until, joined_at FROM room_members").
+			WithArgs(roomID, requesterID).
+			WillReturnError(dbErr)
+
+		err := u.UnmuteMember(ctx, requesterID, roomID, targetID)
+		if !errors.Is(err, dbErr) {
+			t.Errorf("Expected dbErr, got: %v", err)
+		}
+
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("Expectations were not met: %s", err)
+		}
+	})
+
+	t.Run("Database error on target check", func(t *testing.T) {
+		requesterID := "owner-123"
+		targetID := "member-123"
+		roomID := "room-123"
+		dbErr := errors.New("db connection failed")
+
+		reqRows := sqlmock.NewRows([]string{"id", "room_id", "user_id", "role_id", "role_type", "active_sub_room_id", "muted_until", "joined_at"}).
+			AddRow("mem-1", roomID, requesterID, "", "OWNER", nil, nil, time.Now())
+		mock.ExpectQuery("SELECT id, room_id, user_id, role_id, role_type, active_sub_room_id, muted_until, joined_at FROM room_members").
+			WithArgs(roomID, requesterID).
+			WillReturnRows(reqRows)
+
+		mock.ExpectQuery("SELECT id, room_id, user_id, role_id, role_type, active_sub_room_id, muted_until, joined_at FROM room_members").
+			WithArgs(roomID, targetID).
+			WillReturnError(dbErr)
+
+		err := u.UnmuteMember(ctx, requesterID, roomID, targetID)
+		if !errors.Is(err, dbErr) {
+			t.Errorf("Expected dbErr, got: %v", err)
 		}
 
 		if err := mock.ExpectationsWereMet(); err != nil {

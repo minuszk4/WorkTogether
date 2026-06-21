@@ -646,7 +646,7 @@ func (h *RoomHandler) MuteMember(c *gin.Context) {
 			})
 			return
 		}
-		if err.Error() == "thành viên mục tiêu không tồn tại" {
+		if errors.Is(err, usecase.ErrTargetMemberNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{
 				"success": false,
 				"data":    nil,
@@ -657,7 +657,7 @@ func (h *RoomHandler) MuteMember(c *gin.Context) {
 			})
 			return
 		}
-		if err.Error() == "không thể mute chủ phòng" {
+		if errors.Is(err, usecase.ErrCannotMuteOwner) {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"success": false,
 				"data":    nil,
@@ -701,7 +701,7 @@ func (h *RoomHandler) UnmuteMember(c *gin.Context) {
 			})
 			return
 		}
-		if err.Error() == "thành viên mục tiêu không tồn tại" {
+		if errors.Is(err, usecase.ErrTargetMemberNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{
 				"success": false,
 				"data":    nil,
