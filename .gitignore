@@ -48,5 +48,6 @@ logs/
 
 # ----- AI/Agentic Documents -----
 .superpowers/
+.agents/
 docs/superpowers/
 
