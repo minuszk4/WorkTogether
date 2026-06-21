@@ -18,9 +18,19 @@ Phase 2 nhằm tăng cường sự tương tác và gắn kết giữa các thà
 
 ## 2. Database Schema
 
-Để bảo vệ tính cô lập dữ liệu (database isolation) của các microservices, toàn bộ bảng liên quan đến bài hát sẽ được đặt trong PostgreSQL của `music-service` (do các bảng này có ràng buộc khóa ngoại tới bảng `tracks` vốn thuộc `music-service`).
+Để bảo vệ tính cô lập dữ liệu (database isolation) của các microservices, toàn bộ bảng liên quan đến bài hát sẽ được đặt trong PostgreSQL của `music-service` (do các bảng này có ràng buộc khóa ngoại tới bảng `tracks` vốn thuộc `music-service`). Riêng cấu hình phòng sẽ được cập nhật trong `room-service`.
 
-### 2.1 Bảng Lời bài hát (`track_lyrics`)
+### 2.1 Cấu hình phòng (`rooms` table - `room-service`)
+Bổ sung trường lưu trữ chính sách thêm nhạc của phòng:
+```sql
+ALTER TABLE rooms ADD COLUMN IF NOT EXISTS add_music_policy VARCHAR(20) NOT NULL DEFAULT 'all';
+```
+Các giá trị hợp lệ của `add_music_policy`:
+- `'all'`: Mọi thành viên đều được thêm nhạc (Mặc định).
+- `'nobody'`: Chỉ Owner/Moderators mới được thêm nhạc.
+- `'dj_only'`: Owner, Moderators và Guest DJ hiện tại mới được thêm nhạc.
+
+### 2.2 Bảng Lời bài hát (`track_lyrics`)
 Lưu trữ lời bài hát dưới định dạng LRC chuẩn có chứa timestamp của từng dòng.
 ```sql
 CREATE TABLE IF NOT EXISTS track_lyrics (
@@ -159,14 +169,43 @@ CREATE INDEX IF NOT EXISTS idx_bookmarks_room ON bookmarks(room_id);
   ```
 
 #### Xóa bookmark
-- **Endpoint**: `DELETE /api/v1/music/rooms/:room_id/bookmarks/:id`
-- **Headers**: `Authorization: Bearer <token>`
-- **Response (200 OK)**:
+- Endpoint: `DELETE /api/v1/music/rooms/:room_id/bookmarks/:id`
+- Headers: `Authorization: Bearer <token>`
+- Response (200 OK):
   ```json
   {
     "success": true,
     "data": {
       "message": "Đã xóa bookmark thành công."
+    },
+    "error": null
+  }
+  ```
+
+---
+
+### 3.3 REST API cho Cấu hình Phòng (`room-service`)
+
+#### Cập nhật cấu hình phòng
+- **Endpoint**: `PUT /api/v1/rooms/:id/settings`
+- **Headers**: `Authorization: Bearer <token>`
+- **Request Body**:
+  ```json
+  {
+    "name": "Lounge Coder Mới",
+    "description": "Mô tả mới",
+    "add_music_policy": "dj_only" -- "all" | "nobody" | "dj_only"
+  }
+  ```
+- **Response (200 OK)**:
+  ```json
+  {
+    "success": true,
+    "data": {
+      "id": "uuid-room-1111",
+      "name": "Lounge Coder Mới",
+      "description": "Mô tả mới",
+      "add_music_policy": "dj_only"
     },
     "error": null
   }
