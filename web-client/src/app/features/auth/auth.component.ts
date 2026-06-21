@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { ApiService } from '../../core/services/api.service';
+import { environment } from '../../../environments/environment';
 import { StateService } from '../../core/services/state.service';
 import { ToastService } from '../../shared/services/toast.service';
 
@@ -102,6 +103,6 @@ export class AuthComponent implements OnInit {
 
   public loginWithGoogle(): void {
     // Redirect thật sang Google OAuth endpoint
-    window.location.href = 'http://localhost:8080/api/v1/auth/google';
+    window.location.href = `${environment.apiUrl}/auth/google`;
   }
 }

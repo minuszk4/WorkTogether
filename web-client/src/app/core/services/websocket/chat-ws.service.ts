@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { Subject, BehaviorSubject } from 'rxjs';
+import { environment } from '../../../../environments/environment';
 
 export interface ChatMessage {
   id: string;
@@ -34,7 +35,7 @@ export class ChatWsService {
 
   public connect(roomId: string, token: string): void {
     this.roomId = roomId;
-    const wsUrl = `ws://localhost:8080/api/v1/rooms/${roomId}/chat/ws?token=${token}`;
+    const wsUrl = `${environment.wsUrl}/api/v1/rooms/${roomId}/chat/ws?token=${token}`;
 
     this.socket = new WebSocket(wsUrl);
 

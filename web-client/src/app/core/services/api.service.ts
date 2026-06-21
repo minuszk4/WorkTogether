@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { environment } from '../../../environments/environment';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
@@ -16,7 +17,7 @@ export interface ApiResponse<T = any> {
   providedIn: 'root'
 })
 export class ApiService {
-  private apiBase = 'http://localhost:8080/api/v1';
+  private apiBase = environment.apiUrl;
 
   private jsonHeaders = new HttpHeaders({ 'Content-Type': 'application/json' });
   private httpOptions = { headers: this.jsonHeaders, withCredentials: true };
