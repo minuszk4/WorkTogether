@@ -37,3 +37,30 @@
 
 ## Issues or concerns
 - None.
+
+## Fixes Based on Review Feedback (Task 2 Post-Review)
+
+On 2026-06-21, additional fixes were implemented to address code review feedback:
+
+1. **Access Token Persisted in LocalStorage**:
+   - Removed all reading, writing, and syncing of `accessToken` to/from `localStorage` inside `StateService` ([state.service.ts](file:///c:/Users/tranv/Desktop/WorkTogether/web-client/src/app/core/services/state.service.ts)). Only the `user` object remains persisted in `localStorage`.
+
+2. **Hardcoded Port 8080 in Notification Stream**:
+   - Imported `environment` and refactored `buildStreamUrl(token)` inside `NotificationStreamService` ([notification-stream.service.ts](file:///c:/Users/tranv/Desktop/WorkTogether/web-client/src/app/core/services/notification-stream.service.ts)) to use `environment.apiUrl` dynamically. In production, if `apiUrl` is relative, it prepends `window.location.protocol` and `window.location.host` correctly.
+
+3. **Missed WS Refactoring in Collab Notes & Timer**:
+   - Refactored `CollabNotesComponent` ([collab-notes.component.ts](file:///c:/Users/tranv/Desktop/WorkTogether/web-client/src/app/features/room/components/collab-notes/collab-notes.component.ts)) and `TimerComponent` ([timer.component.ts](file:///c:/Users/tranv/Desktop/WorkTogether/web-client/src/app/features/room/components/timer/timer.component.ts)) to import `environment` and use `environment.wsUrl` instead of custom protocol/host construction.
+
+4. **Unused livekitUrl & Hardcoded Voice Fallback**:
+   - Updated `VoiceService` ([voice.service.ts](file:///c:/Users/tranv/Desktop/WorkTogether/web-client/src/app/core/services/voice.service.ts)) to import `environment` and use `environment.livekitUrl` as the fallback in `normalizeLiveKitUrl(serverUrl)` instead of `'ws://localhost:7880'`.
+
+### Post-Review Verification & Build Results
+- Executed `npm run build` in the `web-client` directory.
+- **Result**: The compilation succeeded with exit code 0.
+  ```
+  Application bundle generation complete. [4.232 seconds]
+  Output location: C:\Users\tranv\Desktop\WorkTogether\web-client\dist\web-client
+  ```
+
+### Commits
+- Commit: `9c86726` - `fix(web-client): address review issues on tokens, ports, and WS URLs`
