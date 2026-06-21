@@ -1,6 +1,7 @@
 package http
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -263,6 +264,10 @@ func (c *Client) ReadPump() {
 			if err != nil {
 				log.Printf("Lỗi lưu playback state: %v\n", err)
 				continue
+			}
+
+			if ctrl.Action == "play" && ctrl.TrackID != "" {
+				c.Hub.logHistoryToMusicService(c.RoomID, ctrl.TrackID)
 			}
 
 			// Broadcast trạng thái mới tới cả phòng
@@ -645,6 +650,8 @@ func (h *Hub) advanceToNextTrack(ctx context.Context, roomID string, token strin
 
 	nextTrack := newTracks[0]
 
+	h.logHistoryToMusicService(roomID, nextTrack.TrackID)
+
 	nowMS := time.Now().UnixNano() / int64(time.Millisecond)
 	newState := &domain.PlaybackState{
 		State:          "playing",
@@ -852,4 +859,20 @@ func (h *Hub) TriggerTimerPlaybackAction(ctx context.Context, roomID string, act
 
 	h.BroadcastToRoom(roomID, "playback:sync", newState)
 	return nil
+}
+
+func (h *Hub) logHistoryToMusicService(roomID string, trackID string) {
+	go func() {
+		payload := map[string]string{
+			"room_id":  roomID,
+			"track_id": trackID,
+		}
+		jsonBytes, _ := json.Marshal(payload)
+		resp, err := http.Post("http://music-service:8085/api/v1/music/history", "application/json", bytes.NewBuffer(jsonBytes))
+		if err != nil {
+			log.Printf("[HISTORY-ERROR] Không thể gửi lịch sử phát nhạc tới music-service: %v\n", err)
+			return
+		}
+		defer resp.Body.Close()
+	}()
 }
