@@ -338,7 +338,7 @@ func (u *RoomUsecase) ResolvePermissions(ctx context.Context, member *domain.Roo
 	return customPermissions
 }
 
-func (u *RoomUsecase) UpdateRoomSettings(ctx context.Context, userID string, roomID string, name string, description string, addMusicPolicy string) (*domain.Room, error) {
+func (u *RoomUsecase) UpdateRoomSettings(ctx context.Context, userID string, roomID string, name string, description string, addMusicPolicy string, avatarURL *string, rules *string, theme string) (*domain.Room, error) {
 	member, err := u.repo.GetMember(ctx, roomID, userID)
 	if err != nil || member == nil || member.RoleType != "OWNER" {
 		return nil, ErrUnauthorized
@@ -355,6 +355,9 @@ func (u *RoomUsecase) UpdateRoomSettings(ctx context.Context, userID string, roo
 	rm.Name = name
 	rm.Description = description
 	rm.AddMusicPolicy = addMusicPolicy
+	rm.AvatarURL = avatarURL
+	rm.Rules = rules
+	rm.Theme = theme
 
 	if err := u.repo.UpdateRoom(ctx, rm); err != nil {
 		return nil, err

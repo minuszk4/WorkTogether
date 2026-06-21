@@ -427,9 +427,12 @@ func (h *RoomHandler) UpdateRoomSettings(c *gin.Context) {
 	roomID := c.Param("id")
 
 	var req struct {
-		Name           string `json:"name" binding:"required,min=3,max=100"`
-		Description    string `json:"description" binding:"max=500"`
-		AddMusicPolicy string `json:"add_music_policy" binding:"required,oneof=all nobody dj_only"`
+		Name           string  `json:"name" binding:"required,min=3,max=100"`
+		Description    string  `json:"description" binding:"max=500"`
+		AddMusicPolicy string  `json:"add_music_policy" binding:"required,oneof=all nobody dj_only"`
+		AvatarURL      *string `json:"avatar_url"`
+		Rules          *string `json:"rules"`
+		Theme          string  `json:"theme"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -444,7 +447,7 @@ func (h *RoomHandler) UpdateRoomSettings(c *gin.Context) {
 		return
 	}
 
-	rm, err := h.usecase.UpdateRoomSettings(c.Request.Context(), userID.(string), roomID, req.Name, req.Description, req.AddMusicPolicy)
+	rm, err := h.usecase.UpdateRoomSettings(c.Request.Context(), userID.(string), roomID, req.Name, req.Description, req.AddMusicPolicy, req.AvatarURL, req.Rules, req.Theme)
 	if err != nil {
 		status := http.StatusInternalServerError
 		code := "UPDATE_SETTINGS_FAILED"
