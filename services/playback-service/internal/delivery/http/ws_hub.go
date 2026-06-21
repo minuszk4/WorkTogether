@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -394,6 +395,8 @@ type playlistTrackInfo struct {
 	DurationMS   int    `json:"duration_ms"`
 	SourceURL    string `json:"source_url"`
 	Position     int    `json:"position"`
+	AddedBy      string `json:"added_by"`
+	Votes        int    `json:"votes"`
 }
 
 func (h *Hub) getClientToken(roomID string) string {
@@ -546,11 +549,81 @@ func (h *Hub) advanceToNextTrack(ctx context.Context, roomID string, token strin
 	}
 
 	if winningTrack == nil {
+		var candidates []*playlistTrackInfo
 		for _, t := range tracks {
 			if t.ID != currentTrackIDInPlaylist {
-				winningTrack = t
-				break
+				candidates = append(candidates, t)
 			}
+		}
+
+		if len(candidates) > 0 {
+			userTracksMap := make(map[string][]*playlistTrackInfo)
+			var activeUsers []string
+			
+			for _, t := range candidates {
+				user := t.AddedBy
+				if len(userTracksMap[user]) == 0 {
+					activeUsers = append(activeUsers, user)
+				}
+				userTracksMap[user] = append(userTracksMap[user], t)
+			}
+
+			for user := range userTracksMap {
+				sort.Slice(userTracksMap[user], func(i, j int) bool {
+					if userTracksMap[user][i].Votes != userTracksMap[user][j].Votes {
+						return userTracksMap[user][i].Votes > userTracksMap[user][j].Votes
+					}
+					return userTracksMap[user][i].Position < userTracksMap[user][j].Position
+				})
+			}
+
+			sort.Slice(activeUsers, func(i, j int) bool {
+				uI := activeUsers[i]
+				uJ := activeUsers[j]
+				
+				minPosI := 9999999
+				for _, t := range userTracksMap[uI] {
+					if t.Position < minPosI {
+						minPosI = t.Position
+					}
+				}
+				
+				minPosJ := 9999999
+				for _, t := range userTracksMap[uJ] {
+					if t.Position < minPosJ {
+						minPosJ = t.Position
+					}
+				}
+				
+				return minPosI < minPosJ
+			})
+
+			currentUser := ""
+			if state != nil && state.CurrentTrackID != "" {
+				for _, t := range tracks {
+					if t.TrackID == state.CurrentTrackID {
+						currentUser = t.AddedBy
+						break
+					}
+				}
+			}
+
+			nextUserIndex := 0
+			if currentUser != "" {
+				currentUserIndex := -1
+				for idx, user := range activeUsers {
+					if user == currentUser {
+						currentUserIndex = idx
+						break
+					}
+				}
+				if currentUserIndex != -1 {
+					nextUserIndex = (currentUserIndex + 1) % len(activeUsers)
+				}
+			}
+
+			selectedUser := activeUsers[nextUserIndex]
+			winningTrack = userTracksMap[selectedUser][0]
 		}
 	}
 
@@ -738,5 +811,45 @@ func (h *Hub) removeTrackFromPlaylist(ctx context.Context, playlistID string, it
 		return fmt.Errorf("playlist-service returned status code %d", resp.StatusCode)
 	}
 
+	return nil
+}
+
+func (h *Hub) TriggerTimerPlaybackAction(ctx context.Context, roomID string, action string) error {
+	state, err := h.usecase.GetOrCreateState(ctx, roomID)
+	if err != nil {
+		return err
+	}
+	if state == nil {
+		return fmt.Errorf("room state not initialized")
+	}
+
+	ctrl := &domain.ControlPayload{
+		Action:       action,
+		TrackID:      state.CurrentTrackID,
+		PositionMS:   state.PositionMS,
+		Title:        state.Title,
+		Artist:       state.Artist,
+		ThumbnailURL: state.ThumbnailURL,
+		DurationMS:   state.DurationMS,
+		SourceURL:    state.SourceURL,
+	}
+
+	if action == "pause" {
+		nowMS := time.Now().UnixNano() / int64(time.Millisecond)
+		elapsed := nowMS - state.UpdatedAt
+		ctrl.PositionMS = state.PositionMS + int(elapsed)
+		if ctrl.PositionMS > state.DurationMS {
+			ctrl.PositionMS = state.DurationMS
+		}
+	} else if action == "resume" {
+		ctrl.Action = "play"
+	}
+
+	newState, err := h.usecase.UpdateState(ctx, roomID, ctrl)
+	if err != nil {
+		return err
+	}
+
+	h.BroadcastToRoom(roomID, "playback:sync", newState)
 	return nil
 }

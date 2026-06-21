@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	roomv1 "github.com/worktogether/services/playback-service/api/v1"
+	deliveryGrpc "github.com/worktogether/services/playback-service/internal/delivery/grpc"
 	delivery "github.com/worktogether/services/playback-service/internal/delivery/http"
 	"github.com/worktogether/services/playback-service/internal/repository"
 	"github.com/worktogether/services/playback-service/internal/usecase"
@@ -83,6 +85,24 @@ func main() {
 	// Khởi chạy WebSocket Hub
 	hub := delivery.NewHub(uc, roomClient, jwtSecret)
 	go hub.Run()
+
+	// Khởi chạy gRPC Server nội bộ cho playback-service
+	playbackGrpcPort := getEnv("GRPC_PORT", "50052")
+	lisPlayback, err := net.Listen("tcp", ":"+playbackGrpcPort)
+	if err != nil {
+		log.Fatalf("Lỗi mở cổng gRPC playback: %v\n", err)
+	}
+
+	grpcServer := grpc.NewServer()
+	playbackGrpcServer := deliveryGrpc.NewPlaybackGrpcServer(uc, hub)
+	roomv1.RegisterPlaybackInternalServiceServer(grpcServer, playbackGrpcServer)
+
+	go func() {
+		log.Printf("Playback gRPC Server đang lắng nghe tại cổng :%s...\n", playbackGrpcPort)
+		if err := grpcServer.Serve(lisPlayback); err != nil {
+			log.Fatalf("Lỗi khởi chạy gRPC server cho playback: %v\n", err)
+		}
+	}()
 
 	// Khởi tạo Gin
 	gin.SetMode(gin.ReleaseMode)
