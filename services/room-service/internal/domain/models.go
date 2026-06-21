@@ -33,13 +33,14 @@ type RoomRole struct {
 }
 
 type RoomMember struct {
-	ID              string    `json:"id"`
-	RoomID          string    `json:"room_id"`
-	UserID          string    `json:"user_id"`
-	RoleID          string    `json:"role_id,omitempty"`   // custom role
-	RoleType        string    `json:"role_type"`           // OWNER, MODERATOR, MEMBER
-	ActiveSubRoomID *string   `json:"active_sub_room_id,omitempty"`
-	JoinedAt        time.Time `json:"joined_at"`
+	ID              string     `json:"id"`
+	RoomID          string     `json:"room_id"`
+	UserID          string     `json:"user_id"`
+	RoleID          string     `json:"role_id,omitempty"`   // custom role
+	RoleType        string     `json:"role_type"`           // OWNER, MODERATOR, MEMBER
+	ActiveSubRoomID *string    `json:"active_sub_room_id,omitempty"`
+	MutedUntil      *time.Time `json:"muted_until,omitempty"`
+	JoinedAt        time.Time  `json:"joined_at"`
 }
 
 type RoomBan struct {

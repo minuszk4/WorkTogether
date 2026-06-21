@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"time"
 
 	"github.com/worktogether/services/room-service/internal/domain"
 )
@@ -158,12 +159,13 @@ func (r *PostgresRepository) AddMember(ctx context.Context, m *domain.RoomMember
 }
 
 func (r *PostgresRepository) GetMember(ctx context.Context, roomID, userID string) (*domain.RoomMember, error) {
-	query := `SELECT id, room_id, user_id, role_id, role_type, active_sub_room_id, joined_at FROM room_members WHERE room_id = $1 AND user_id = $2`
+	query := `SELECT id, room_id, user_id, role_id, role_type, active_sub_room_id, muted_until, joined_at FROM room_members WHERE room_id = $1 AND user_id = $2`
 	m := &domain.RoomMember{}
 	var roleID sql.NullString
 	var activeSubRoomID sql.NullString
+	var mutedUntil sql.NullTime
 	err := r.db.QueryRowContext(ctx, query, roomID, userID).
-		Scan(&m.ID, &m.RoomID, &m.UserID, &roleID, &m.RoleType, &activeSubRoomID, &m.JoinedAt)
+		Scan(&m.ID, &m.RoomID, &m.UserID, &roleID, &m.RoleType, &activeSubRoomID, &mutedUntil, &m.JoinedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
@@ -176,12 +178,15 @@ func (r *PostgresRepository) GetMember(ctx context.Context, roomID, userID strin
 	if activeSubRoomID.Valid {
 		m.ActiveSubRoomID = &activeSubRoomID.String
 	}
+	if mutedUntil.Valid {
+		m.MutedUntil = &mutedUntil.Time
+	}
 	return m, nil
 }
 
 func (r *PostgresRepository) ListMembers(ctx context.Context, roomID string) ([]*domain.RoomMember, error) {
 	query := `
-		SELECT id, room_id, user_id, role_id, role_type, active_sub_room_id, joined_at
+		SELECT id, room_id, user_id, role_id, role_type, active_sub_room_id, muted_until, joined_at
 		FROM room_members
 		WHERE room_id = $1
 		ORDER BY
@@ -204,7 +209,8 @@ func (r *PostgresRepository) ListMembers(ctx context.Context, roomID string) ([]
 		member := &domain.RoomMember{}
 		var roleID sql.NullString
 		var activeSubRoomID sql.NullString
-		if err := rows.Scan(&member.ID, &member.RoomID, &member.UserID, &roleID, &member.RoleType, &activeSubRoomID, &member.JoinedAt); err != nil {
+		var mutedUntil sql.NullTime
+		if err := rows.Scan(&member.ID, &member.RoomID, &member.UserID, &roleID, &member.RoleType, &activeSubRoomID, &mutedUntil, &member.JoinedAt); err != nil {
 			return nil, err
 		}
 		if roleID.Valid {
@@ -212,6 +218,9 @@ func (r *PostgresRepository) ListMembers(ctx context.Context, roomID string) ([]
 		}
 		if activeSubRoomID.Valid {
 			member.ActiveSubRoomID = &activeSubRoomID.String
+		}
+		if mutedUntil.Valid {
+			member.MutedUntil = &mutedUntil.Time
 		}
 		members = append(members, member)
 	}
@@ -343,5 +352,11 @@ func (r *PostgresRepository) MoveMember(ctx context.Context, roomID string, user
 		subRoomVal = nil
 	}
 	_, err := r.db.ExecContext(ctx, query, subRoomVal, roomID, userID)
+	return err
+}
+
+func (r *PostgresRepository) UpdateMemberMute(ctx context.Context, roomID, userID string, mutedUntil *time.Time) error {
+	query := `UPDATE room_members SET muted_until = $1 WHERE room_id = $2 AND user_id = $3`
+	_, err := r.db.ExecContext(ctx, query, mutedUntil, roomID, userID)
 	return err
 }
