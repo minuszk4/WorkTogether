@@ -3,15 +3,16 @@ package domain
 import "time"
 
 type Room struct {
-	ID           string    `json:"id"`
-	Name         string    `json:"name"`
-	Description  string    `json:"description"`
-	Privacy      string    `json:"privacy"` // PUBLIC, PRIVATE, FRIENDS
-	PasswordHash string    `json:"-"`
-	InviteCode   string    `json:"invite_code"`
-	OwnerID      string    `json:"owner_id"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID             string    `json:"id"`
+	Name           string    `json:"name"`
+	Description    string    `json:"description"`
+	Privacy        string    `json:"privacy"` // PUBLIC, PRIVATE, FRIENDS
+	PasswordHash   string    `json:"-"`
+	InviteCode     string    `json:"invite_code"`
+	OwnerID        string    `json:"owner_id"`
+	AddMusicPolicy string    `json:"add_music_policy"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
 
 type RoomRole struct {

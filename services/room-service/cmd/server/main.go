@@ -91,6 +91,7 @@ func main() {
 		roomsGroup.GET("", handler.GetRooms)
 		roomsGroup.GET("/invite/:code", handler.GetRoomByInviteCode)
 		roomsGroup.GET("/:id", handler.GetRoomByID)
+		roomsGroup.PUT("/:id/settings", handler.UpdateRoomSettings)
 		roomsGroup.GET("/:id/members", handler.GetMembers)
 		roomsGroup.POST("/:id/join", handler.JoinRoom)
 		roomsGroup.POST("/:id/leave", handler.LeaveRoom)

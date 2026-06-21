@@ -8,6 +8,8 @@ import { TransportControlsComponent } from '../transport-controls/transport-cont
 import { SeekbarComponent } from '../seekbar/seekbar.component';
 import { VolumeControlComponent } from '../volume-control/volume-control.component';
 import { IconButtonComponent } from '../../../../shared/components/icon-button/icon-button.component';
+import { PlaybackWsService } from '../../../../core/services/websocket/playback-ws.service';
+import { StateService } from '../../../../core/services/state.service';
 
 @Component({
   selector: 'app-room-player-bar',
@@ -22,6 +24,23 @@ import { IconButtonComponent } from '../../../../shared/components/icon-button/i
 export class PlayerBarComponent implements AfterViewInit, OnDestroy {
   public engine = inject(PlayerEngineService);
   public uiState = inject(RoomUiStateService);
+  private playbackWs = inject(PlaybackWsService);
+  private state = inject(StateService);
+
+  get guestDjName(): string {
+    const dj = this.playbackWs.guestDj$.value;
+    if (!dj) return '';
+    const member = this.state.activeRoomMembers$.value.find(m => m.user_id === dj.userId);
+    return member?.display_name || 'Guest DJ';
+  }
+
+  get isPlaybackLocked(): boolean {
+    const dj = this.playbackWs.guestDj$.value;
+    if (!dj) return false;
+    const currentUserId = this.state.user?.id;
+    const isOwner = this.state.roomMemberRole$.value === 'OWNER';
+    return currentUserId !== dj.userId && !isOwner;
+  }
 
   public isPlaying = false;
   public pct = 0;

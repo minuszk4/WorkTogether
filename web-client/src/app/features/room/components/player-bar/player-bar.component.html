@@ -11,13 +11,21 @@
   </div>
 
   <div class="pb-center">
+    @if (isPlaybackLocked) {
+      <div class="dj-lock-banner text-center text-xs text-muted mb-1 flex items-center justify-center gap-1">
+        <span>🔒</span>
+        <span class="font-medium text-accent">{{ guestDjName }}</span>
+        <span>đang làm Guest DJ</span>
+      </div>
+    }
     <app-room-transport [isPlaying]="isPlaying"
+                        [disabled]="isPlaybackLocked"
                         (playPause)="onPlayPause()"
                         (prev)="onPrev()"
                         (next)="onNext()"></app-room-transport>
     <div class="pb-seek">
       <span class="pb-time">{{ engine.formatTime(progressMs) }}</span>
-      <app-room-seekbar [pct]="pct" (seek)="onSeek($event)"></app-room-seekbar>
+      <app-room-seekbar [pct]="pct" [disabled]="isPlaybackLocked" (seek)="onSeek($event)"></app-room-seekbar>
       <span class="pb-time">{{ engine.formatTime(engine.currentTrack ? engine.currentTrack.duration_ms : 0) }}</span>
     </div>
   </div>

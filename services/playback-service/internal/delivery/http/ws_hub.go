@@ -6,12 +6,14 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/websocket"
+	roomv1 "github.com/worktogether/services/playback-service/api/v1"
 	"github.com/worktogether/services/playback-service/internal/domain"
 	"github.com/worktogether/services/playback-service/internal/usecase"
 )
@@ -30,6 +32,7 @@ type Client struct {
 	Send   chan []byte
 	RoomID string
 	UserID string
+	Token  string
 }
 
 type Hub struct {
@@ -39,10 +42,11 @@ type Hub struct {
 	register   chan *Client
 	unregister chan *Client
 	broadcast  chan *domain.WSMessage
+	roomClient roomv1.RoomInternalServiceClient
 	mutex      sync.RWMutex
 }
 
-func NewHub(u *usecase.PlaybackUsecase, jwtSecret string) *Hub {
+func NewHub(u *usecase.PlaybackUsecase, rc roomv1.RoomInternalServiceClient, jwtSecret string) *Hub {
 	return &Hub{
 		usecase:    u,
 		jwtSecret:  jwtSecret,
@@ -50,10 +54,30 @@ func NewHub(u *usecase.PlaybackUsecase, jwtSecret string) *Hub {
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
 		broadcast:  make(chan *domain.WSMessage),
+		roomClient: rc,
 	}
 }
 
 func (h *Hub) Run() {
+	// Khởi chạy vòng lặp kiểm tra trạng thái phát nhạc của tất cả các phòng có người kết nối
+	go func() {
+		ticker := time.NewTicker(2 * time.Second)
+		for range ticker.C {
+			ctx := context.Background()
+			
+			h.mutex.RLock()
+			roomIDs := make([]string, 0, len(h.rooms))
+			for rID := range h.rooms {
+				roomIDs = append(roomIDs, rID)
+			}
+			h.mutex.RUnlock()
+
+			for _, roomID := range roomIDs {
+				h.checkRoomPlayback(ctx, roomID)
+			}
+		}
+	}()
+
 	for {
 		select {
 		case client := <-h.register:
@@ -176,11 +200,61 @@ func (c *Client) ReadPump() {
 			continue
 		}
 
+		if rawMsg.Event == "poll:vote" {
+			var voteReq struct {
+				TrackID string `json:"track_id"`
+			}
+			if err := json.Unmarshal(rawMsg.Payload, &voteReq); err != nil {
+				continue
+			}
+
+			// Ghi nhận vote
+			if err := c.Hub.usecase.VoteForTrack(ctx, c.RoomID, voteReq.TrackID); err != nil {
+				log.Printf("Lỗi ghi nhận vote: %v\n", err)
+				continue
+			}
+
+			// Tính toán lại tổng số vote hiện tại và broadcast poll:update
+			votes, err := c.Hub.usecase.GetPollVotes(ctx, c.RoomID)
+			if err == nil {
+				c.Hub.BroadcastToRoom(c.RoomID, "poll:update", votes)
+			}
+			continue
+		}
+
 		// 2. Xử lý lệnh điều khiển Playback
 		if rawMsg.Event == "playback:control" {
 			var ctrl domain.ControlPayload
 			if err := json.Unmarshal(rawMsg.Payload, &ctrl); err != nil {
 				continue
+			}
+
+			// Kiểm tra xem phòng có Guest DJ đang hoạt động không
+			guestDJ, err := c.Hub.usecase.GetGuestDJ(ctx, c.RoomID)
+			if err == nil && guestDJ != "" {
+				// Nếu người gửi không phải là Guest DJ hiện tại
+				if c.UserID != guestDJ {
+					// Kiểm tra xem người gửi có phải là Host (OWNER) không
+					res, err := c.Hub.roomClient.VerifyRoomMember(ctx, &roomv1.VerifyRoomMemberRequest{
+						RoomID: c.RoomID,
+						UserID: c.UserID,
+					})
+					if err != nil || res == nil || res.Role != "OWNER" {
+						// Không phải Host cũng không phải Guest DJ -> Trả lỗi và bỏ qua lệnh
+						payloadBytes, _ := json.Marshal(map[string]interface{}{
+							"code":    "FORBIDDEN",
+							"message": "Phòng đang có Guest DJ làm chủ bàn nhạc. Chỉ Host hoặc Guest DJ hiện tại mới có quyền thay đổi phát nhạc.",
+						})
+						resp := domain.WSMessage{
+							Event:   "playback:error",
+							RoomID:  c.RoomID,
+							Payload: json.RawMessage(payloadBytes),
+						}
+						respBytes, _ := json.Marshal(resp)
+						c.Send <- respBytes
+						continue
+					}
+				}
 			}
 
 			// Lưu trạng thái mới vào Redis
@@ -285,6 +359,7 @@ func ServePlaybackWS(hub *Hub) gin.HandlerFunc {
 			Send:   make(chan []byte, 256),
 			RoomID: roomID,
 			UserID: userID,
+			Token:  tokenStr,
 		}
 
 		client.Hub.register <- client
@@ -292,4 +367,376 @@ func ServePlaybackWS(hub *Hub) gin.HandlerFunc {
 		go client.WritePump()
 		go client.ReadPump()
 	}
+}
+
+func (h *Hub) BroadcastToRoom(roomID string, event string, payload interface{}) {
+	payloadBytes, _ := json.Marshal(payload)
+	h.broadcast <- &domain.WSMessage{
+		Event:   event,
+		RoomID:  roomID,
+		Payload: json.RawMessage(payloadBytes),
+	}
+}
+
+type playlistInfo struct {
+	ID     string `json:"id"`
+	RoomID string `json:"room_id"`
+	Name   string `json:"name"`
+}
+
+type playlistTrackInfo struct {
+	ID           string `json:"id"`
+	PlaylistID   string `json:"playlist_id"`
+	TrackID      string `json:"track_id"`
+	Title        string `json:"title"`
+	Artist       string `json:"artist"`
+	ThumbnailURL string `json:"thumbnail_url"`
+	DurationMS   int    `json:"duration_ms"`
+	SourceURL    string `json:"source_url"`
+	Position     int    `json:"position"`
+}
+
+func (h *Hub) getClientToken(roomID string) string {
+	h.mutex.RLock()
+	defer h.mutex.RUnlock()
+	clients := h.rooms[roomID]
+	if clients != nil {
+		for client := range clients {
+			if client.Token != "" {
+				return client.Token
+			}
+		}
+	}
+	return ""
+}
+
+func (h *Hub) checkRoomPlayback(ctx context.Context, roomID string) {
+	state, err := h.usecase.GetOrCreateState(ctx, roomID)
+	if err != nil || state == nil || state.State != "playing" || state.DurationMS <= 0 {
+		return
+	}
+
+	nowMS := time.Now().UnixNano() / int64(time.Millisecond)
+	elapsed := nowMS - state.UpdatedAt
+	currentPos := int(state.PositionMS) + int(elapsed)
+
+	token := h.getClientToken(roomID)
+	if token == "" {
+		return
+	}
+
+	// 1. Kiểm tra bài hát kết thúc
+	if currentPos >= state.DurationMS {
+		h.advanceToNextTrack(ctx, roomID, token)
+		return
+	}
+
+	// 2. Kiểm tra kích hoạt poll ở 30s cuối
+	remaining := state.DurationMS - currentPos
+	if remaining <= 30000 && remaining > 0 {
+		active, err := h.usecase.IsPollActive(ctx, roomID)
+		if err == nil && !active {
+			h.startPlaylistPoll(ctx, roomID, token)
+		}
+	}
+}
+
+func (h *Hub) startPlaylistPoll(ctx context.Context, roomID string, token string) {
+	_ = h.usecase.SetPollActive(ctx, roomID, true)
+
+	playlistID, err := h.fetchDefaultPlaylistID(ctx, roomID, token)
+	if err != nil {
+		log.Printf("Lỗi lấy default playlist cho phòng %s: %v\n", roomID, err)
+		return
+	}
+
+	tracks, err := h.fetchPlaylistTracks(ctx, playlistID, token)
+	if err != nil || len(tracks) == 0 {
+		return
+	}
+
+	candidates := make([]interface{}, 0, 3)
+	limit := 3
+	if len(tracks) < limit {
+		limit = len(tracks)
+	}
+	
+	// Tránh đề xuất chính bài đang phát hiện tại
+	state, _ := h.usecase.GetOrCreateState(ctx, roomID)
+	currentIndex := -1
+	if state != nil {
+		for idx, t := range tracks {
+			if t.TrackID == state.CurrentTrackID {
+				currentIndex = idx
+				break
+			}
+		}
+	}
+
+	addedCount := 0
+	for i := 0; i < len(tracks) && addedCount < 3; i++ {
+		if i == currentIndex {
+			continue // Không đưa bài đang phát vào danh sách vote
+		}
+		candidates = append(candidates, map[string]interface{}{
+			"id":            tracks[i].ID, // playlist_track_id
+			"track_id":      tracks[i].TrackID,
+			"title":         tracks[i].Title,
+			"artist":        tracks[i].Artist,
+			"thumbnail_url": tracks[i].ThumbnailURL,
+			"duration_ms":   tracks[i].DurationMS,
+			"source_url":    tracks[i].SourceURL,
+		})
+		addedCount++
+	}
+
+	if len(candidates) > 0 {
+		h.BroadcastToRoom(roomID, "poll:start", map[string]interface{}{
+			"candidates": candidates,
+			"duration":   30000,
+		})
+	}
+}
+
+func (h *Hub) advanceToNextTrack(ctx context.Context, roomID string, token string) {
+	votes, _ := h.usecase.GetPollVotes(ctx, roomID)
+	playlistID, err := h.fetchDefaultPlaylistID(ctx, roomID, token)
+	if err != nil {
+		h.usecase.ClearPoll(ctx, roomID)
+		return
+	}
+
+	tracks, err := h.fetchPlaylistTracks(ctx, playlistID, token)
+	if err != nil || len(tracks) == 0 {
+		h.stopPlayback(ctx, roomID)
+		h.usecase.ClearPoll(ctx, roomID)
+		h.BroadcastToRoom(roomID, "poll:end", map[string]interface{}{})
+		return
+	}
+
+	// Xác định track chiến thắng
+	winningTrackID := ""
+	maxVotes := -1
+	for trackID, voteCount := range votes {
+		if voteCount > maxVotes {
+			maxVotes = voteCount
+			winningTrackID = trackID
+		}
+	}
+
+	var winningTrack *playlistTrackInfo
+	if winningTrackID != "" {
+		for _, t := range tracks {
+			if t.ID == winningTrackID {
+				winningTrack = t
+				break
+			}
+		}
+	}
+
+	currentTrackIDInPlaylist := ""
+	state, _ := h.usecase.GetOrCreateState(ctx, roomID)
+	if state != nil && state.CurrentTrackID != "" {
+		for _, t := range tracks {
+			if t.TrackID == state.CurrentTrackID {
+				currentTrackIDInPlaylist = t.ID
+				break
+			}
+		}
+	}
+
+	if winningTrack == nil {
+		for _, t := range tracks {
+			if t.ID != currentTrackIDInPlaylist {
+				winningTrack = t
+				break
+			}
+		}
+	}
+
+	if winningTrack != nil && winningTrack.ID != currentTrackIDInPlaylist {
+		_ = h.moveTrackInPlaylist(ctx, playlistID, winningTrack.ID, 0, token)
+	}
+
+	if currentTrackIDInPlaylist != "" {
+		_ = h.removeTrackFromPlaylist(ctx, playlistID, currentTrackIDInPlaylist, token)
+	}
+
+	newTracks, err := h.fetchPlaylistTracks(ctx, playlistID, token)
+	if err != nil || len(newTracks) == 0 {
+		h.stopPlayback(ctx, roomID)
+		h.usecase.ClearPoll(ctx, roomID)
+		h.BroadcastToRoom(roomID, "poll:end", map[string]interface{}{})
+		return
+	}
+
+	nextTrack := newTracks[0]
+
+	nowMS := time.Now().UnixNano() / int64(time.Millisecond)
+	newState := &domain.PlaybackState{
+		State:          "playing",
+		CurrentTrackID: nextTrack.TrackID,
+		PositionMS:     0,
+		UpdatedAt:      nowMS,
+		Title:          nextTrack.Title,
+		Artist:         nextTrack.Artist,
+		ThumbnailURL:   nextTrack.ThumbnailURL,
+		DurationMS:     nextTrack.DurationMS,
+		SourceURL:      nextTrack.SourceURL,
+	}
+
+	_, _ = h.usecase.UpdateState(ctx, roomID, &domain.ControlPayload{
+		Action:       "play",
+		TrackID:      nextTrack.TrackID,
+		PositionMS:   0,
+		Title:        nextTrack.Title,
+		Artist:       nextTrack.Artist,
+		ThumbnailURL: nextTrack.ThumbnailURL,
+		DurationMS:   nextTrack.DurationMS,
+		SourceURL:    nextTrack.SourceURL,
+	})
+
+	h.usecase.ClearPoll(ctx, roomID)
+
+	syncBytes, _ := json.Marshal(newState)
+	h.BroadcastToRoom(roomID, "playback:sync", json.RawMessage(syncBytes))
+	
+	h.BroadcastToRoom(roomID, "poll:end", map[string]interface{}{
+		"winner": map[string]interface{}{
+			"track_id": nextTrack.TrackID,
+			"title":    nextTrack.Title,
+		},
+	})
+}
+
+func (h *Hub) stopPlayback(ctx context.Context, roomID string) {
+	nowMS := time.Now().UnixNano() / int64(time.Millisecond)
+	newState := &domain.PlaybackState{
+		State:          "stopped",
+		CurrentTrackID: "",
+		PositionMS:     0,
+		UpdatedAt:      nowMS,
+	}
+	_, _ = h.usecase.UpdateState(ctx, roomID, &domain.ControlPayload{
+		Action:     "stop",
+		TrackID:    "",
+		PositionMS: 0,
+	})
+	syncBytes, _ := json.Marshal(newState)
+	h.BroadcastToRoom(roomID, "playback:sync", json.RawMessage(syncBytes))
+}
+
+func (h *Hub) fetchDefaultPlaylistID(ctx context.Context, roomID string, token string) (string, error) {
+	url := fmt.Sprintf("http://playlist-service:8086/api/v1/playlists/room/%s", roomID)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	client := &http.Client{Timeout: 2 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("playlist-service returned status code %d", resp.StatusCode)
+	}
+
+	var res struct {
+		Success bool            `json:"success"`
+		Data    []*playlistInfo `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
+		return "", err
+	}
+
+	if len(res.Data) == 0 {
+		return "", fmt.Errorf("no playlist found for room %s", roomID)
+	}
+
+	return res.Data[0].ID, nil
+}
+
+func (h *Hub) fetchPlaylistTracks(ctx context.Context, playlistID string, token string) ([]*playlistTrackInfo, error) {
+	url := fmt.Sprintf("http://playlist-service:8086/api/v1/playlists/%s/tracks", playlistID)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	client := &http.Client{Timeout: 2 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("playlist-service returned status code %d", resp.StatusCode)
+	}
+
+	var res struct {
+		Success bool                 `json:"success"`
+		Data    []*playlistTrackInfo `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
+		return nil, err
+	}
+
+	return res.Data, nil
+}
+
+func (h *Hub) moveTrackInPlaylist(ctx context.Context, playlistID string, itemID string, newPosition int, token string) error {
+	url := fmt.Sprintf("http://playlist-service:8086/api/v1/playlists/%s/tracks/%s/move", playlistID, itemID)
+	
+	bodyMap := map[string]interface{}{
+		"new_position": newPosition,
+	}
+	bodyBytes, _ := json.Marshal(bodyMap)
+	
+	req, err := http.NewRequestWithContext(ctx, "PUT", url, strings.NewReader(string(bodyBytes)))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 2 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("playlist-service returned status code %d", resp.StatusCode)
+	}
+
+	return nil
+}
+
+func (h *Hub) removeTrackFromPlaylist(ctx context.Context, playlistID string, itemID string, token string) error {
+	url := fmt.Sprintf("http://playlist-service:8086/api/v1/playlists/%s/tracks/%s", playlistID, itemID)
+	req, err := http.NewRequestWithContext(ctx, "DELETE", url, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	client := &http.Client{Timeout: 2 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("playlist-service returned status code %d", resp.StatusCode)
+	}
+
+	return nil
 }

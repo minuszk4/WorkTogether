@@ -1,27 +1,10 @@
-# Build stage
-FROM golang:alpine AS builder
+FROM nginx:alpine
 
 WORKDIR /app
 
-# Copy go mod và sum files
-COPY go.mod go.sum ./
-RUN go mod download
-
-# Copy mã nguồn
-COPY . .
-
-# Biên dịch binary tĩnh (static binary)
-RUN CGO_ENABLED=0 GOOS=linux go build -o chat-service cmd/server/main.go
-
-# Production stage
-FROM alpine:latest
-
-WORKDIR /app
-
-RUN apk --no-cache add ca-certificates tzdata
-
-COPY --from=builder /app/chat-service .
+COPY chat-service-linux ./chat-service
 
 EXPOSE 8084
 
 CMD ["./chat-service"]
+

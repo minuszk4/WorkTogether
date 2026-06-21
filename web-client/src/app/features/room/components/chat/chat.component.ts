@@ -7,6 +7,7 @@ import { ToastService } from '../../../../shared/services/toast.service';
 import { ApiService } from '../../../../core/services/api.service';
 import { Subscription } from 'rxjs';
 import { RoomUiStateService } from '../../room-ui-state.service';
+import { PlayerEngineService } from '../player-engine/player-engine.service';
 
 @Component({
   selector: 'app-room-chat',
@@ -21,6 +22,7 @@ export class ChatComponent implements OnInit, OnDestroy {
   private toast = inject(ToastService);
   private api = inject(ApiService);
   private uiState = inject(RoomUiStateService);
+  private engine = inject(PlayerEngineService);
 
   @Input() isOpen = false;
 
@@ -179,5 +181,47 @@ export class ChatComponent implements OnInit, OnDestroy {
 
   public close(): void {
     this.uiState.toggleChat(false);
+  }
+
+  public getMessageSegments(content: string): { type: 'text' | 'link'; value: string; timeMs?: number }[] {
+    const segments: { type: 'text' | 'link'; value: string; timeMs?: number }[] = [];
+    const regex = /\[(\d{2}):(\d{2})\]/g;
+    let lastIndex = 0;
+    let match;
+
+    while ((match = regex.exec(content)) !== null) {
+      const index = match.index;
+      if (index > lastIndex) {
+        segments.push({
+          type: 'text',
+          value: content.substring(lastIndex, index)
+        });
+      }
+
+      const min = parseInt(match[1], 10);
+      const sec = parseInt(match[2], 10);
+      const timeMs = (min * 60 + sec) * 1000;
+
+      segments.push({
+        type: 'link',
+        value: match[0],
+        timeMs: timeMs
+      });
+
+      lastIndex = regex.lastIndex;
+    }
+
+    if (lastIndex < content.length) {
+      segments.push({
+        type: 'text',
+        value: content.substring(lastIndex)
+      });
+    }
+
+    return segments.length > 0 ? segments : [{ type: 'text', value: content }];
+  }
+
+  public onTimestampClick(timeMs: number): void {
+    this.engine.seekToMs(timeMs);
   }
 }

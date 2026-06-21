@@ -8,11 +8,11 @@ import { IconButtonComponent } from '../../../../shared/components/icon-button/i
   imports: [CommonModule, IconButtonComponent],
   template: `
     <div class="transport">
-      <app-icon-button label="Phát trước" (clicked)="prev.emit()">
+      <app-icon-button label="Phát trước" [disabled]="disabled" (clicked)="prev.emit()">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zM9.5 12l8.5 6V6z"/></svg>
       </app-icon-button>
 
-      <button class="play-main" type="button" [attr.aria-label]="isPlaying ? 'Tạm dừng' : 'Phát'" (click)="playPause.emit()">
+      <button class="play-main" type="button" [disabled]="disabled" [attr.aria-label]="isPlaying ? 'Tạm dừng' : 'Phát'" (click)="playPause.emit()">
         @if (isPlaying) {
           <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
         } @else {
@@ -20,7 +20,7 @@ import { IconButtonComponent } from '../../../../shared/components/icon-button/i
         }
       </button>
 
-      <app-icon-button label="Phát tiếp" (clicked)="next.emit()">
+      <app-icon-button label="Phát tiếp" [disabled]="disabled" (clicked)="next.emit()">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 6h2v12h-2zM6 18l8.5-6L6 6z"/></svg>
       </app-icon-button>
     </div>
@@ -33,13 +33,15 @@ import { IconButtonComponent } from '../../../../shared/components/icon-button/i
       display: flex; align-items: center; justify-content: center;
       box-shadow: var(--shadow-accent); transition: var(--transition-fast);
     }
-    .play-main:hover { transform: scale(1.06); }
-    .play-main:active { transform: scale(0.96); }
+    .play-main:hover:not(:disabled) { transform: scale(1.06); }
+    .play-main:active:not(:disabled) { transform: scale(0.96); }
+    .play-main:disabled { opacity: 0.4; cursor: not-allowed; }
     .play-main svg { width: 20px; height: 20px; }
   `]
 })
 export class TransportControlsComponent {
   @Input() isPlaying = false;
+  @Input() disabled = false;
   @Output() playPause = new EventEmitter<void>();
   @Output() prev = new EventEmitter<void>();
   @Output() next = new EventEmitter<void>();

@@ -71,3 +71,56 @@ func (r *RedisRepository) GetPlaybackState(ctx context.Context, roomID string) (
 		SourceURL:      vals["source_url"],
 	}, nil
 }
+
+func (r *RedisRepository) SetGuestDJ(ctx context.Context, roomID string, userID string, ttl time.Duration) error {
+	return r.rdb.Set(ctx, "room:"+roomID+":guest_dj", userID, ttl).Err()
+}
+
+func (r *RedisRepository) GetGuestDJ(ctx context.Context, roomID string) (string, error) {
+	val, err := r.rdb.Get(ctx, "room:"+roomID+":guest_dj").Result()
+	if err == redis.Nil {
+		return "", nil
+	}
+	return val, err
+}
+
+func (r *RedisRepository) ClearGuestDJ(ctx context.Context, roomID string) error {
+	return r.rdb.Del(ctx, "room:"+roomID+":guest_dj").Err()
+}
+
+func (r *RedisRepository) SetPollActive(ctx context.Context, roomID string, active bool) error {
+	return r.rdb.Set(ctx, "room:"+roomID+":poll_active", active, 24*time.Hour).Err()
+}
+
+func (r *RedisRepository) IsPollActive(ctx context.Context, roomID string) (bool, error) {
+	val, err := r.rdb.Get(ctx, "room:"+roomID+":poll_active").Bool()
+	if err == redis.Nil {
+		return false, nil
+	}
+	return val, err
+}
+
+func (r *RedisRepository) VoteForTrack(ctx context.Context, roomID string, trackID string) error {
+	return r.rdb.HIncrBy(ctx, "room:"+roomID+":poll_votes", trackID, 1).Err()
+}
+
+func (r *RedisRepository) GetPollVotes(ctx context.Context, roomID string) (map[string]int, error) {
+	vals, err := r.rdb.HGetAll(ctx, "room:"+roomID+":poll_votes").Result()
+	if err != nil {
+		return nil, err
+	}
+	res := make(map[string]int)
+	for k, v := range vals {
+		num, _ := strconv.Atoi(v)
+		res[k] = num
+	}
+	return res, nil
+}
+
+func (r *RedisRepository) ClearPoll(ctx context.Context, roomID string) error {
+	pipe := r.rdb.Pipeline()
+	pipe.Del(ctx, "room:"+roomID+":poll_active")
+	pipe.Del(ctx, "room:"+roomID+":poll_votes")
+	_, err := pipe.Exec(ctx)
+	return err
+}

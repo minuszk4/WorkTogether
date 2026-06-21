@@ -510,3 +510,23 @@ func (u *MusicUsecase) LogPlayback(ctx context.Context, roomID, trackID string) 
 func (u *MusicUsecase) GetRoomHistory(ctx context.Context, roomID string) ([]*domain.Track, error) {
 	return u.postgresRepo.GetPlaybackHistory(ctx, roomID, 20)
 }
+
+func (u *MusicUsecase) SaveLyrics(ctx context.Context, trackID string, content string) error {
+	return u.postgresRepo.SaveLyrics(ctx, trackID, content)
+}
+
+func (u *MusicUsecase) GetLyrics(ctx context.Context, trackID string) (string, error) {
+	return u.postgresRepo.GetLyrics(ctx, trackID)
+}
+
+func (u *MusicUsecase) SaveBookmark(ctx context.Context, b *domain.Bookmark) error {
+	return u.postgresRepo.SaveBookmark(ctx, b)
+}
+
+func (u *MusicUsecase) GetBookmarks(ctx context.Context, roomID string) ([]*domain.Bookmark, error) {
+	return u.postgresRepo.GetBookmarks(ctx, roomID)
+}
+
+func (u *MusicUsecase) DeleteBookmark(ctx context.Context, id string) error {
+	return u.postgresRepo.DeleteBookmark(ctx, id)
+}

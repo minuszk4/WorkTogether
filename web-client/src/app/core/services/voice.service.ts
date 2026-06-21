@@ -17,7 +17,8 @@ export class VoiceService {
   public isCameraActive$ = new BehaviorSubject<boolean>(false);
 
   constructor() {
-    this.forceWebRtcTcpOnly();
+    // TCP-only is disabled to allow high-performance UDP. WebRTC will automatically fallback to TCP if UDP is blocked.
+    // this.forceWebRtcTcpOnly();
   }
 
   private forceWebRtcTcpOnly(): void {
@@ -139,13 +140,19 @@ export class VoiceService {
       .on(RoomEvent.TrackSubscriptionStatusChanged, () => this.updateParticipants())
       .on(RoomEvent.TrackSubscribed, (track) => {
         if (track.kind === 'audio') {
-          track.attach();
+          const element = track.attach();
+          if (typeof document !== 'undefined') {
+            document.body.appendChild(element);
+          }
         }
         this.updateParticipants();
       })
       .on(RoomEvent.TrackUnsubscribed, (track) => {
         if (track.kind === 'audio') {
-          track.detach();
+          const detached = track.detach();
+          if (typeof document !== 'undefined') {
+            detached.forEach(el => el.remove());
+          }
         }
         this.updateParticipants();
       })
@@ -166,6 +173,21 @@ export class VoiceService {
       ...Array.from(this.room.remoteParticipants.values()).map(participant => this.toParticipantView(participant, false))
     ];
 
+    console.log('[VoiceService Debug] updateParticipants. List:', participants.map(p => ({
+      identity: p.identity,
+      isLocal: p.isLocal,
+      isMuted: p.isMuted,
+      isScreenSharing: p.isScreenSharing,
+      isCameraOn: p.isCameraOn,
+      trackPubs: Array.from((p.raw as any).trackPublications?.values() || []).map((pub: any) => ({
+        sid: pub.trackSid,
+        source: pub.source,
+        kind: pub.kind,
+        hasTrack: !!pub.track,
+        isMuted: pub.isMuted
+      }))
+    })));
+
     this.participants$.next(participants);
     this.syncLocalState();
   }
@@ -176,15 +198,17 @@ export class VoiceService {
       identity: participant.identity,
       isLocal,
       isMuted: !participant.isMicrophoneEnabled || this.isMicrophoneMuted(participant),
-      isScreenSharing: participant.isScreenShareEnabled || this.hasActiveSource(participant, 'screen_share'),
-      isCameraOn: participant.isCameraEnabled || this.hasActiveSource(participant, 'camera'),
+      isScreenSharing: this.hasActiveSource(participant, 'screen_share'),
+      isCameraOn: this.hasActiveSource(participant, 'camera'),
       raw: participant
     };
   }
 
   private isMicrophoneMuted(participant: Participant): boolean {
     const publications = this.getTrackPublications(participant);
-    const microphonePublication = publications.find(publication => publication.source === 'microphone');
+    const microphonePublication = publications.find(publication => 
+      publication.source === 'microphone' || (publication.track && publication.track.source === 'microphone')
+    );
     if (!microphonePublication) {
       return true;
     }
@@ -194,7 +218,8 @@ export class VoiceService {
 
   private hasActiveSource(participant: Participant, source: string): boolean {
     return this.getTrackPublications(participant).some(
-      publication => publication.source === source && !publication.isMuted && !!publication.track
+      publication => (publication.source === source || (publication.track && publication.track.source === source)) && 
+                     !publication.isMuted && !!publication.track
     );
   }
 
@@ -226,7 +251,17 @@ export class VoiceService {
   public async setScreenShare(enabled: boolean): Promise<void> {
     if (!this.room || !this.room.localParticipant) return;
 
-    await this.room.localParticipant.setScreenShareEnabled(enabled);
+    if (enabled) {
+      await this.room.localParticipant.setScreenShareEnabled(true, {
+        resolution: {
+          width: 1280,
+          height: 720,
+          frameRate: 10
+        }
+      });
+    } else {
+      await this.room.localParticipant.setScreenShareEnabled(false);
+    }
     this.updateParticipants();
   }
 

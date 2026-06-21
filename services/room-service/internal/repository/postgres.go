@@ -17,20 +17,23 @@ func NewPostgresRepository(db *sql.DB) *PostgresRepository {
 }
 
 func (r *PostgresRepository) CreateRoom(ctx context.Context, rm *domain.Room) error {
+	if rm.AddMusicPolicy == "" {
+		rm.AddMusicPolicy = "all"
+	}
 	query := `
-		INSERT INTO rooms (name, description, privacy, password_hash, invite_code, owner_id)
-		VALUES ($1, $2, UPPER($3), $4, $5, $6)
-		RETURNING id, created_at, updated_at
+		INSERT INTO rooms (name, description, privacy, password_hash, invite_code, owner_id, add_music_policy)
+		VALUES ($1, $2, UPPER($3), $4, $5, $6, $7)
+		RETURNING id, add_music_policy, created_at, updated_at
 	`
-	return r.db.QueryRowContext(ctx, query, rm.Name, rm.Description, rm.Privacy, rm.PasswordHash, rm.InviteCode, rm.OwnerID).
-		Scan(&rm.ID, &rm.CreatedAt, &rm.UpdatedAt)
+	return r.db.QueryRowContext(ctx, query, rm.Name, rm.Description, rm.Privacy, rm.PasswordHash, rm.InviteCode, rm.OwnerID, rm.AddMusicPolicy).
+		Scan(&rm.ID, &rm.AddMusicPolicy, &rm.CreatedAt, &rm.UpdatedAt)
 }
 
 func (r *PostgresRepository) GetRoomByID(ctx context.Context, id string) (*domain.Room, error) {
-	query := `SELECT id, name, description, privacy, password_hash, invite_code, owner_id, created_at, updated_at FROM rooms WHERE id = $1`
+	query := `SELECT id, name, description, privacy, password_hash, invite_code, owner_id, add_music_policy, created_at, updated_at FROM rooms WHERE id = $1`
 	rm := &domain.Room{}
 	err := r.db.QueryRowContext(ctx, query, id).
-		Scan(&rm.ID, &rm.Name, &rm.Description, &rm.Privacy, &rm.PasswordHash, &rm.InviteCode, &rm.OwnerID, &rm.CreatedAt, &rm.UpdatedAt)
+		Scan(&rm.ID, &rm.Name, &rm.Description, &rm.Privacy, &rm.PasswordHash, &rm.InviteCode, &rm.OwnerID, &rm.AddMusicPolicy, &rm.CreatedAt, &rm.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
@@ -41,10 +44,10 @@ func (r *PostgresRepository) GetRoomByID(ctx context.Context, id string) (*domai
 }
 
 func (r *PostgresRepository) GetRoomByInviteCode(ctx context.Context, code string) (*domain.Room, error) {
-	query := `SELECT id, name, description, privacy, password_hash, invite_code, owner_id, created_at, updated_at FROM rooms WHERE invite_code = $1`
+	query := `SELECT id, name, description, privacy, password_hash, invite_code, owner_id, add_music_policy, created_at, updated_at FROM rooms WHERE invite_code = $1`
 	rm := &domain.Room{}
 	err := r.db.QueryRowContext(ctx, query, code).
-		Scan(&rm.ID, &rm.Name, &rm.Description, &rm.Privacy, &rm.PasswordHash, &rm.InviteCode, &rm.OwnerID, &rm.CreatedAt, &rm.UpdatedAt)
+		Scan(&rm.ID, &rm.Name, &rm.Description, &rm.Privacy, &rm.PasswordHash, &rm.InviteCode, &rm.OwnerID, &rm.AddMusicPolicy, &rm.CreatedAt, &rm.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
@@ -56,7 +59,7 @@ func (r *PostgresRepository) GetRoomByInviteCode(ctx context.Context, code strin
 
 func (r *PostgresRepository) GetRooms(ctx context.Context, search string, limit, offset int) ([]*domain.Room, error) {
 	query := `
-		SELECT id, name, description, privacy, invite_code, owner_id, created_at, updated_at 
+		SELECT id, name, description, privacy, invite_code, owner_id, add_music_policy, created_at, updated_at 
 		FROM rooms 
 		WHERE privacy = 'PUBLIC' AND (name ILIKE $1 OR description ILIKE $1)
 		ORDER BY created_at DESC 
@@ -71,7 +74,7 @@ func (r *PostgresRepository) GetRooms(ctx context.Context, search string, limit,
 	var list []*domain.Room
 	for rows.Next() {
 		rm := &domain.Room{}
-		if err := rows.Scan(&rm.ID, &rm.Name, &rm.Description, &rm.Privacy, &rm.InviteCode, &rm.OwnerID, &rm.CreatedAt, &rm.UpdatedAt); err != nil {
+		if err := rows.Scan(&rm.ID, &rm.Name, &rm.Description, &rm.Privacy, &rm.InviteCode, &rm.OwnerID, &rm.AddMusicPolicy, &rm.CreatedAt, &rm.UpdatedAt); err != nil {
 			return nil, err
 		}
 		list = append(list, rm)
@@ -80,12 +83,15 @@ func (r *PostgresRepository) GetRooms(ctx context.Context, search string, limit,
 }
 
 func (r *PostgresRepository) UpdateRoom(ctx context.Context, rm *domain.Room) error {
+	if rm.AddMusicPolicy == "" {
+		rm.AddMusicPolicy = "all"
+	}
 	query := `
 		UPDATE rooms 
-		SET name = $1, description = $2, privacy = UPPER($3), password_hash = $4, updated_at = NOW() 
-		WHERE id = $5
+		SET name = $1, description = $2, privacy = UPPER($3), password_hash = $4, add_music_policy = $5, updated_at = NOW() 
+		WHERE id = $6
 	`
-	_, err := r.db.ExecContext(ctx, query, rm.Name, rm.Description, rm.Privacy, rm.PasswordHash, rm.ID)
+	_, err := r.db.ExecContext(ctx, query, rm.Name, rm.Description, rm.Privacy, rm.PasswordHash, rm.AddMusicPolicy, rm.ID)
 	return err
 }
 

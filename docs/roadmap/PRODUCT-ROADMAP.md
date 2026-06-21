@@ -113,9 +113,9 @@ Mỗi pha là một vòng lặp hoàn chỉnh: **brainstorm → spec → plan �
 
 | Pha | Tên | Trạng thái | Spec | Plan |
 |-----|-----|-----------|------|------|
-| 0 | Redesign FE | 🔄 Đang làm | [link](../superpowers/specs/2026-06-20-room-redesign-cool-ocean-design.md) | [link](../superpowers/plans/2026-06-20-room-redesign-cool-ocean.md) |
-| 1 | Presence & Vibe | ⏳ Chờ | — | — |
-| 2 | Nghe Cùng Nhau | ⏳ Chờ | — | — |
+| 0 | Redesign FE | ✅ Done | [link](../superpowers/specs/2026-06-20-room-redesign-cool-ocean-design.md) | [link](../superpowers/plans/2026-06-20-room-redesign-cool-ocean.md) |
+| 1 | Presence & Vibe | ✅ Done | [link](../../docs/superpowers/specs/2026-06-20-room-redesign-cool-ocean-design.md) | [link](../../implementation_plan.md) |
+| 2 | Nghe Cùng Nhau | 🔄 Chuẩn bị | — | — |
 | 3 | Work/Study | ⏳ Chờ | — | — |
 | 4 | Gắn Kết & Ký Ức | ⏳ Chờ | — | — |
 

@@ -1,36 +1,53 @@
 <div class="room-right-panel h-full flex flex-col">
   <div class="right-panel-tabs">
     <button class="panel-tab-btn" [class.active]="activeTab === 'queue'" (click)="switchTab('queue')">
-      Hang doi
+      Hàng đợi
+    </button>
+    <button class="panel-tab-btn" [class.active]="activeTab === 'lyrics'" (click)="switchTab('lyrics')">
+      Lời bài hát
+    </button>
+    <button class="panel-tab-btn" [class.active]="activeTab === 'bookmarks'" (click)="switchTab('bookmarks')">
+      Ghi nhớ
     </button>
     <button class="panel-tab-btn" [class.active]="activeTab === 'members'" (click)="switchTab('members')">
-      Thanh vien
+      Thành viên
     </button>
+    @if ((state.roomMemberRole$ | async) === 'OWNER') {
+      <button class="panel-tab-btn" [class.active]="activeTab === 'settings'" (click)="switchTab('settings')">
+        Cấu hình
+      </button>
+    }
   </div>
 
   <div class="right-panel-content flex-1">
     @if (activeTab === 'queue') {
       <div class="tab-pane active">
-        <div class="queue-form-wrapper">
-          <form (submit)="onAddTrackSubmit($event)" class="flex gap-2">
-            <input
-              type="text"
-              [(ngModel)]="newTrackUrl"
-              name="newTrackUrl"
-              placeholder="Nhap ten bai hat hoac link YouTube..."
-              class="queue-text-input"
-              [disabled]="isExtracting"
-              autocomplete="off"
-            >
-            <button
-              type="submit"
-              class="btn-add-queue"
-              [disabled]="isExtracting || !newTrackUrl.trim()"
-            >
-              {{ isExtracting ? '...' : 'Tim' }}
-            </button>
-          </form>
-        </div>
+        @if (canAddMusic) {
+          <div class="queue-form-wrapper">
+            <form (submit)="onAddTrackSubmit($event)" class="flex gap-2">
+              <input
+                type="text"
+                [(ngModel)]="newTrackUrl"
+                name="newTrackUrl"
+                placeholder="Nhap ten bai hat hoac link YouTube..."
+                class="queue-text-input"
+                [disabled]="isExtracting"
+                autocomplete="off"
+              >
+              <button
+                type="submit"
+                class="btn-add-queue"
+                [disabled]="isExtracting || !newTrackUrl.trim()"
+              >
+                {{ isExtracting ? '...' : 'Tim' }}
+              </button>
+            </form>
+          </div>
+        } @else {
+          <div class="queue-form-wrapper locked">
+            <span>🔒 Quyền thêm nhạc đã bị khóa theo cấu hình phòng.</span>
+          </div>
+        }
 
         @if (searchResults.length > 0) {
           <div class="search-results-panel">
@@ -124,6 +141,44 @@
             }
           }
         </div>
+      </div>
+    }
+
+    @if (activeTab === 'lyrics') {
+      <div class="tab-pane active h-full">
+        <app-room-lyrics></app-room-lyrics>
+      </div>
+    }
+
+    @if (activeTab === 'bookmarks') {
+      <div class="tab-pane active h-full">
+        <app-room-bookmarks></app-room-bookmarks>
+      </div>
+    }
+
+    @if (activeTab === 'settings') {
+      <div class="tab-pane active h-full">
+        <form (submit)="onSaveSettingsSubmit($event)" class="settings-form">
+          <div class="settings-group">
+            <label class="settings-label">Tên phòng</label>
+            <input type="text" [(ngModel)]="settingsName" name="settingsName" class="queue-text-input" required>
+          </div>
+          <div class="settings-group">
+            <label class="settings-label">Mô tả phòng</label>
+            <textarea [(ngModel)]="settingsDescription" name="settingsDescription" class="settings-textarea"></textarea>
+          </div>
+          <div class="settings-group">
+            <label class="settings-label">Chính sách thêm nhạc</label>
+            <select [(ngModel)]="settingsAddMusicPolicy" name="settingsAddMusicPolicy" class="settings-select">
+              <option value="all">Tất cả mọi người</option>
+              <option value="dj_only">Host/Mod & Guest DJ</option>
+              <option value="nobody">Chỉ Host/Mod</option>
+            </select>
+          </div>
+          <button type="submit" class="btn-save-settings" [disabled]="isSavingSettings">
+            {{ isSavingSettings ? 'Đang lưu...' : 'Lưu cấu hình' }}
+          </button>
+        </form>
       </div>
     }
   </div>

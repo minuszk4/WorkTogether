@@ -68,3 +68,35 @@ func (u *PlaybackUsecase) UpdateState(ctx context.Context, roomID string, req *d
 
 	return state, nil
 }
+
+func (u *PlaybackUsecase) GetGuestDJ(ctx context.Context, roomID string) (string, error) {
+	return u.redisRepo.GetGuestDJ(ctx, roomID)
+}
+
+func (u *PlaybackUsecase) SetGuestDJ(ctx context.Context, roomID string, userID string, duration time.Duration) error {
+	return u.redisRepo.SetGuestDJ(ctx, roomID, userID, duration)
+}
+
+func (u *PlaybackUsecase) ClearGuestDJ(ctx context.Context, roomID string) error {
+	return u.redisRepo.ClearGuestDJ(ctx, roomID)
+}
+
+func (u *PlaybackUsecase) SetPollActive(ctx context.Context, roomID string, active bool) error {
+	return u.redisRepo.SetPollActive(ctx, roomID, active)
+}
+
+func (u *PlaybackUsecase) IsPollActive(ctx context.Context, roomID string) (bool, error) {
+	return u.redisRepo.IsPollActive(ctx, roomID)
+}
+
+func (u *PlaybackUsecase) VoteForTrack(ctx context.Context, roomID string, trackID string) error {
+	return u.redisRepo.VoteForTrack(ctx, roomID, trackID)
+}
+
+func (u *PlaybackUsecase) GetPollVotes(ctx context.Context, roomID string) (map[string]int, error) {
+	return u.redisRepo.GetPollVotes(ctx, roomID)
+}
+
+func (u *PlaybackUsecase) ClearPoll(ctx context.Context, roomID string) error {
+	return u.redisRepo.ClearPoll(ctx, roomID)
+}
