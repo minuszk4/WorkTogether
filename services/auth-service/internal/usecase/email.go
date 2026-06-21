@@ -68,6 +68,17 @@ func (e *EmailService) SendWelcomeEmail(toEmail, username string) error {
 	return e.sendHTML(toEmail, subject, body)
 }
 
+func (e *EmailService) SendPasswordResetEmail(toEmail, username, resetURL string) error {
+	if !e.IsConfigured() {
+		fmt.Printf("[EMAIL-DEV] Gửi link reset mật khẩu tới %s: %s\n", toEmail, resetURL)
+		return nil
+	}
+	subject := "WorkTogether – Khôi phục mật khẩu của bạn"
+	body := fmt.Sprintf(`<h2>Xin chào, %s!</h2><p>Nhấp vào liên kết sau để đặt lại mật khẩu: <a href="%s">%s</a></p>`, username, resetURL, resetURL)
+	return e.sendHTML(toEmail, subject, body)
+}
+
+
 func (e *EmailService) sendHTML(to, subject, htmlBody string) error {
 	fromHeader := fmt.Sprintf("WorkTogether <%s>", e.from)
 	headers := strings.Join([]string{

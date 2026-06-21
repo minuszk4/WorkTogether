@@ -204,6 +204,73 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	c.JSON(http.StatusOK, successResp(gin.H{"message": "Đăng xuất thành công."}))
 }
 
+// ─── Password Management ──────────────────────────────────────────────────────
+
+func (h *AuthHandler) ForgotPassword(c *gin.Context) {
+	var req domain.ForgotPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, errorResp("INVALID_PARAMETERS", err.Error()))
+		return
+	}
+
+	err := h.usecase.ForgotPassword(c.Request.Context(), req.Email)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, errorResp("FORGOT_PASSWORD_FAILED", err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, successResp(gin.H{
+		"message": "Đã gửi email khôi phục mật khẩu. Vui lòng kiểm tra hộp thư.",
+	}))
+}
+
+func (h *AuthHandler) ResetPassword(c *gin.Context) {
+	var req domain.ResetPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, errorResp("INVALID_PARAMETERS", err.Error()))
+		return
+	}
+
+	err := h.usecase.ResetPassword(c.Request.Context(), req.Token, req.NewPassword)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, errorResp("RESET_PASSWORD_FAILED", err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, successResp(gin.H{
+		"message": "Đặt lại mật khẩu thành công. Bạn có thể đăng nhập bằng mật khẩu mới.",
+	}))
+}
+
+func (h *AuthHandler) ChangePassword(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, errorResp("UNAUTHORIZED", "Không thể xác định danh tính người dùng."))
+		return
+	}
+	userIDStr, ok := userID.(string)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, errorResp("UNAUTHORIZED", "Thông tin người dùng không hợp lệ."))
+		return
+	}
+
+	var req domain.ChangePasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, errorResp("INVALID_PARAMETERS", err.Error()))
+		return
+	}
+
+	err := h.usecase.ChangePassword(c.Request.Context(), userIDStr, req.OldPassword, req.NewPassword)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, errorResp("CHANGE_PASSWORD_FAILED", err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, successResp(gin.H{
+		"message": "Thay đổi mật khẩu thành công.",
+	}))
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 func successResp(data interface{}) gin.H {
@@ -219,3 +286,4 @@ func generateState() string {
 	rand.Read(b)
 	return base64.URLEncoding.EncodeToString(b)
 }
+

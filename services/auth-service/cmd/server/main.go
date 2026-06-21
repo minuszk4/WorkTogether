@@ -14,6 +14,7 @@ import (
 	delivery "github.com/worktogether/services/auth-service/internal/delivery/http"
 	"github.com/worktogether/services/auth-service/internal/repository"
 	"github.com/worktogether/services/auth-service/internal/usecase"
+	"github.com/worktogether/services/auth-service/pkg/middleware"
 )
 
 func main() {
@@ -96,6 +97,11 @@ func main() {
 		// Google OAuth
 		authGroup.GET("/google", handler.GoogleLogin)
 		authGroup.GET("/google/callback", handler.GoogleCallback)
+
+		// Password Management
+		authGroup.POST("/forgot-password", handler.ForgotPassword)
+		authGroup.POST("/reset-password", handler.ResetPassword)
+		authGroup.POST("/change-password", middleware.AuthMiddleware(jwtSecret), handler.ChangePassword)
 	}
 
 	r.GET("/health", func(c *gin.Context) {

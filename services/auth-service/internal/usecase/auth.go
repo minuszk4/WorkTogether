@@ -331,3 +331,69 @@ func (u *AuthUsecase) generateUsernameFromEmail(ctx context.Context, email, disp
 	}
 	return fmt.Sprintf("%s_%s", candidate, uuid.New().String()[:6])
 }
+
+func (u *AuthUsecase) ForgotPassword(ctx context.Context, email string) error {
+	acc, err := u.repo.GetAccountByEmail(ctx, email)
+	if err != nil || acc == nil {
+		return errors.New("không tìm thấy tài khoản với email này")
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"sub":  acc.ID,
+		"type": "password_reset",
+		"exp":  time.Now().Add(15 * time.Minute).Unix(),
+	})
+	tokenStr, err := token.SignedString(u.jwtSecret)
+	if err != nil {
+		return err
+	}
+	resetURL := fmt.Sprintf("%s/auth/reset-password?token=%s", u.appBaseURL, tokenStr)
+	return u.emailSvc.SendPasswordResetEmail(acc.Email, acc.Username, resetURL)
+}
+
+func (u *AuthUsecase) ResetPassword(ctx context.Context, tokenStr, newPassword string) error {
+	token, err := jwt.Parse(tokenStr, func(t *jwt.Token) (interface{}, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method")
+		}
+		return u.jwtSecret, nil
+	})
+	if err != nil || !token.Valid {
+		return errors.New("token không hợp lệ hoặc đã hết hạn")
+	}
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok || claims["type"] != "password_reset" {
+		return errors.New("token không hợp lệ")
+	}
+	accountID, _ := claims["sub"].(string)
+	hashedPassword, err := u.hashPassword(newPassword)
+	if err != nil {
+		return err
+	}
+	return u.repo.UpdatePassword(ctx, accountID, hashedPassword)
+}
+
+func (u *AuthUsecase) ChangePassword(ctx context.Context, userID, oldPassword, newPassword string) error {
+	acc, err := u.repo.GetAccountByID(ctx, userID)
+	if err != nil || acc == nil {
+		return errors.New("tài khoản không tồn tại")
+	}
+	if !u.checkPasswordHash(oldPassword, acc.PasswordHash) {
+		return errors.New("mật khẩu cũ không chính xác")
+	}
+	hashedPassword, err := u.hashPassword(newPassword)
+	if err != nil {
+		return err
+	}
+	return u.repo.UpdatePassword(ctx, userID, hashedPassword)
+}
+
+func (u *AuthUsecase) hashPassword(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	return string(bytes), err
+}
+
+func (u *AuthUsecase) checkPasswordHash(password, hash string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	return err == nil
+}
+
