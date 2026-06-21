@@ -590,10 +590,32 @@ func (h *RoomHandler) DeleteRoom(c *gin.Context) {
 	roomID := c.Param("id")
 	userID := c.GetString("userID")
 	if err := h.usecase.DeleteRoom(c.Request.Context(), userID, roomID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
+		if errors.Is(err, usecase.ErrUnauthorized) {
+			c.JSON(http.StatusForbidden, gin.H{
+				"success": false,
+				"data":    nil,
+				"error": gin.H{
+					"code":    "UNAUTHORIZED",
+					"message": "Không có quyền thực hiện.",
+				},
+			})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"data":    nil,
+			"error": gin.H{
+				"code":    "ROOM_ERROR",
+				"message": err.Error(),
+			},
+		})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": "Xóa phòng thành công."})
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    "Xóa phòng thành công.",
+		"error":   nil,
+	})
 }
 
 func (h *RoomHandler) MuteMember(c *gin.Context) {
@@ -602,14 +624,65 @@ func (h *RoomHandler) MuteMember(c *gin.Context) {
 	requesterID := c.GetString("userID")
 	var req domain.MuteRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"data":    nil,
+			"error": gin.H{
+				"code":    "INVALID_PARAMETERS",
+				"message": err.Error(),
+			},
+		})
 		return
 	}
 	if err := h.usecase.MuteMember(c.Request.Context(), requesterID, roomID, targetUserID, req.DurationSeconds); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
+		if errors.Is(err, usecase.ErrUnauthorized) {
+			c.JSON(http.StatusForbidden, gin.H{
+				"success": false,
+				"data":    nil,
+				"error": gin.H{
+					"code":    "UNAUTHORIZED",
+					"message": "Không có quyền thực hiện.",
+				},
+			})
+			return
+		}
+		if err.Error() == "thành viên mục tiêu không tồn tại" {
+			c.JSON(http.StatusNotFound, gin.H{
+				"success": false,
+				"data":    nil,
+				"error": gin.H{
+					"code":    "MEMBER_NOT_FOUND",
+					"message": err.Error(),
+				},
+			})
+			return
+		}
+		if err.Error() == "không thể mute chủ phòng" {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"data":    nil,
+				"error": gin.H{
+					"code":    "INVALID_PARAMETERS",
+					"message": err.Error(),
+				},
+			})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"data":    nil,
+			"error": gin.H{
+				"code":    "ROOM_ERROR",
+				"message": err.Error(),
+			},
+		})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": "Mute thành viên thành công."})
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    "Mute thành viên thành công.",
+		"error":   nil,
+	})
 }
 
 func (h *RoomHandler) UnmuteMember(c *gin.Context) {
@@ -617,10 +690,43 @@ func (h *RoomHandler) UnmuteMember(c *gin.Context) {
 	targetUserID := c.Param("user_id")
 	requesterID := c.GetString("userID")
 	if err := h.usecase.UnmuteMember(c.Request.Context(), requesterID, roomID, targetUserID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
+		if errors.Is(err, usecase.ErrUnauthorized) {
+			c.JSON(http.StatusForbidden, gin.H{
+				"success": false,
+				"data":    nil,
+				"error": gin.H{
+					"code":    "UNAUTHORIZED",
+					"message": "Không có quyền thực hiện.",
+				},
+			})
+			return
+		}
+		if err.Error() == "thành viên mục tiêu không tồn tại" {
+			c.JSON(http.StatusNotFound, gin.H{
+				"success": false,
+				"data":    nil,
+				"error": gin.H{
+					"code":    "MEMBER_NOT_FOUND",
+					"message": err.Error(),
+				},
+			})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"data":    nil,
+			"error": gin.H{
+				"code":    "ROOM_ERROR",
+				"message": err.Error(),
+			},
+		})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": "Unmute thành viên thành công."})
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    "Unmute thành viên thành công.",
+		"error":   nil,
+	})
 }
 
 

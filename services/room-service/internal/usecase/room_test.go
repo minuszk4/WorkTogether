@@ -164,6 +164,10 @@ func TestMuteMember(t *testing.T) {
 		if err == nil || !strings.Contains(err.Error(), "không thể mute chủ phòng") {
 			t.Errorf("Expected error containing 'không thể mute chủ phòng', got: %v", err)
 		}
+
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("Expectations were not met: %s", err)
+		}
 	})
 }
 
