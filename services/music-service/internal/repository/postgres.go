@@ -199,3 +199,49 @@ func (r *PostgresRepository) GetPlaybackHistory(ctx context.Context, roomID stri
 func (r *PostgresRepository) RoomIDCheck(id string) string {
 	return id
 }
+
+func (r *PostgresRepository) SaveLyrics(ctx context.Context, trackID string, content string) error {
+	query := `
+	INSERT INTO track_lyrics (track_id, content, updated_at)
+	VALUES ($1, $2, NOW())
+	ON CONFLICT (track_id) DO UPDATE SET content = EXCLUDED.content, updated_at = NOW()`
+	_, err := r.db.ExecContext(ctx, query, trackID, content)
+	return err
+}
+
+func (r *PostgresRepository) GetLyrics(ctx context.Context, trackID string) (string, error) {
+	query := `SELECT content FROM track_lyrics WHERE track_id = $1`
+	var content string
+	err := r.db.QueryRowContext(ctx, query, trackID).Scan(&content)
+	return content, err
+}
+
+func (r *PostgresRepository) SaveBookmark(ctx context.Context, b *domain.Bookmark) error {
+	query := `INSERT INTO bookmarks (id, room_id, user_id, track_id, position_ms, note) VALUES ($1, $2, $3, $4, $5, $6)`
+	_, err := r.db.ExecContext(ctx, query, b.ID, b.RoomID, b.UserID, b.TrackID, b.PositionMS, b.Note)
+	return err
+}
+
+func (r *PostgresRepository) GetBookmarks(ctx context.Context, roomID string) ([]*domain.Bookmark, error) {
+	query := `SELECT id, room_id, user_id, track_id, position_ms, note, created_at FROM bookmarks WHERE room_id = $1 ORDER BY created_at DESC`
+	rows, err := r.db.QueryContext(ctx, query, roomID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var list []*domain.Bookmark
+	for rows.Next() {
+		var b domain.Bookmark
+		if err := rows.Scan(&b.ID, &b.RoomID, &b.UserID, &b.TrackID, &b.PositionMS, &b.Note, &b.CreatedAt); err != nil {
+			return nil, err
+		}
+		list = append(list, &b)
+	}
+	return list, nil
+}
+
+func (r *PostgresRepository) DeleteBookmark(ctx context.Context, id string) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM bookmarks WHERE id = $1`, id)
+	return err
+}
