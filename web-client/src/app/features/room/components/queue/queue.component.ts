@@ -224,7 +224,19 @@ export class QueueComponent implements OnInit, OnDestroy {
     });
   }
 
+  get isPlaybackLocked(): boolean {
+    const dj = this.playbackWs.guestDj$.value;
+    if (!dj) return false;
+    const currentUserId = this.state.user?.id;
+    const isOwner = this.state.roomMemberRole$.value === 'OWNER';
+    return currentUserId !== dj.userId && !isOwner;
+  }
+
   public onTrackClick(track: QueueTrack): void {
+    if (this.isPlaybackLocked) {
+      this.toast.error('Phòng đang có Guest DJ làm chủ bàn nhạc. Bạn không thể tự ý chuyển phát bài hát.');
+      return;
+    }
     const newTrack = {
       id: track.track_id || track.id,
       title: track.title,

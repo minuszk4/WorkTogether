@@ -1,0 +1,51 @@
+@if (showWidget) {
+  <div class="poll-widget-overlay flex items-center justify-center">
+    <div class="poll-card flex flex-col">
+      <div class="poll-header mb-3">
+        <h4 class="poll-title text-sm font-semibold text-center mb-1">Bình chọn bài tiếp theo!</h4>
+        <p class="poll-subtitle text-xs text-muted text-center mb-2">Đang phát 30s cuối của bài hát hiện tại</p>
+        <div class="poll-progress-track">
+          <div class="poll-progress-bar" [style.width.%]="progressPct"></div>
+        </div>
+      </div>
+
+      <div class="poll-body flex flex-col gap-2">
+        @for (c of candidates; track c.id) {
+          <div
+            class="poll-candidate-item flex items-center gap-3 p-2 rounded"
+            [class.voted]="votedTrackId === c.id"
+            [class.disabled]="votedTrackId && votedTrackId !== c.id"
+            (click)="vote(c.id)"
+          >
+            @if (c.thumbnail_url) {
+              <img [src]="c.thumbnail_url" class="candidate-thumb flex-shrink-0" alt="Thumbnail">
+            } @else {
+              <div class="candidate-thumb candidate-thumb-ph flex-shrink-0">🎜</div>
+            }
+            <div class="candidate-meta min-w-0 flex-1">
+              <span class="candidate-title text-sm font-medium truncate block" [title]="c.title">{{ c.title }}</span>
+              <span class="candidate-artist text-xs text-muted truncate block">{{ c.artist || 'Unknown' }}</span>
+            </div>
+            <div class="candidate-votes flex flex-col items-end flex-shrink-0">
+              <span class="vote-pct text-sm font-semibold">{{ getVotePct(c.id) }}%</span>
+              <span class="vote-count text-xs text-muted">{{ getVoteCount(c.id) }} vote(s)</span>
+            </div>
+          </div>
+        }
+      </div>
+      @if (votedTrackId) {
+        <p class="vote-feedback-text text-center text-xs text-accent mt-3">Cảm ơn bạn đã vote! Đang đợi kết quả...</p>
+      }
+    </div>
+  </div>
+}
+
+@if (showWinner) {
+  <div class="winner-toast flex items-center gap-2">
+    <span class="winner-icon">🎉</span>
+    <div class="winner-content min-w-0">
+      <span class="winner-label text-xs block text-muted">Bài hát chiến thắng</span>
+      <span class="winner-title text-xs font-semibold truncate block">{{ winnerName }}</span>
+    </div>
+  </div>
+}

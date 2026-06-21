@@ -18,6 +18,7 @@ import { PlayerBarComponent } from './components/player-bar/player-bar.component
 import { QuickReactionsComponent } from './components/quick-reactions/quick-reactions.component';
 import { ReactionsCanvasComponent } from './components/reactions-canvas/reactions-canvas.component';
 import { RoomVibeMeterComponent } from './components/vibe-meter/vibe-meter.component';
+import { PollWidgetComponent } from './components/poll-widget/poll-widget.component';
 
 @Component({
   selector: 'app-room',
@@ -25,7 +26,8 @@ import { RoomVibeMeterComponent } from './components/vibe-meter/vibe-meter.compo
   imports: [
     CommonModule, SidebarComponent, StageComponent,
     VoicePillsComponent, ChatComponent, QueueComponent, PlayerBarComponent,
-    QuickReactionsComponent, ReactionsCanvasComponent, RoomVibeMeterComponent
+    QuickReactionsComponent, ReactionsCanvasComponent, RoomVibeMeterComponent,
+    PollWidgetComponent
   ],
   templateUrl: './room.component.html',
   styleUrl: './room.component.css'
