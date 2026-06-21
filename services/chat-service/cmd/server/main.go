@@ -97,7 +97,7 @@ func main() {
 
 	// 4. Khởi tạo Layers và WebSockets Hub
 	repo := repository.NewPostgresRepository(db)
-	uc := usecase.NewChatUsecase(repo)
+	uc := usecase.NewChatUsecase(repo, rdb)
 	hub := delivery.NewHub()
 	hub.StartVibeTicker()
 	handler := delivery.NewChatHandler(uc, hub, roomClient)

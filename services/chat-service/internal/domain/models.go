@@ -36,8 +36,9 @@ type WSMessage struct {
 }
 
 type SendMessagePayload struct {
-	Content   string `json:"content"`
-	ReplyToID string `json:"reply_to_id"`
+	Content   string   `json:"content"`
+	ReplyToID string   `json:"reply_to_id"`
+	Mentions  []string `json:"mentions,omitempty"`
 }
 
 type ReactMessagePayload struct {

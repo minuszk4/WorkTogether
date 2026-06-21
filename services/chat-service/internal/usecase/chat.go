@@ -2,10 +2,12 @@ package usecase
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 	"github.com/worktogether/services/chat-service/internal/domain"
 	"github.com/worktogether/services/chat-service/internal/repository"
 )
@@ -18,10 +20,11 @@ var (
 
 type ChatUsecase struct {
 	repo *repository.PostgresRepository
+	rdb  *redis.Client
 }
 
-func NewChatUsecase(repo *repository.PostgresRepository) *ChatUsecase {
-	return &ChatUsecase{repo: repo}
+func NewChatUsecase(repo *repository.PostgresRepository, rdb *redis.Client) *ChatUsecase {
+	return &ChatUsecase{repo: repo, rdb: rdb}
 }
 
 func (u *ChatUsecase) SaveMessage(ctx context.Context, senderID, roomID string, req *domain.SendMessagePayload) (*domain.Message, error) {
@@ -37,6 +40,27 @@ func (u *ChatUsecase) SaveMessage(ctx context.Context, senderID, roomID string, 
 
 	if err := u.repo.SaveMessage(ctx, msg); err != nil {
 		return nil, err
+	}
+
+	// Publish mentions to Redis stream
+	if u.rdb != nil {
+		for _, mentionedUserID := range req.Mentions {
+			eventPayload := map[string]interface{}{
+				"receiver_id": mentionedUserID,
+				"sender_id":   senderID,
+				"type":        "mention",
+				"content":     "bạn được nhắc đến trong phòng.",
+			}
+			payloadBytes, err := json.Marshal(eventPayload)
+			if err == nil {
+				_ = u.rdb.XAdd(ctx, &redis.XAddArgs{
+					Stream: "stream:notification_trigger",
+					Values: map[string]interface{}{
+						"payload": string(payloadBytes),
+					},
+				}).Err()
+			}
+		}
 	}
 	return msg, nil
 }

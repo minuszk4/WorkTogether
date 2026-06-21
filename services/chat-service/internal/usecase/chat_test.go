@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/worktogether/services/chat-service/internal/domain"
 	"github.com/worktogether/services/chat-service/internal/repository"
 	"github.com/worktogether/services/chat-service/internal/usecase"
 )
@@ -21,7 +22,7 @@ func TestEditMessage(t *testing.T) {
 	defer db.Close()
 
 	repo := repository.NewPostgresRepository(db)
-	uc := usecase.NewChatUsecase(repo)
+	uc := usecase.NewChatUsecase(repo, nil)
 
 	ctx := context.Background()
 
@@ -121,7 +122,7 @@ func TestPinMessage(t *testing.T) {
 	defer db.Close()
 
 	repo := repository.NewPostgresRepository(db)
-	uc := usecase.NewChatUsecase(repo)
+	uc := usecase.NewChatUsecase(repo, nil)
 
 	ctx := context.Background()
 
@@ -196,3 +197,56 @@ func TestPinMessage(t *testing.T) {
 		}
 	})
 }
+
+func TestSaveMessage(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+	}
+	defer db.Close()
+
+	repo := repository.NewPostgresRepository(db)
+	uc := usecase.NewChatUsecase(repo, nil)
+
+	ctx := context.Background()
+
+	t.Run("Success without Mentions", func(t *testing.T) {
+		senderID := "user-1"
+		roomID := "room-1"
+		req := &domain.SendMessagePayload{
+			Content: "hello",
+		}
+
+		mock.ExpectExec(regexp.QuoteMeta("INSERT INTO messages (id, room_id, sender_id, content, reply_to_id, is_edited, created_at)")).
+			WillReturnResult(sqlmock.NewResult(1, 1))
+
+		msg, err := uc.SaveMessage(ctx, senderID, roomID, req)
+		if err != nil {
+			t.Errorf("expected no error, got %v", err)
+		}
+		if msg == nil || msg.Content != "hello" || msg.SenderID != senderID || msg.RoomID != roomID {
+			t.Errorf("unexpected message state: %+v", msg)
+		}
+	})
+
+	t.Run("Success with Mentions", func(t *testing.T) {
+		senderID := "user-1"
+		roomID := "room-1"
+		req := &domain.SendMessagePayload{
+			Content:  "hello @user-2",
+			Mentions: []string{"user-2"},
+		}
+
+		mock.ExpectExec(regexp.QuoteMeta("INSERT INTO messages (id, room_id, sender_id, content, reply_to_id, is_edited, created_at)")).
+			WillReturnResult(sqlmock.NewResult(1, 1))
+
+		msg, err := uc.SaveMessage(ctx, senderID, roomID, req)
+		if err != nil {
+			t.Errorf("expected no error, got %v", err)
+		}
+		if msg == nil || msg.Content != "hello @user-2" || msg.SenderID != senderID || msg.RoomID != roomID {
+			t.Errorf("unexpected message state: %+v", msg)
+		}
+	})
+}
+

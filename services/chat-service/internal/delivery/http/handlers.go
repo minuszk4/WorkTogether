@@ -276,6 +276,7 @@ func (c *Client) readPump(uc *usecase.ChatUsecase, canModerate bool) {
 						"content":     msg.Content,
 						"reply_to_id": msg.ReplyToID,
 						"created_at":  msg.CreatedAt,
+						"mentions":    payload.Mentions,
 					},
 				}
 				data, _ := json.Marshal(broadcastMsg)
