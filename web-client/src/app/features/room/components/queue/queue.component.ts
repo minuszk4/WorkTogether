@@ -6,6 +6,8 @@ import { ApiService } from '../../../../core/services/api.service';
 import { StateService } from '../../../../core/services/state.service';
 import { PlaybackWsService } from '../../../../core/services/websocket/playback-ws.service';
 import { ToastService } from '../../../../shared/services/toast.service';
+import { LyricsComponent } from '../lyrics/lyrics.component';
+import { BookmarksComponent } from '../bookmarks/bookmarks.component';
 
 export interface QueueTrack {
   id: string;
@@ -22,7 +24,7 @@ export interface QueueTrack {
 @Component({
   selector: 'app-room-queue',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, LyricsComponent, BookmarksComponent],
   templateUrl: './queue.component.html',
   styleUrl: './queue.component.css'
 })
@@ -32,7 +34,7 @@ export class QueueComponent implements OnInit, OnDestroy {
   private playbackWs = inject(PlaybackWsService);
   private toast = inject(ToastService);
 
-  public activeTab: 'queue' | 'members' = 'queue';
+  public activeTab: 'queue' | 'members' | 'lyrics' | 'bookmarks' = 'queue';
   public tracks: QueueTrack[] = [];
   public members: any[] = [];
   public newTrackUrl = '';
@@ -61,7 +63,7 @@ export class QueueComponent implements OnInit, OnDestroy {
     this.subs.forEach(sub => sub.unsubscribe());
   }
 
-  public switchTab(tab: 'queue' | 'members'): void {
+  public switchTab(tab: 'queue' | 'members' | 'lyrics' | 'bookmarks'): void {
     this.activeTab = tab;
     if (tab === 'queue') {
       this.loadQueueTracks();

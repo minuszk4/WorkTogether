@@ -34,7 +34,15 @@
             <span class="chat-msg-sender">{{ msg.sender?.display_name || msg.sender?.username || 'Thành viên' }}</span>
             <span class="chat-msg-time">{{ formatTime(msg.created_at) }}</span>
           </div>
-          <div class="chat-msg-bubble">{{ msg.content }}</div>
+          <div class="chat-msg-bubble">
+            @for (seg of getMessageSegments(msg.content); track $index) {
+              @if (seg.type === 'link') {
+                <button class="chat-seek-btn" (click)="onTimestampClick(seg.timeMs!)">{{ seg.value }}</button>
+              } @else {
+                <span>{{ seg.value }}</span>
+              }
+            }
+          </div>
         </div>
       </div>
     }

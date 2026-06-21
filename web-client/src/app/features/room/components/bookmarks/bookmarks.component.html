@@ -1,0 +1,74 @@
+<div class="bookmarks-panel flex flex-col h-full">
+  <div class="bookmarks-header border-b pb-3 mb-3">
+    <h3 class="bookmarks-title text-sm font-semibold">Thẻ ghi nhớ nhạc (Bookmarks)</h3>
+    <p class="bookmarks-subtitle text-xs text-muted">Lưu lại các mốc thời gian bài hát hay để nhảy nhanh tới đó</p>
+  </div>
+
+  <div class="bookmark-form-wrapper mb-4">
+    @if (engine.currentTrack) {
+      <form (submit)="addBookmark(); $event.preventDefault();" class="flex flex-col gap-2">
+        <div class="current-track-badge flex items-center gap-2 p-2 rounded mb-1">
+          <span class="track-icon">🎜</span>
+          <span class="track-name text-xs truncate font-medium">Đang phát: {{ engine.currentTrack.title }}</span>
+        </div>
+        <div class="flex gap-2">
+          <input
+            type="text"
+            [(ngModel)]="note"
+            name="note"
+            placeholder="Ghi chú (ví dụ: Drop hay, Chorus...)"
+            class="bookmark-text-input"
+            [disabled]="isSaving"
+            autocomplete="off"
+            maxLength="100"
+          >
+          <button
+            type="submit"
+            class="btn-add-bookmark"
+            [disabled]="isSaving"
+          >
+            {{ isSaving ? '...' : '+ Đánh dấu' }}
+          </button>
+        </div>
+      </form>
+    } @else {
+      <div class="no-active-track-msg p-3 text-center text-xs rounded border border-dashed text-muted">
+        Hãy phát nhạc để có thể đánh dấu mốc thời gian.
+      </div>
+    }
+  </div>
+
+  <div class="bookmarks-list-wrapper flex-1 overflow-y-auto">
+    @if (isLoading) {
+      <div class="loading-state flex flex-col items-center justify-center py-8">
+        <span class="spinner mb-2"></span>
+        <p class="text-xs text-muted">Đang tải danh sách ghi nhớ...</p>
+      </div>
+    } @else {
+      @if (bookmarks.length === 0) {
+        <p class="empty-placeholder py-8">Chưa có thẻ ghi nhớ nào trong phòng này.</p>
+      } @else {
+        <div class="bookmarks-list flex flex-col gap-2">
+          @for (b of bookmarks; track b.id) {
+            <div class="bookmark-item" (click)="seekToBookmark(b.position_ms)">
+              <div class="bookmark-info min-w-0">
+                <span class="bookmark-note text-sm font-medium truncate block" [title]="b.note">{{ b.note }}</span>
+                <span class="bookmark-meta text-xs text-muted block">
+                  Thời gian: <span class="time-text font-mono text-accent">{{ formatTime(b.position_ms) }}</span>
+                </span>
+              </div>
+              <div class="bookmark-actions flex items-center gap-2 flex-shrink-0">
+                <span class="time-badge font-mono">{{ formatTime(b.position_ms) }}</span>
+                @if (state.roomPermissions.includes('CAN_CONTROL_PLAYBACK')) {
+                  <button class="remove-bookmark-btn" (click)="deleteBookmark(b.id, $event)" title="Xóa thẻ ghi nhớ">
+                    ×
+                  </button>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      }
+    }
+  </div>
+</div>

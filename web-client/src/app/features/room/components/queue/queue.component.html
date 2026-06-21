@@ -1,10 +1,16 @@
 <div class="room-right-panel h-full flex flex-col">
   <div class="right-panel-tabs">
     <button class="panel-tab-btn" [class.active]="activeTab === 'queue'" (click)="switchTab('queue')">
-      Hang doi
+      Hàng đợi
+    </button>
+    <button class="panel-tab-btn" [class.active]="activeTab === 'lyrics'" (click)="switchTab('lyrics')">
+      Lời bài hát
+    </button>
+    <button class="panel-tab-btn" [class.active]="activeTab === 'bookmarks'" (click)="switchTab('bookmarks')">
+      Ghi nhớ
     </button>
     <button class="panel-tab-btn" [class.active]="activeTab === 'members'" (click)="switchTab('members')">
-      Thanh vien
+      Thành viên
     </button>
   </div>
 
@@ -124,6 +130,18 @@
             }
           }
         </div>
+      </div>
+    }
+
+    @if (activeTab === 'lyrics') {
+      <div class="tab-pane active h-full">
+        <app-room-lyrics></app-room-lyrics>
+      </div>
+    }
+
+    @if (activeTab === 'bookmarks') {
+      <div class="tab-pane active h-full">
+        <app-room-bookmarks></app-room-bookmarks>
       </div>
     }
   </div>
