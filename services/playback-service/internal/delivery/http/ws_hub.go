@@ -585,7 +585,7 @@ func (h *Hub) advanceToNextTrack(ctx context.Context, roomID string, token strin
 		SourceURL:      nextTrack.SourceURL,
 	}
 
-	_ = h.usecase.UpdateState(ctx, roomID, &domain.ControlPayload{
+	_, _ = h.usecase.UpdateState(ctx, roomID, &domain.ControlPayload{
 		Action:       "play",
 		TrackID:      nextTrack.TrackID,
 		PositionMS:   0,
@@ -617,7 +617,7 @@ func (h *Hub) stopPlayback(ctx context.Context, roomID string) {
 		PositionMS:     0,
 		UpdatedAt:      nowMS,
 	}
-	_ = h.usecase.UpdateState(ctx, roomID, &domain.ControlPayload{
+	_, _ = h.usecase.UpdateState(ctx, roomID, &domain.ControlPayload{
 		Action:     "stop",
 		TrackID:    "",
 		PositionMS: 0,
