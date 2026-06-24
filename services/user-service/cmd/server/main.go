@@ -1,8 +1,12 @@
 package main
 
 import (
+	"os/signal"
+	"syscall"
+	dbpkg "github.com/worktogether/pkg/db"
+	"github.com/worktogether/pkg/env"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"context"
-	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
@@ -11,7 +15,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/redis/go-redis/v9"
 	delivery "github.com/worktogether/services/user-service/internal/delivery/http"
 	"github.com/worktogether/services/user-service/internal/repository"
 	"github.com/worktogether/services/user-service/internal/usecase"
@@ -22,55 +25,32 @@ func main() {
 	log.Println("Bắt đầu khởi chạy user-service...")
 
 	// 1. Cấu hình Postgres
-	dbHost := getEnv("DB_HOST", "localhost")
-	dbPort := getEnv("DB_PORT", "5432")
-	dbUser := getEnv("DB_USER", "postgres")
-	dbPassword := getEnv("DB_PASSWORD", "postgres_password")
-	dbName := getEnv("DB_NAME", "worktogether_user")
+	dbHost := env.GetEnv("DB_HOST", "localhost")
+	dbPort := env.GetEnv("DB_PORT", "5432")
+	dbUser := env.GetEnv("DB_USER", "postgres")
+	dbPassword := env.GetEnv("DB_PASSWORD", "postgres_password")
+	dbName := env.GetEnv("DB_NAME", "worktogether_user")
 
 	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", dbUser, dbPassword, dbHost, dbPort, dbName)
 
-	var db *sql.DB
 	var err error
-	for i := 0; i < 10; i++ {
-		db, err = sql.Open("pgx", connStr)
-		if err == nil {
-			err = db.Ping()
-			if err == nil {
-				break
-			}
-		}
-		log.Printf("Chưa kết nối được với PostgreSQL (Thử lại %d/10): %v\n", i+1, err)
-		time.Sleep(3 * time.Second)
-	}
+	db, err := dbpkg.ConnectPostgres(connStr)
 	if err != nil {
-		log.Fatalf("Không thể kết nối đến PostgreSQL sau 10 lần thử: %v\n", err)
+		log.Fatalf("%v", err)
 	}
 	defer db.Close()
 	log.Println("Kết nối cơ sở dữ liệu PostgreSQL thành công.")
 
 	// 2. Cấu hình Redis
-	redisHost := getEnv("REDIS_HOST", "localhost")
-	redisPort := getEnv("REDIS_PORT", "6379")
-	redisPassword := getEnv("REDIS_PASSWORD", "redis_password")
+	redisHost := env.GetEnv("REDIS_HOST", "localhost")
+	redisPort := env.GetEnv("REDIS_PORT", "6379")
+	redisPassword := env.GetEnv("REDIS_PASSWORD", "redis_password")
 
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     fmt.Sprintf("%s:%s", redisHost, redisPort),
-		Password: redisPassword,
-		DB:       0,
-	})
-
-	for i := 0; i < 10; i++ {
-		err = rdb.Ping(context.Background()).Err()
-		if err == nil {
-			break
-		}
-		log.Printf("Chưa kết nối được với Redis (Thử lại %d/10): %v\n", i+1, err)
-		time.Sleep(3 * time.Second)
-	}
+	rdb, err := dbpkg.ConnectRedis(redisHost, redisPort, redisPassword)
 	if err != nil {
-		log.Fatalf("Không thể kết nối đến Redis sau 10 lần thử: %v\n", err)
+		log.Fatalf("%v", err)
 	}
+	defer rdb.Close()
 	log.Println("Kết nối cơ sở dữ liệu Redis thành công.")
 
 	// 3. Khởi tạo Layers
@@ -83,13 +63,14 @@ func main() {
 	if jwtSecret == "" {
 		log.Fatal("FATAL: Environment variable JWT_SECRET is not set. Service cannot start.")
 	}
-	port := getEnv("PORT", "8082")
+	port := env.GetEnv("PORT", "8082")
 
 	// 4. Khởi tạo Gin
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.Use(gin.Logger())
+	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	// Định nghĩa Routes bảo vệ bằng AuthMiddleware
 	usersGroup := r.Group("/api/v1/users")
@@ -122,15 +103,30 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{"status": "UP"})
 	})
 
-	log.Printf("User Service đang lắng nghe tại cổng :%s...\n", port)
-	if err := r.Run(":" + port); err != nil {
-		log.Fatalf("Lỗi khởi chạy HTTP server: %v\n", err)
+	srv := &http.Server{
+		Addr:    ":" + port,
+		Handler: r,
 	}
+
+	go func() {
+		log.Printf("HTTP Server đang lắng nghe tại cổng :%s...\n", port)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Lỗi khởi chạy HTTP server: %v\n", err)
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+	<-quit
+	log.Println("Đang tắt server (Graceful Shutdown)...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Fatal("Server forced to shutdown:", err)
+	}
+
+	log.Println("Server đã thoát an toàn.")
 }
 
-func getEnv(key, fallback string) string {
-	if value, exists := os.LookupEnv(key); exists {
-		return value
-	}
-	return fallback
-}

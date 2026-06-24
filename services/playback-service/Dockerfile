@@ -1,12 +1,21 @@
 # Build stage
-FROM golang:alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
 
-# Copy go mod và sum files
-COPY go.mod ./
-COPY . .
-RUN go mod tidy
+# Copy root go.work files
+COPY go.work go.work.sum ./
+
+# Copy shared pkg
+COPY pkg ./pkg
+
+# Copy target service
+COPY services/playback-service ./services/playback-service
+
+WORKDIR /app/services/playback-service
+RUN go mod download
+
+# Biên dịch binary tĩnh (static binary)
 RUN CGO_ENABLED=0 GOOS=linux go build -o playback-service cmd/server/main.go
 
 # Production stage
@@ -16,7 +25,7 @@ WORKDIR /app
 
 RUN apk --no-cache add ca-certificates tzdata
 
-COPY --from=builder /app/playback-service .
+COPY --from=builder /app/services/playback-service/playback-service .
 
 EXPOSE 8087
 

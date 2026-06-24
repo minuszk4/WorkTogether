@@ -10,7 +10,9 @@ type Message struct {
 	ReplyToID string    `json:"reply_to_id,omitempty"`
 	IsEdited  bool      `json:"is_edited"`
 	CreatedAt time.Time `json:"created_at"`
+	ClientID  string    `json:"client_id,omitempty" db:"-"`
 }
+
 
 type MessageReaction struct {
 	ID        string    `json:"id"`
@@ -36,6 +38,7 @@ type WSMessage struct {
 }
 
 type SendMessagePayload struct {
+	ClientID  string   `json:"client_id,omitempty"`
 	Content   string   `json:"content"`
 	ReplyToID string   `json:"reply_to_id"`
 	Mentions  []string `json:"mentions,omitempty"`

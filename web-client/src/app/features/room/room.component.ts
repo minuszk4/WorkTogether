@@ -22,6 +22,8 @@ import { PollWidgetComponent } from './components/poll-widget/poll-widget.compon
 import { SubroomsComponent } from './components/subrooms/subrooms.component';
 import { TimerComponent } from './components/timer/timer.component';
 import { CollabNotesComponent } from './components/collab-notes/collab-notes.component';
+import { LyricsComponent } from './components/lyrics/lyrics.component';
+import { BookmarksComponent } from './components/bookmarks/bookmarks.component';
 import { PlayerEngineService } from './components/player-engine/player-engine.service';
 import { RoomIdentityComponent } from './components/room-identity/room-identity.component';
 import { HistoryStatsComponent } from './components/history-stats/history-stats.component';
@@ -34,6 +36,7 @@ import { HistoryStatsComponent } from './components/history-stats/history-stats.
     VoicePillsComponent, ChatComponent, QueueComponent, PlayerBarComponent,
     QuickReactionsComponent, ReactionsCanvasComponent, RoomVibeMeterComponent,
     PollWidgetComponent, SubroomsComponent, TimerComponent, CollabNotesComponent,
+    LyricsComponent, BookmarksComponent,
     RoomIdentityComponent, HistoryStatsComponent
   ],
   templateUrl: './room.component.html',
@@ -305,6 +308,8 @@ export class RoomComponent implements OnInit, OnDestroy {
   get isSubroomsOpen(): boolean { return this.uiState.uiState.isSubroomsOpen; }
   get isNotesOpen(): boolean { return this.uiState.uiState.isNotesOpen; }
   get isTimerOpen(): boolean { return this.uiState.uiState.isTimerOpen; }
+  get isLyricsOpen(): boolean { return this.uiState.uiState.isLyricsOpen; }
+  get isBookmarksOpen(): boolean { return this.uiState.uiState.isBookmarksOpen; }
   get isIdentityOpen(): boolean { return this.uiState.uiState.isIdentityOpen; }
   get isStatsOpen(): boolean { return this.uiState.uiState.isStatsOpen; }
 

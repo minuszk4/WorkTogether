@@ -1,6 +1,9 @@
 package main
 
 import (
+	"os/signal"
+	"syscall"
+	"github.com/worktogether/pkg/env"
 	"context"
 	"database/sql"
 	"fmt"
@@ -10,6 +13,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/redis/go-redis/v9"
 	"google.golang.org/grpc"
@@ -18,45 +22,55 @@ import (
 	delivery "github.com/worktogether/services/chat-service/internal/delivery/http"
 	deliveryRedis "github.com/worktogether/services/chat-service/internal/delivery/redis"
 	"github.com/worktogether/services/chat-service/internal/repository"
+	"github.com/worktogether/services/chat-service/internal/tracing"
 	"github.com/worktogether/services/chat-service/internal/usecase"
 	"github.com/worktogether/services/chat-service/pkg/middleware"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 )
 
 func main() {
 	log.Println("Bắt đầu khởi chạy chat-service...")
 
+	// 0. Khởi tạo Tracing
+	shutdown, err := tracing.InitTracer("chat-service")
+	if err != nil {
+		log.Printf("Lỗi khởi tạo tracer: %v\n", err)
+	} else {
+		defer shutdown(context.Background())
+	}
+
 	// 1. Cấu hình Postgres
-	dbHost := getEnv("DB_HOST", "localhost")
-	dbPort := getEnv("DB_PORT", "5432")
-	dbUser := getEnv("DB_USER", "postgres")
-	dbPassword := getEnv("DB_PASSWORD", "postgres_password")
-	dbName := getEnv("DB_NAME", "worktogether_chat")
+	dbHost := env.GetEnv("DB_HOST", "localhost")
+	dbPort := env.GetEnv("DB_PORT", "5432")
+	dbUser := env.GetEnv("DB_USER", "postgres")
+	dbPassword := env.GetEnv("DB_PASSWORD", "postgres_password")
+	dbName := env.GetEnv("DB_NAME", "worktogether_chat")
 
 	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", dbUser, dbPassword, dbHost, dbPort, dbName)
 
 	var db *sql.DB
-	var err error
+	var sqlErr error
 	for i := 0; i < 10; i++ {
-		db, err = sql.Open("pgx", connStr)
-		if err == nil {
-			err = db.Ping()
-			if err == nil {
+		db, sqlErr = sql.Open("pgx", connStr)
+		if sqlErr == nil {
+			sqlErr = db.Ping()
+			if sqlErr == nil {
 				break
 			}
 		}
-		log.Printf("Chưa kết nối được với PostgreSQL (Thử lại %d/10): %v\n", i+1, err)
+		log.Printf("Chưa kết nối được với PostgreSQL (Thử lại %d/10): %v\n", i+1, sqlErr)
 		time.Sleep(3 * time.Second)
 	}
-	if err != nil {
-		log.Fatalf("Không thể kết nối đến PostgreSQL sau 10 lần thử: %v\n", err)
+	if sqlErr != nil {
+		log.Fatalf("Không thể kết nối đến PostgreSQL sau 10 lần thử: %v\n", sqlErr)
 	}
 	defer db.Close()
 	log.Println("Kết nối cơ sở dữ liệu PostgreSQL thành công.")
 
 	// 2. Cấu hình Redis
-	redisHost := getEnv("REDIS_HOST", "localhost")
-	redisPort := getEnv("REDIS_PORT", "6379")
-	redisPassword := getEnv("REDIS_PASSWORD", "redis_password")
+	redisHost := env.GetEnv("REDIS_HOST", "localhost")
+	redisPort := env.GetEnv("REDIS_PORT", "6379")
+	redisPassword := env.GetEnv("REDIS_PASSWORD", "redis_password")
 
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     fmt.Sprintf("%s:%s", redisHost, redisPort),
@@ -64,32 +78,34 @@ func main() {
 		DB:       0,
 	})
 
+	var redisErr error
 	for i := 0; i < 10; i++ {
-		err = rdb.Ping(context.Background()).Err()
-		if err == nil {
+		redisErr = rdb.Ping(context.Background()).Err()
+		if redisErr == nil {
 			break
 		}
-		log.Printf("Chưa kết nối được với Redis (Thử lại %d/10): %v\n", i+1, err)
+		log.Printf("Chưa kết nối được với Redis (Thử lại %d/10): %v\n", i+1, redisErr)
 		time.Sleep(3 * time.Second)
 	}
-	if err != nil {
-		log.Fatalf("Không thể kết nối đến Redis sau 10 lần thử: %v\n", err)
+	if redisErr != nil {
+		log.Fatalf("Không thể kết nối đến Redis sau 10 lần thử: %v\n", redisErr)
 	}
 	log.Println("Kết nối cơ sở dữ liệu Redis thành công.")
 
 	// 3. Khởi tạo gRPC Client liên kết với room-service
-	roomServiceAddr := getEnv("ROOM_SERVICE_GRPC", getEnv("ROOM_SERVICE_GRPC_ADDR", "localhost:50051"))
+	roomServiceAddr := env.GetEnv("ROOM_SERVICE_GRPC", env.GetEnv("ROOM_SERVICE_GRPC_ADDR", "localhost:50051"))
 	var conn *grpc.ClientConn
+	var grpcErr error
 	for i := 0; i < 10; i++ {
-		conn, err = grpc.Dial(roomServiceAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-		if err == nil {
+		conn, grpcErr = grpc.Dial(roomServiceAddr, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+		if grpcErr == nil {
 			break
 		}
-		log.Printf("Chưa kết nối gRPC room-service (Thử lại %d/10): %v\n", i+1, err)
+		log.Printf("Chưa kết nối gRPC room-service (Thử lại %d/10): %v\n", i+1, grpcErr)
 		time.Sleep(3 * time.Second)
 	}
-	if err != nil {
-		log.Fatalf("Không thể kết nối gRPC đến room-service: %v\n", err)
+	if grpcErr != nil {
+		log.Fatalf("Không thể kết nối gRPC đến room-service: %v\n", grpcErr)
 	}
 	defer conn.Close()
 	roomClient := roomv1.NewRoomInternalServiceClient(conn)
@@ -98,7 +114,7 @@ func main() {
 	// 4. Khởi tạo Layers và WebSockets Hub
 	repo := repository.NewPostgresRepository(db)
 	uc := usecase.NewChatUsecase(repo, rdb)
-	hub := delivery.NewHub()
+	hub := delivery.NewHub(rdb)
 	hub.StartVibeTicker()
 	handler := delivery.NewChatHandler(uc, hub, roomClient)
 
@@ -107,7 +123,7 @@ func main() {
 	go worker.Start(context.Background())
 
 	// 6. Khởi chạy Gin HTTP Server
-	port := getEnv("PORT", "8084")
+	port := env.GetEnv("PORT", "8084")
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
 		log.Fatal("FATAL: Environment variable JWT_SECRET is not set. Service cannot start.")
@@ -117,12 +133,16 @@ func main() {
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.Use(gin.Logger())
+	r.Use(otelgin.Middleware("chat-service"))
+	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
-	// WebSocket & History endpoints bảo vệ bởi AuthMiddleware
+	// WebSocket endpoint KHÔNG bảo vệ bởi AuthMiddleware (Xác thực token trong HandleWS)
+	r.GET("/api/v1/rooms/:id/chat/ws", handler.HandleWS)
+
+	// History endpoints bảo vệ bởi AuthMiddleware
 	chatGroup := r.Group("/api/v1/rooms/:id/chat")
 	chatGroup.Use(middleware.AuthMiddleware(jwtSecret))
 	{
-		chatGroup.GET("/ws", handler.HandleWS)
 		chatGroup.GET("/messages", handler.GetMessages)
 		chatGroup.GET("/search", handler.SearchMessages)
 	}
@@ -131,15 +151,30 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{"status": "UP"})
 	})
 
-	log.Printf("Chat HTTP & WebSocket Server đang lắng nghe tại cổng :%s...\n", port)
-	if err := r.Run(":" + port); err != nil {
-		log.Fatalf("Lỗi khởi chạy HTTP server: %v\n", err)
+	srv := &http.Server{
+		Addr:    ":" + port,
+		Handler: r,
 	}
+
+	go func() {
+		log.Printf("HTTP Server đang lắng nghe tại cổng :%s...\n", port)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Lỗi khởi chạy HTTP server: %v\n", err)
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+	<-quit
+	log.Println("Đang tắt server (Graceful Shutdown)...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Fatal("Server forced to shutdown:", err)
+	}
+
+	log.Println("Server đã thoát an toàn.")
 }
 
-func getEnv(key, fallback string) string {
-	if value, exists := os.LookupEnv(key); exists {
-		return value
-	}
-	return fallback
-}

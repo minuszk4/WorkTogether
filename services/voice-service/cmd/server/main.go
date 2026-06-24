@@ -1,6 +1,9 @@
 package main
 
 import (
+	"os/signal"
+	"syscall"
+	"github.com/worktogether/pkg/env"
 	"context"
 	"fmt"
 	"log"
@@ -22,9 +25,9 @@ func main() {
 	log.Println("Bắt đầu khởi chạy voice-service...")
 
 	// 1. Cấu hình Redis
-	redisHost := getEnv("REDIS_HOST", "localhost")
-	redisPort := getEnv("REDIS_PORT", "6379")
-	redisPassword := getEnv("REDIS_PASSWORD", "redis_password")
+	redisHost := env.GetEnv("REDIS_HOST", "localhost")
+	redisPort := env.GetEnv("REDIS_PORT", "6379")
+	redisPassword := env.GetEnv("REDIS_PASSWORD", "redis_password")
 
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     fmt.Sprintf("%s:%s", redisHost, redisPort),
@@ -49,10 +52,10 @@ func main() {
 	log.Println("Kết nối cơ sở dữ liệu Redis thành công.")
 
 	// 2. Khởi tạo gRPC Client liên kết với room-service
-	roomServiceAddr := getEnv("ROOM_SERVICE_GRPC", getEnv("ROOM_SERVICE_GRPC_ADDR", "localhost:50051"))
+	roomServiceAddr := env.GetEnv("ROOM_SERVICE_GRPC", env.GetEnv("ROOM_SERVICE_GRPC_ADDR", "localhost:50051"))
 	var conn *grpc.ClientConn
 	for i := 0; i < 10; i++ {
-		conn, err = grpc.Dial(roomServiceAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		conn, err = grpc.Dial(roomServiceAddr, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 		if err == nil {
 			break
 		}
@@ -67,7 +70,7 @@ func main() {
 	log.Println("Khởi tạo kết nối gRPC sang room-service thành công.")
 
 	// 3. Cấu hình LiveKit
-	livekitURL := getEnv("LIVEKIT_URL", "ws://localhost:7880")
+	livekitURL := env.GetEnv("LIVEKIT_URL", "ws://localhost:7880")
 	livekitKey := os.Getenv("LIVEKIT_API_KEY")
 	livekitSecret := os.Getenv("LIVEKIT_API_SECRET")
 	if livekitKey == "" || livekitSecret == "" {
@@ -80,7 +83,7 @@ func main() {
 	uc := usecase.NewVoiceUsecase(livekitURL, livekitKey, livekitSecret, rdb)
 	handler := delivery.NewVoiceHandler(uc, roomClient, livekitURL)
 
-	port := getEnv("PORT", "8088")
+	port := env.GetEnv("PORT", "8088")
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
 		log.Fatal("FATAL: Environment variable JWT_SECRET is not set. Service cannot start.")
@@ -106,15 +109,30 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{"status": "UP"})
 	})
 
-	log.Printf("Voice HTTP Server đang lắng nghe tại cổng :%s...\n", port)
-	if err := r.Run(":" + port); err != nil {
-		log.Fatalf("Lỗi khởi chạy HTTP server: %v\n", err)
+	srv := &http.Server{
+		Addr:    ":" + port,
+		Handler: r,
 	}
+
+	go func() {
+		log.Printf("HTTP Server đang lắng nghe tại cổng :%s...\n", port)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Lỗi khởi chạy HTTP server: %v\n", err)
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+	<-quit
+	log.Println("Đang tắt server (Graceful Shutdown)...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Fatal("Server forced to shutdown:", err)
+	}
+
+	log.Println("Server đã thoát an toàn.")
 }
 
-func getEnv(key, fallback string) string {
-	if value, exists := os.LookupEnv(key); exists {
-		return value
-	}
-	return fallback
-}

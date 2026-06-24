@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/worktogether/pkg/env"
 	"context"
 	"fmt"
 	"log"
@@ -20,15 +21,15 @@ import (
 func main() {
 	log.Println("Bắt đầu khởi chạy timer-service...")
 
-	redisHost := getEnv("REDIS_HOST", "localhost")
-	redisPort := getEnv("REDIS_PORT", "6379")
-	redisPassword := getEnv("REDIS_PASSWORD", "redis_password")
+	redisHost := env.GetEnv("REDIS_HOST", "localhost")
+	redisPort := env.GetEnv("REDIS_PORT", "6379")
+	redisPassword := env.GetEnv("REDIS_PASSWORD", "redis_password")
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
 		log.Fatal("FATAL: Environment variable JWT_SECRET is not set. Service cannot start.")
 	}
-	port := getEnv("PORT", "8093")
-	playbackServiceGrpc := getEnv("PLAYBACK_SERVICE_GRPC", "playback-service:50052")
+	port := env.GetEnv("PORT", "8093")
+	playbackServiceGrpc := env.GetEnv("PLAYBACK_SERVICE_GRPC", "playback-service:50052")
 
 	// Connect to Redis with retry
 	var rdb *redis.Client
@@ -60,7 +61,7 @@ func main() {
 	// Connect to playback gRPC server
 	var conn *grpc.ClientConn
 	for i := 0; i < 10; i++ {
-		conn, err = grpc.Dial(playbackServiceGrpc, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		conn, err = grpc.Dial(playbackServiceGrpc, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 		if err == nil {
 			break
 		}
@@ -101,9 +102,3 @@ func main() {
 	}
 }
 
-func getEnv(key, fallback string) string {
-	if value, exists := os.LookupEnv(key); exists {
-		return value
-	}
-	return fallback
-}

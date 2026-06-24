@@ -1,12 +1,12 @@
 package main
 
 import (
-	"database/sql"
+	dbpkg "github.com/worktogether/pkg/db"
+	"github.com/worktogether/pkg/env"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -18,35 +18,23 @@ import (
 func main() {
 	log.Println("Bắt đầu khởi chạy collab-service...")
 
-	dbHost := getEnv("DB_HOST", "localhost")
-	dbPort := getEnv("DB_PORT", "5432")
-	dbUser := getEnv("DB_USER", "postgres")
-	dbPassword := getEnv("DB_PASSWORD", "postgres_password")
-	dbName := getEnv("DB_NAME", "worktogether_collab")
+	dbHost := env.GetEnv("DB_HOST", "localhost")
+	dbPort := env.GetEnv("DB_PORT", "5432")
+	dbUser := env.GetEnv("DB_USER", "postgres")
+	dbPassword := env.GetEnv("DB_PASSWORD", "postgres_password")
+	dbName := env.GetEnv("DB_NAME", "worktogether_collab")
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
 		log.Fatal("FATAL: Environment variable JWT_SECRET is not set. Service cannot start.")
 	}
-	port := getEnv("PORT", "8094")
+	port := env.GetEnv("PORT", "8094")
 
 	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", dbUser, dbPassword, dbHost, dbPort, dbName)
 
-	var db *sql.DB
 	var err error
-	for i := 0; i < 10; i++ {
-		db, err = sql.Open("pgx", connStr)
-		if err == nil {
-			err = db.Ping()
-			if err == nil {
-				break
-			}
-		}
-		log.Printf("Chưa kết nối được với PostgreSQL (Thử lại %d/10): %v\n", i+1, err)
-		time.Sleep(3 * time.Second)
-	}
-
+	db, err := dbpkg.ConnectPostgres(connStr)
 	if err != nil {
-		log.Fatalf("Không thể kết nối đến PostgreSQL sau 10 lần thử: %v\n", err)
+		log.Fatalf("%v", err)
 	}
 	defer db.Close()
 	log.Println("Kết nối cơ sở dữ liệu PostgreSQL thành công.")
@@ -78,9 +66,3 @@ func main() {
 	}
 }
 
-func getEnv(key, fallback string) string {
-	if value, exists := os.LookupEnv(key); exists {
-		return value
-	}
-	return fallback
-}

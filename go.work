@@ -1,0 +1,16 @@
+go 1.25.4
+
+use (
+	./pkg
+	./services/auth-service
+	./services/chat-service
+	./services/collab-service
+	./services/music-service
+	./services/notification-service
+	./services/playback-service
+	./services/playlist-service
+	./services/room-service
+	./services/timer-service
+	./services/user-service
+	./services/voice-service
+)

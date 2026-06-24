@@ -1,6 +1,9 @@
 package main
 
 import (
+	"os/signal"
+	"syscall"
+	"github.com/worktogether/pkg/env"
 	"context"
 	"fmt"
 	"log"
@@ -25,15 +28,15 @@ func main() {
 	log.Println("Bắt đầu khởi chạy playback-service...")
 
 	// Đọc cấu hình từ biến môi trường
-	redisHost := getEnv("REDIS_HOST", "localhost")
-	redisPort := getEnv("REDIS_PORT", "6379")
-	redisPassword := getEnv("REDIS_PASSWORD", "redis_password")
+	redisHost := env.GetEnv("REDIS_HOST", "localhost")
+	redisPort := env.GetEnv("REDIS_PORT", "6379")
+	redisPassword := env.GetEnv("REDIS_PASSWORD", "redis_password")
 
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
 		log.Fatal("FATAL: Environment variable JWT_SECRET is not set. Service cannot start.")
 	}
-	port := getEnv("PORT", "8087")
+	port := env.GetEnv("PORT", "8087")
 
 	// Kết nối Redis với retry
 	var rdb *redis.Client
@@ -68,10 +71,10 @@ func main() {
 	uc := usecase.NewPlaybackUsecase(repo)
 	
 	// Khởi tạo gRPC Client liên kết với room-service
-	roomServiceAddr := getEnv("ROOM_SERVICE_GRPC", "room-service:50051")
+	roomServiceAddr := env.GetEnv("ROOM_SERVICE_GRPC", "room-service:50051")
 	var conn *grpc.ClientConn
 	for i := 0; i < 10; i++ {
-		conn, err = grpc.Dial(roomServiceAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		conn, err = grpc.Dial(roomServiceAddr, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 		if err == nil {
 			break
 		}
@@ -90,13 +93,14 @@ func main() {
 	go hub.Run()
 
 	// Khởi chạy gRPC Server nội bộ cho playback-service
-	playbackGrpcPort := getEnv("GRPC_PORT", "50052")
+	playbackGrpcPort := env.GetEnv("GRPC_PORT", "50052")
 	lisPlayback, err := net.Listen("tcp", ":"+playbackGrpcPort)
 	if err != nil {
 		log.Fatalf("Lỗi mở cổng gRPC playback: %v\n", err)
 	}
 
 	grpcServer := grpc.NewServer()
+	defer grpcServer.GracefulStop()
 	playbackGrpcServer := deliveryGrpc.NewPlaybackGrpcServer(uc, hub)
 	roomv1.RegisterPlaybackInternalServiceServer(grpcServer, playbackGrpcServer)
 
@@ -250,15 +254,30 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{"status": "UP"})
 	})
 
-	log.Printf("Playback Service đang lắng nghe tại cổng :%s...\n", port)
-	if err := r.Run(":" + port); err != nil {
-		log.Fatalf("Lỗi khởi chạy HTTP server: %v\n", err)
+	srv := &http.Server{
+		Addr:    ":" + port,
+		Handler: r,
 	}
+
+	go func() {
+		log.Printf("HTTP Server đang lắng nghe tại cổng :%s...\n", port)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Lỗi khởi chạy HTTP server: %v\n", err)
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+	<-quit
+	log.Println("Đang tắt server (Graceful Shutdown)...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Fatal("Server forced to shutdown:", err)
+	}
+
+	log.Println("Server đã thoát an toàn.")
 }
 
-func getEnv(key, fallback string) string {
-	if value, exists := os.LookupEnv(key); exists {
-		return value
-	}
-	return fallback
-}

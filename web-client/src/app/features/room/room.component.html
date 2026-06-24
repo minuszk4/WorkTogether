@@ -55,6 +55,18 @@
     </div>
   }
 
+  @if (isLyricsOpen) {
+    <div class="room-lyrics-panel">
+      <app-room-lyrics></app-room-lyrics>
+    </div>
+  }
+
+  @if (isBookmarksOpen) {
+    <div class="room-bookmarks-panel">
+      <app-room-bookmarks></app-room-bookmarks>
+    </div>
+  }
+
   @if (isTimerOpen) {
     <div class="room-timer-overlay">
       <app-room-timer [roomId]="roomId"></app-room-timer>

@@ -1,12 +1,15 @@
 package usecase
 
 import (
+	"crypto/rand"
+	"math/big"
 	"context"
 	"errors"
-	"math/rand"
 	"strings"
 	"time"
+	"encoding/json"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/worktogether/services/room-service/internal/domain"
 	"github.com/worktogether/services/room-service/internal/repository"
 	"golang.org/x/crypto/bcrypt"
@@ -27,10 +30,11 @@ var (
 
 type RoomUsecase struct {
 	repo *repository.PostgresRepository
+	rdb  *redis.Client
 }
 
-func NewRoomUsecase(repo *repository.PostgresRepository) *RoomUsecase {
-	return &RoomUsecase{repo: repo}
+func NewRoomUsecase(repo *repository.PostgresRepository, rdb *redis.Client) *RoomUsecase {
+	return &RoomUsecase{repo: repo, rdb: rdb}
 }
 
 func (u *RoomUsecase) CreateRoom(ctx context.Context, ownerID string, req *domain.CreateRoomRequest) (*domain.Room, error) {
@@ -69,7 +73,38 @@ func (u *RoomUsecase) CreateRoom(ctx context.Context, ownerID string, req *domai
 }
 
 func (u *RoomUsecase) GetRoomByID(ctx context.Context, id string) (*domain.Room, error) {
-	return u.repo.GetRoomByID(ctx, id)
+	cacheKey := "room:" + id
+
+	// 1. Try to get from Redis
+	if u.rdb != nil {
+		cachedData, err := u.rdb.Get(ctx, cacheKey).Result()
+		if err == nil && cachedData != "" {
+			var room domain.Room
+			if err := json.Unmarshal([]byte(cachedData), &room); err == nil {
+				return &room, nil
+			}
+		}
+	}
+
+	// 2. Cache miss, query PostgreSQL
+	room, err := u.repo.GetRoomByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if room == nil {
+		return nil, nil
+	}
+
+	// 3. Save to Redis
+	if u.rdb != nil {
+		jsonData, err := json.Marshal(room)
+		if err == nil {
+			// Cache for 5 minutes
+			u.rdb.Set(ctx, cacheKey, jsonData, 5*time.Minute)
+		}
+	}
+
+	return room, nil
 }
 
 func (u *RoomUsecase) GetRoomByInviteCode(ctx context.Context, code string) (*domain.Room, error) {
@@ -143,6 +178,7 @@ func (u *RoomUsecase) JoinRoom(ctx context.Context, userID, roomID, password str
 		return nil, err
 	}
 
+	u.invalidateRoomCache(ctx, roomID)
 	return m, nil
 }
 
@@ -156,11 +192,14 @@ func (u *RoomUsecase) LeaveRoom(ctx context.Context, userID, roomID string) erro
 	}
 
 	if m.RoleType == "OWNER" {
-		// Trong MVP: Nếu chủ phòng rời đi, xóa phòng
-		return u.repo.DeleteRoom(ctx, roomID)
+		err := u.repo.DeleteRoom(ctx, roomID)
+		if err == nil { u.invalidateRoomCache(ctx, roomID) }
+		return err
 	}
 
-	return u.repo.RemoveMember(ctx, roomID, userID)
+	err = u.repo.RemoveMember(ctx, roomID, userID)
+	if err == nil { u.invalidateRoomCache(ctx, roomID) }
+	return err
 }
 
 func (u *RoomUsecase) CreateRole(ctx context.Context, userID, roomID string, req *domain.CreateRoleRequest) (*domain.RoomRole, error) {
@@ -200,7 +239,9 @@ func (u *RoomUsecase) AssignRole(ctx context.Context, userID, roomID, targetUser
 		return ErrRoleNotFound
 	}
 
-	return u.repo.UpdateMemberRole(ctx, roomID, targetUserID, roleID, "MEMBER")
+	err = u.repo.UpdateMemberRole(ctx, roomID, targetUserID, roleID, "MEMBER")
+	if err == nil { u.invalidateRoomCache(ctx, roomID) }
+	return err
 }
 
 func (u *RoomUsecase) KickMember(ctx context.Context, operatorID, roomID, targetUserID string) error {
@@ -233,7 +274,9 @@ func (u *RoomUsecase) KickMember(ctx context.Context, operatorID, roomID, target
 		return ErrCannotKickOwner
 	}
 
-	return u.repo.RemoveMember(ctx, roomID, targetUserID)
+	err = u.repo.RemoveMember(ctx, roomID, targetUserID)
+	if err == nil { u.invalidateRoomCache(ctx, roomID) }
+	return err
 }
 
 func (u *RoomUsecase) BanMember(ctx context.Context, operatorID, roomID, targetUserID, reason string) error {
@@ -277,15 +320,23 @@ func (u *RoomUsecase) BanMember(ctx context.Context, operatorID, roomID, targetU
 	}
 
 	// Trục xuất
-	return u.repo.RemoveMember(ctx, roomID, targetUserID)
+	err = u.repo.RemoveMember(ctx, roomID, targetUserID)
+	if err == nil { u.invalidateRoomCache(ctx, roomID) }
+	return err
+}
+
+func (u *RoomUsecase) invalidateRoomCache(ctx context.Context, roomID string) {
+	if u.rdb != nil {
+		u.rdb.Del(ctx, "room:"+roomID)
+	}
 }
 
 func (u *RoomUsecase) generateInviteCode() string {
 	const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	rand.Seed(time.Now().UnixNano())
 	b := make([]byte, 6)
 	for i := range b {
-		b[i] = charset[rand.Intn(len(charset))]
+		num, _ := rand.Int(rand.Reader, big.NewInt(int64(len(charset))))
+		b[i] = charset[num.Int64()]
 	}
 	return string(b)
 }
@@ -365,6 +416,11 @@ func (u *RoomUsecase) UpdateRoomSettings(ctx context.Context, userID string, roo
 		return nil, err
 	}
 
+	if u.rdb != nil {
+		u.rdb.Del(ctx, "room:"+roomID)
+	}
+
+	u.invalidateRoomCache(ctx, roomID)
 	return rm, nil
 }
 
@@ -418,7 +474,9 @@ func (u *RoomUsecase) MoveMember(ctx context.Context, requesterID string, roomID
 		}
 	}
 
-	return u.repo.MoveMember(ctx, roomID, userID, subRoomID)
+	err := u.repo.MoveMember(ctx, roomID, userID, subRoomID)
+	if err == nil { u.invalidateRoomCache(ctx, roomID); if subRoomID != nil { u.invalidateRoomCache(ctx, *subRoomID) } }
+	return err
 }
 
 func (u *RoomUsecase) DeleteRoom(ctx context.Context, userID, roomID string) error {
@@ -429,7 +487,15 @@ func (u *RoomUsecase) DeleteRoom(ctx context.Context, userID, roomID string) err
 	if member == nil || member.RoleType != "OWNER" {
 		return ErrUnauthorized
 	}
-	return u.repo.DeleteRoom(ctx, roomID)
+	if err := u.repo.DeleteRoom(ctx, roomID); err != nil {
+		return err
+	}
+
+	if u.rdb != nil {
+		u.rdb.Del(ctx, "room:"+roomID)
+	}
+
+	return nil
 }
 
 func (u *RoomUsecase) MuteMember(ctx context.Context, requesterID, roomID, targetUserID string, durationSecs int) error {
@@ -451,7 +517,11 @@ func (u *RoomUsecase) MuteMember(ctx context.Context, requesterID, roomID, targe
 		return ErrCannotMuteOwner
 	}
 	mutedUntil := time.Now().Add(time.Duration(durationSecs) * time.Second)
-	return u.repo.UpdateMemberMute(ctx, roomID, targetUserID, &mutedUntil)
+	err = u.repo.UpdateMemberMute(ctx, roomID, targetUserID, &mutedUntil)
+	if err == nil {
+		u.invalidateRoomCache(ctx, roomID)
+	}
+	return err
 }
 
 func (u *RoomUsecase) UnmuteMember(ctx context.Context, requesterID, roomID, targetUserID string) error {
@@ -469,7 +539,11 @@ func (u *RoomUsecase) UnmuteMember(ctx context.Context, requesterID, roomID, tar
 	if targetMember == nil {
 		return ErrTargetMemberNotFound
 	}
-	return u.repo.UpdateMemberMute(ctx, roomID, targetUserID, nil)
+	err = u.repo.UpdateMemberMute(ctx, roomID, targetUserID, nil)
+	if err == nil {
+		u.invalidateRoomCache(ctx, roomID)
+	}
+	return err
 }
 
 

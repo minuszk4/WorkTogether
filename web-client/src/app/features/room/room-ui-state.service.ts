@@ -10,6 +10,8 @@ export interface RoomUIState {
   isSubroomsOpen: boolean;
   isNotesOpen: boolean;
   isTimerOpen: boolean;
+  isLyricsOpen: boolean;
+  isBookmarksOpen: boolean;
   unreadCount: number;
   isIdentityOpen: boolean;
   isStatsOpen: boolean;
@@ -27,6 +29,8 @@ export class RoomUiStateService {
     isSubroomsOpen: false,
     isNotesOpen: false,
     isTimerOpen: false,
+    isLyricsOpen: false,
+    isBookmarksOpen: false,
     unreadCount: 0,
     isIdentityOpen: false,
     isStatsOpen: false
@@ -63,6 +67,16 @@ export class RoomUiStateService {
   public toggleTimer(open?: boolean): void {
     const next = open === undefined ? !this.state$.value.isTimerOpen : open;
     this.patch({ isTimerOpen: next });
+  }
+
+  public toggleLyrics(open?: boolean): void {
+    const next = open === undefined ? !this.state$.value.isLyricsOpen : open;
+    this.patch({ isLyricsOpen: next });
+  }
+
+  public toggleBookmarks(open?: boolean): void {
+    const next = open === undefined ? !this.state$.value.isBookmarksOpen : open;
+    this.patch({ isBookmarksOpen: next });
   }
 
   public toggleIdentity(open?: boolean): void {

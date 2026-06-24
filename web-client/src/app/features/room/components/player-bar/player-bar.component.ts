@@ -46,14 +46,6 @@ export class PlayerBarComponent implements AfterViewInit, OnDestroy {
   public pct = 0;
   public progressMs = 0;
   public volumePct = 80;
-  public queueOpen = true;
-  public chatOpen = false;
-  public unreadCount = 0;
-  public subroomsOpen = false;
-  public notesOpen = false;
-  public timerOpen = false;
-  public identityOpen = false;
-  public statsOpen = false;
 
   private subs: Subscription[] = [];
 
@@ -66,17 +58,7 @@ export class PlayerBarComponent implements AfterViewInit, OnDestroy {
       this.engine.currentState$.subscribe(s => (this.isPlaying = s === 'playing')),
       this.engine.progressPct$.subscribe(p => (this.pct = p)),
       this.engine.progressMs$.subscribe(ms => (this.progressMs = ms)),
-      this.engine.volume$.subscribe(v => (this.volumePct = v)),
-      this.uiState.changes$.subscribe(st => {
-        this.queueOpen = st.isQueueOpen;
-        this.chatOpen = st.isChatOpen;
-        this.subroomsOpen = st.isSubroomsOpen;
-        this.notesOpen = st.isNotesOpen;
-        this.timerOpen = st.isTimerOpen;
-        this.unreadCount = st.unreadCount;
-        this.identityOpen = st.isIdentityOpen;
-        this.statsOpen = st.isStatsOpen;
-      })
+      this.engine.volume$.subscribe(v => (this.volumePct = v))
     );
   }
 
@@ -94,6 +76,8 @@ export class PlayerBarComponent implements AfterViewInit, OnDestroy {
   toggleSubrooms(): void { this.uiState.toggleSubrooms(); }
   toggleNotes(): void { this.uiState.toggleNotes(); }
   toggleTimer(): void { this.uiState.toggleTimer(); }
+  toggleLyrics(): void { this.uiState.toggleLyrics(); }
+  toggleBookmarks(): void { this.uiState.toggleBookmarks(); }
   toggleIdentity(): void { this.uiState.toggleIdentity(); }
   toggleStats(): void { this.uiState.toggleStats(); }
 }

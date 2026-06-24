@@ -1,14 +1,19 @@
 # Build stage
-FROM golang:alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
 
-# Copy go mod và sum files
-COPY go.mod go.sum ./
-RUN go mod download
+# Copy root go.work files
+COPY go.work go.work.sum ./
 
-# Copy mã nguồn
-COPY . .
+# Copy shared pkg
+COPY pkg ./pkg
+
+# Copy target service
+COPY services/voice-service ./services/voice-service
+
+WORKDIR /app/services/voice-service
+RUN go mod download
 
 # Biên dịch binary tĩnh (static binary)
 RUN CGO_ENABLED=0 GOOS=linux go build -o voice-service cmd/server/main.go
@@ -20,7 +25,7 @@ WORKDIR /app
 
 RUN apk --no-cache add ca-certificates tzdata
 
-COPY --from=builder /app/voice-service .
+COPY --from=builder /app/services/voice-service/voice-service .
 
 EXPOSE 8088
 

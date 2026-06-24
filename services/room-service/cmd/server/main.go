@@ -1,6 +1,10 @@
 package main
 
 import (
+	"os/signal"
+	"syscall"
+	"github.com/worktogether/pkg/env"
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
@@ -10,59 +14,82 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/redis/go-redis/v9"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	roomv1 "github.com/worktogether/services/room-service/api/v1"
 	deliveryGrpc "github.com/worktogether/services/room-service/internal/delivery/grpc"
 	deliveryHttp "github.com/worktogether/services/room-service/internal/delivery/http"
 	"github.com/worktogether/services/room-service/internal/repository"
+	"github.com/worktogether/services/room-service/internal/tracing"
 	"github.com/worktogether/services/room-service/internal/usecase"
 	"github.com/worktogether/services/room-service/pkg/middleware"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 	"google.golang.org/grpc"
 )
 
 func main() {
 	log.Println("Bắt đầu khởi chạy room-service...")
 
+	// 0. Khởi tạo Tracing
+	shutdown, err := tracing.InitTracer("room-service")
+	if err != nil {
+		log.Printf("Lỗi khởi tạo tracer: %v\n", err)
+	} else {
+		defer shutdown(context.Background())
+	}
+
 	// 1. Cấu hình Postgres
-	dbHost := getEnv("DB_HOST", "localhost")
-	dbPort := getEnv("DB_PORT", "5432")
-	dbUser := getEnv("DB_USER", "postgres")
-	dbPassword := getEnv("DB_PASSWORD", "postgres_password")
-	dbName := getEnv("DB_NAME", "worktogether_room")
+	dbHost := env.GetEnv("DB_HOST", "localhost")
+	dbPort := env.GetEnv("DB_PORT", "5432")
+	dbUser := env.GetEnv("DB_USER", "postgres")
+	dbPassword := env.GetEnv("DB_PASSWORD", "postgres_password")
+	dbName := env.GetEnv("DB_NAME", "worktogether_room")
 
 	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", dbUser, dbPassword, dbHost, dbPort, dbName)
 
 	var db *sql.DB
-	var err error
+	var sqlErr error
 	for i := 0; i < 10; i++ {
-		db, err = sql.Open("pgx", connStr)
-		if err == nil {
-			err = db.Ping()
-			if err == nil {
+		db, sqlErr = sql.Open("pgx", connStr)
+		if sqlErr == nil {
+			sqlErr = db.Ping()
+			if sqlErr == nil {
 				break
 			}
 		}
-		log.Printf("Chưa kết nối được với PostgreSQL (Thử lại %d/10): %v\n", i+1, err)
+		log.Printf("Chưa kết nối được với PostgreSQL (Thử lại %d/10): %v\n", i+1, sqlErr)
 		time.Sleep(3 * time.Second)
 	}
-	if err != nil {
-		log.Fatalf("Không thể kết nối đến PostgreSQL sau 10 lần thử: %v\n", err)
+	if sqlErr != nil {
+		log.Fatalf("Không thể kết nối đến PostgreSQL sau 10 lần thử: %v\n", sqlErr)
 	}
 	defer db.Close()
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(10)
+	db.SetConnMaxLifetime(5 * time.Minute)
 	log.Println("Kết nối cơ sở dữ liệu PostgreSQL thành công.")
+
+	// 1.5 Khởi tạo Redis
+	redisHost := env.GetEnv("REDIS_HOST", "localhost")
+	redisPort := env.GetEnv("REDIS_PORT", "6379")
+	rdb := redis.NewClient(&redis.Options{
+		Addr: fmt.Sprintf("%s:%s", redisHost, redisPort),
+	})
 
 	// 2. Khởi tạo Layers
 	repo := repository.NewPostgresRepository(db)
-	uc := usecase.NewRoomUsecase(repo)
+	uc := usecase.NewRoomUsecase(repo, rdb)
 
 	// 3. Khởi chạy gRPC Server nội bộ
-	grpcPort := getEnv("GRPC_PORT", "50051")
+	grpcPort := env.GetEnv("GRPC_PORT", "50051")
 	lis, err := net.Listen("tcp", ":"+grpcPort)
 	if err != nil {
 		log.Fatalf("Lỗi mở cổng gRPC: %v\n", err)
 	}
 
 	grpcServer := grpc.NewServer()
+	defer grpcServer.GracefulStop()
 	roomGrpcServer := deliveryGrpc.NewRoomGrpcServer(uc)
 	roomv1.RegisterRoomInternalServiceServer(grpcServer, roomGrpcServer)
 
@@ -74,7 +101,7 @@ func main() {
 	}()
 
 	// 4. Khởi chạy HTTP Web Server
-	port := getEnv("PORT", "8083")
+	port := env.GetEnv("PORT", "8083")
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
 		log.Fatal("FATAL: Environment variable JWT_SECRET is not set. Service cannot start.")
@@ -85,6 +112,8 @@ func main() {
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.Use(gin.Logger())
+	r.Use(otelgin.Middleware("room-service"))
+	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	// Định nghĩa Routes bảo vệ bằng AuthMiddleware
 	roomsGroup := r.Group("/api/v1/rooms")
@@ -121,15 +150,30 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{"status": "UP"})
 	})
 
-	log.Printf("Room HTTP Server đang lắng nghe tại cổng :%s...\n", port)
-	if err := r.Run(":" + port); err != nil {
-		log.Fatalf("Lỗi khởi chạy HTTP server: %v\n", err)
+	srv := &http.Server{
+		Addr:    ":" + port,
+		Handler: r,
 	}
+
+	go func() {
+		log.Printf("HTTP Server đang lắng nghe tại cổng :%s...\n", port)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Lỗi khởi chạy HTTP server: %v\n", err)
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+	<-quit
+	log.Println("Đang tắt server (Graceful Shutdown)...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Fatal("Server forced to shutdown:", err)
+	}
+
+	log.Println("Server đã thoát an toàn.")
 }
 
-func getEnv(key, fallback string) string {
-	if value, exists := os.LookupEnv(key); exists {
-		return value
-	}
-	return fallback
-}

@@ -89,6 +89,7 @@ export class VoicePillsComponent implements OnInit, OnDestroy {
         const presence = getMemberPresence(m.user_id || m.id || '');
         return {
           sid: `member-${m.user_id}`,
+          identity: m.user_id || m.id,
           display_name: m.display_name || m.username || 'Thành viên',
           avatar_url: m.avatar_url || '',
           isSpeaking: false,

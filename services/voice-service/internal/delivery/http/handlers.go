@@ -4,6 +4,9 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/livekit/protocol/auth"
+	"github.com/livekit/protocol/webhook"
+	"github.com/worktogether/pkg/env"
 	roomv1 "github.com/worktogether/services/voice-service/api/v1"
 	"github.com/worktogether/services/voice-service/internal/domain"
 	"github.com/worktogether/services/voice-service/internal/usecase"
@@ -72,14 +75,34 @@ func (h *VoiceHandler) GetToken(c *gin.Context) {
 }
 
 func (h *VoiceHandler) HandleWebhook(c *gin.Context) {
-	// Trong thực tế, chúng ta nên kiểm tra chữ ký Livekit-Signature tại đây
-	var req domain.LiveKitWebhookRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	apiKey := env.GetEnv("LIVEKIT_API_KEY", "devkey")
+	apiSecret := env.GetEnv("LIVEKIT_API_SECRET", "your_super_secret_livekit_key")
+	provider := auth.NewSimpleKeyProvider(apiKey, apiSecret)
+
+	event, err := webhook.ReceiveWebhookEvent(c.Request, provider)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid webhook signature"})
 		return
 	}
 
-	err := h.usecase.ProcessWebhook(c.Request.Context(), &req)
+	req := domain.LiveKitWebhookRequest{
+		Event: event.Event,
+	}
+	if event.Room != nil {
+		req.Room = domain.LiveKitRoom{
+			Name: event.Room.Name,
+			SID:  event.Room.Sid,
+		}
+	}
+	if event.Participant != nil {
+		req.Participant = domain.LiveKitParticipant{
+			Identity: event.Participant.Identity,
+			State:    event.Participant.State.String(),
+			JoinedAt: event.Participant.JoinedAt,
+		}
+	}
+
+	err = h.usecase.ProcessWebhook(c.Request.Context(), &req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

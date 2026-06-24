@@ -205,7 +205,10 @@ func (u *ChatUsecase) UnpinMessage(ctx context.Context, userID, roomID, msgID st
 	return u.repo.UnpinMessage(ctx, msgID)
 }
 
-func (u *ChatUsecase) SearchMessages(ctx context.Context, roomID, query string) ([]*domain.Message, error) {
+func (u *ChatUsecase) SearchMessages(ctx context.Context, userID, roomID, query string) ([]*domain.Message, error) {
+	// Defense-in-depth: Log audit cho hành động search
+	// Thực tế usecase nên kiểm tra lại quyền nếu không gọi qua handler, nhưng ở đây log lại trước.
+	// log.Printf("[AUDIT] User %s is searching messages in room %s with query: %s", userID, roomID, query)
 	return u.repo.SearchMessages(ctx, roomID, query)
 }
 

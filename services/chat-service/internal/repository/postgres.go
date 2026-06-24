@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/worktogether/services/chat-service/internal/domain"
@@ -161,7 +162,12 @@ func (r *PostgresRepository) SearchMessages(ctx context.Context, roomID, query s
 		ORDER BY created_at DESC 
 		LIMIT 50
 	`
-	rows, err := r.db.QueryContext(ctx, dbQuery, roomID, "%"+query+"%")
+	
+	escapedQuery := strings.ReplaceAll(query, "\\", "\\\\")
+	escapedQuery = strings.ReplaceAll(escapedQuery, "%", "\\%")
+	escapedQuery = strings.ReplaceAll(escapedQuery, "_", "\\_")
+
+	rows, err := r.db.QueryContext(ctx, dbQuery, roomID, "%"+escapedQuery+"%")
 	if err != nil {
 		return nil, err
 	}

@@ -8,11 +8,12 @@ import { ApiService } from '../../../../core/services/api.service';
 import { Subscription } from 'rxjs';
 import { RoomUiStateService } from '../../room-ui-state.service';
 import { PlayerEngineService } from '../player-engine/player-engine.service';
+import { MarkdownPipe } from '../../../../shared/pipes/markdown.pipe';
 
 @Component({
   selector: 'app-room-chat',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, MarkdownPipe],
   templateUrl: './chat.component.html',
   styleUrl: './chat.component.css'
 })
@@ -34,6 +35,8 @@ export class ChatComponent implements OnInit, OnDestroy {
   public messageContent = '';
   public pinnedMessageContent = '';
   public isPinnedBannerVisible = false;
+  public replyingTo: ChatMessage | null = null;
+  public activeReactMsgId: string | null = null;
 
   private subs: Subscription[] = [];
 
@@ -42,13 +45,39 @@ export class ChatComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     // 1. Subscribe message received
     this.subs.push(
-      this.chatWs.messageReceived$.subscribe((msg) => {
+      this.chatWs.messageReceived$.subscribe((msg: any) => {
         this.enrichMessage(msg);
+
+        // Handle optimistic UI matching
+        if (msg.client_id) {
+          const idx = this.messages.findIndex(m => m.id === msg.client_id);
+          if (idx !== -1) {
+            this.messages[idx].id = msg.id;
+            this.messages[idx].status = 'sent';
+            this.messages[idx].created_at = msg.created_at;
+            this.messages[idx].reply_to = msg.reply_to_id;
+            setTimeout(() => this.scrollToBottom(), 50);
+            return;
+          }
+        }
+
         this.messages.push(msg);
         if (!this.uiState.uiState.isChatOpen) {
           this.uiState.markUnread(1);
         }
         setTimeout(() => this.scrollToBottom(), 50);
+      })
+    );
+
+    // 1b. Subscribe message error
+    this.subs.push(
+      this.chatWs.messageError$.subscribe((err) => {
+        // Find any 'sending' message and mark as error
+        const idx = this.messages.findIndex(m => m.status === 'sending');
+        if (idx !== -1) {
+          this.messages[idx].status = 'error';
+        }
+        this.toast.error('Lỗi gửi tin: ' + (err.message || 'Unknown'));
       })
     );
 
@@ -75,6 +104,35 @@ export class ChatComponent implements OnInit, OnDestroy {
       })
     );
 
+    // 4. Subscribe live reactions
+    this.subs.push(
+      this.chatWs.liveReaction$.subscribe((reactMsg: any) => {
+        if (reactMsg.message_id && reactMsg.action) {
+          const m = this.messages.find(msg => msg.id === reactMsg.message_id);
+          if (m) {
+            if (!m.reactions) m.reactions = [];
+            const existing = m.reactions.find(r => r.emoji === reactMsg.emoji);
+            if (reactMsg.action === 'add') {
+              if (existing) {
+                if (!existing.users.includes(reactMsg.user_id)) {
+                  existing.users.push(reactMsg.user_id);
+                }
+              } else {
+                m.reactions.push({ emoji: reactMsg.emoji, users: [reactMsg.user_id] });
+              }
+            } else if (reactMsg.action === 'remove') {
+              if (existing) {
+                existing.users = existing.users.filter((u: string) => u !== reactMsg.user_id);
+                if (existing.users.length === 0) {
+                  m.reactions = m.reactions.filter(r => r.emoji !== reactMsg.emoji);
+                }
+              }
+            }
+          }
+        }
+      })
+    );
+
     // Initial placeholder message
     this.messages.push({
       id: 'system-connected',
@@ -97,8 +155,77 @@ export class ChatComponent implements OnInit, OnDestroy {
     const content = this.messageContent.trim();
     if (!content) return;
 
-    this.chatWs.sendMessage(content);
+    const clientId = 'temp_' + Math.random().toString(36).substring(2, 11);
+    const currentUser = this.state.user$.value;
+
+    this.messages.push({
+      id: clientId,
+      sender: {
+        id: currentUser?.id || 'unknown',
+        username: currentUser?.username || 'unknown',
+        display_name: currentUser?.display_name || 'Tôi',
+        avatar_url: currentUser?.avatar_url || ''
+      },
+      content: content,
+      reply_to: this.replyingTo ? this.replyingTo.id : null,
+      created_at: new Date().toISOString(),
+      status: 'sending'
+    });
+    setTimeout(() => this.scrollToBottom(), 50);
+
+    this.chatWs.sendMessage(content, this.replyingTo ? this.replyingTo.id : null, clientId);
     this.messageContent = '';
+    this.replyingTo = null;
+  }
+
+  public cancelReply(): void {
+    this.replyingTo = null;
+  }
+
+  public getReplyMessage(replyToId: string): ChatMessage | undefined {
+    return this.messages.find(m => m.id === replyToId);
+  }
+
+  public scrollToMessage(msgId: string): void {
+    const el = document.getElementById('msg-' + msgId);
+    if (el && this.messagesContainer) {
+      this.messagesContainer.nativeElement.scrollTo({
+        top: el.offsetTop - this.messagesContainer.nativeElement.offsetTop - 10,
+        behavior: 'smooth'
+      });
+      el.classList.add('highlight-flash');
+      setTimeout(() => el.classList.remove('highlight-flash'), 2000);
+    }
+  }
+
+  public toggleReactMenu(msgId: string): void {
+    this.activeReactMsgId = this.activeReactMsgId === msgId ? null : msgId;
+  }
+
+  public reactToMessage(msgId: string, emoji: string): void {
+    // Check if user already reacted
+    const msg = this.messages.find(m => m.id === msgId);
+    let action: 'add' | 'remove' = 'add';
+    const userId = this.state.user$.value?.id;
+    if (msg && msg.reactions && userId) {
+      const existing = msg.reactions.find(r => r.emoji === emoji);
+      if (existing && existing.users.includes(userId)) {
+        action = 'remove';
+      }
+    }
+    
+    this.chatWs.sendReaction(msgId, emoji, action);
+    this.activeReactMsgId = null;
+  }
+
+  public deleteMessage(msgId: string): void {
+    if (confirm('Bạn có chắc muốn thu hồi tin nhắn này?')) {
+      this.chatWs.deleteMessage(msgId);
+    }
+  }
+
+  public pinMessage(msgId: string): void {
+    this.chatWs.pinMessage(msgId);
   }
 
   private scrollToBottom(): void {

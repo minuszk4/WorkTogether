@@ -564,10 +564,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   private errorMessage(error: any): string {
     const rawMessage = String(error?.message || 'Server error');
-    return rawMessage
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/\s+/g, ' ')
-      .trim();
+    return rawMessage.trim();
   }
 }

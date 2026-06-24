@@ -2,6 +2,9 @@ import { Component, Input, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Subscription } from 'rxjs';
 import { ChatWsService } from '../../../../core/services/websocket/chat-ws.service';
+import { ApiService } from '../../../../core/services/api.service';
+import { StateService } from '../../../../core/services/state.service';
+import { ToastService } from '../../../../shared/services/toast.service';
 
 export interface PillParticipant {
   sid: string;
@@ -20,7 +23,7 @@ export interface PillParticipant {
   standalone: true,
   imports: [CommonModule],
   template: `
-    <div class="voice-pill" [class.speaking]="p.isSpeaking" [class.muted]="p.isMuted" [class.react-bounce]="isReacting">
+    <div class="voice-pill" [class.speaking]="p.isSpeaking" [class.muted]="p.isMuted" [class.react-bounce]="isReacting" (click)="toggleMenu($event)">
       <div class="vp-avatar">
         @if (p.avatar_url) {
           <img [src]="p.avatar_url" [alt]="p.display_name">
@@ -54,6 +57,23 @@ export interface PillParticipant {
       @if (p.isMuted) {
         <svg class="vp-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Đã tắt mic"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/></svg>
       }
+
+      @if (menuOpen) {
+        <div class="vp-menu" (click)="$event.stopPropagation()">
+          @if (isHost && !p.isCurrentUser) {
+            <button class="vp-menu-item" (click)="assignDj()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+              Gán quyền Guest DJ
+            </button>
+            <button class="vp-menu-item danger" (click)="revokeDj()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"></path></svg>
+              Thu hồi Guest DJ
+            </button>
+          } @else {
+            <div class="vp-menu-item disabled">Không có hành động</div>
+          }
+        </div>
+      }
     </div>
   `,
   styles: [`
@@ -73,6 +93,12 @@ export interface PillParticipant {
     .vp-floaters-container { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
     .vp-floater { position: absolute; left: 50%; top: 50%; font-size: 16px; transform: translate(-50%, -50%); animation: float-up 1.5s ease-out forwards; }
     @keyframes float-up { 0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; } 20% { opacity: 1; } 100% { transform: translate(-50%, -60px) scale(1.2); opacity: 0; } }
+    .vp-menu { position: absolute; top: 100%; left: 0; margin-top: 8px; background: var(--bg-elevated); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); padding: 4px; z-index: 50; display: flex; flex-direction: column; min-width: 180px; }
+    .vp-menu-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border: none; background: transparent; color: var(--text-primary); cursor: pointer; border-radius: 4px; text-align: left; font-size: 13px; }
+    .vp-menu-item:hover:not(.disabled) { background: var(--bg-hover); }
+    .vp-menu-item.danger { color: var(--danger); }
+    .vp-menu-item.disabled { opacity: 0.5; cursor: default; }
+    .vp-menu-item svg { width: 14px; height: 14px; }
     @media (prefers-reduced-motion: reduce) {
       .vp-ring { animation: none; }
       .voice-pill.react-bounce { animation: none; }
@@ -85,14 +111,23 @@ export class VoicePillComponent implements OnInit, OnDestroy {
   @Input({ required: true }) p!: PillParticipant;
   
   private chatWs = inject(ChatWsService);
+  private api = inject(ApiService);
+  private state = inject(StateService);
+  private toast = inject(ToastService);
   private sub: Subscription | null = null;
+  private clickOutSub: () => void = () => {};
 
   public isReacting = false;
+  public menuOpen = false;
   public floaters: { id: number; emoji: string }[] = [];
   private floaterId = 0;
 
   get initials(): string {
     return (this.p?.display_name || 'WT').slice(0, 2).toUpperCase();
+  }
+
+  get isHost(): boolean {
+    return this.state.roomMemberRole$.value === 'OWNER';
   }
 
   ngOnInit(): void {
@@ -101,10 +136,42 @@ export class VoicePillComponent implements OnInit, OnDestroy {
         this.triggerReaction(rx.emoji);
       }
     });
+    this.clickOutSub = () => { if (this.menuOpen) this.menuOpen = false; };
+    window.addEventListener('click', this.clickOutSub);
   }
 
   ngOnDestroy(): void {
     if (this.sub) this.sub.unsubscribe();
+    window.removeEventListener('click', this.clickOutSub);
+  }
+
+  public toggleMenu(event: MouseEvent): void {
+    event.stopPropagation();
+    if (this.isHost && !this.p.isCurrentUser) {
+      this.menuOpen = !this.menuOpen;
+    }
+  }
+
+  public assignDj(): void {
+    this.menuOpen = false;
+    const roomId = this.state.activeRoom$.value?.id;
+    if (!roomId || !this.p.identity) return;
+    
+    this.api.playback.assignGuestDj(roomId, this.p.identity).subscribe({
+      next: () => this.toast.success(`Ä Ã£ gÃ¡n quyá» n DJ cho ${this.p.display_name}`),
+      error: (err) => this.toast.error('Lá»—i: ' + (err.error?.error?.message || err.message))
+    });
+  }
+
+  public revokeDj(): void {
+    this.menuOpen = false;
+    const roomId = this.state.activeRoom$.value?.id;
+    if (!roomId) return;
+
+    this.api.playback.revokeGuestDj(roomId).subscribe({
+      next: () => this.toast.success(`Ä Ã£ thu há»“i quyá» n DJ cá»§a ${this.p.display_name}`),
+      error: (err) => this.toast.error('Lá»—i: ' + (err.error?.error?.message || err.message))
+    });
   }
 
   public triggerReaction(emoji: string): void {

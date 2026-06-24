@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/worktogether/pkg/env"
 	"github.com/worktogether/services/notification-service/internal/domain"
 	"github.com/worktogether/services/notification-service/internal/usecase"
 )
@@ -25,6 +27,24 @@ func NewNotificationHandler(u *usecase.NotificationUsecase, jwtSecret string) *N
 }
 
 func (h *NotificationHandler) ServeSSE(c *gin.Context) {
+	origin := c.Request.Header.Get("Origin")
+	if origin != "" {
+		allowedOrigins := env.GetEnv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:4200")
+		allowed := false
+		for _, o := range strings.Split(allowedOrigins, ",") {
+			if origin == o {
+				allowed = true
+				break
+			}
+		}
+		if !allowed {
+			c.JSON(http.StatusForbidden, gin.H{"error": "CORS Origin không hợp lệ"})
+			return
+		}
+		c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+	}
+
 	tokenStr := c.Query("token")
 	if tokenStr == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Thiếu token xác thực"})

@@ -19,7 +19,7 @@
   <!-- Chat messages area -->
   <div class="chat-messages flex-1" #messagesContainer>
     @for (msg of messages; track msg.id) {
-      <div class="chat-msg-card" [id]="'msg-' + msg.id">
+      <div class="chat-msg-card" [id]="'msg-' + msg.id" [ngClass]="{'msg-sending': msg.status === 'sending', 'msg-error': msg.status === 'error'}">
         <div class="chat-msg-avatar">
           @if (msg.sender?.avatar_url) {
             <img [src]="msg.sender?.avatar_url" alt="Avatar">
@@ -34,15 +34,63 @@
             <span class="chat-msg-sender">{{ msg.sender?.display_name || msg.sender?.username || 'Thành viên' }}</span>
             <span class="chat-msg-time">{{ formatTime(msg.created_at) }}</span>
           </div>
+          @if (msg.reply_to) {
+            <div class="chat-msg-reply-quote" (click)="scrollToMessage(msg.reply_to)">
+              <div class="reply-quote-line"></div>
+              @if (getReplyMessage(msg.reply_to); as rm) {
+                <span class="reply-quote-name">{{ rm.sender?.display_name || rm.sender?.username }}</span>
+                <span class="reply-quote-text">{{ rm.content | slice:0:40 }}{{ rm.content.length > 40 ? '...' : '' }}</span>
+              } @else {
+                <span class="reply-quote-text italic">Tin nhắn đã bị thu hồi hoặc không tồn tại.</span>
+              }
+            </div>
+          }
           <div class="chat-msg-bubble">
             @for (seg of getMessageSegments(msg.content); track $index) {
               @if (seg.type === 'link') {
                 <button class="chat-seek-btn" (click)="onTimestampClick(seg.timeMs!)">{{ seg.value }}</button>
               } @else {
-                <span>{{ seg.value }}</span>
+                <span [innerHTML]="seg.value | markdown"></span>
               }
             }
           </div>
+          
+          @if (msg.reactions && msg.reactions.length > 0) {
+            <div class="chat-msg-reactions">
+              @for (r of msg.reactions; track r.emoji) {
+                <button type="button" class="reaction-badge" [class.active]="r.users.includes(state.user$.value?.id || '')" (click)="reactToMessage(msg.id, r.emoji)">
+                  {{ r.emoji }} <span>{{ r.users.length }}</span>
+                </button>
+              }
+            </div>
+          }
+        </div>
+
+        <div class="chat-msg-actions">
+          <button (click)="replyingTo = msg" title="Trả lời" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
+          </button>
+          <button (click)="toggleReactMenu(msg.id)" title="Thả tim" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+          </button>
+          <button (click)="pinMessage(msg.id)" title="Ghim" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+          </button>
+          @if (msg.sender?.id === state.user$.value?.id) {
+            <button (click)="deleteMessage(msg.id)" title="Thu hồi" type="button" class="delete-action-btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+            </button>
+          }
+          
+          @if (activeReactMsgId === msg.id) {
+            <div class="chat-reaction-picker">
+              <button type="button" (click)="reactToMessage(msg.id, '👍')">👍</button>
+              <button type="button" (click)="reactToMessage(msg.id, '❤️')">❤️</button>
+              <button type="button" (click)="reactToMessage(msg.id, '😂')">😂</button>
+              <button type="button" (click)="reactToMessage(msg.id, '😢')">😢</button>
+              <button type="button" (click)="reactToMessage(msg.id, '🎉')">🎉</button>
+            </div>
+          }
         </div>
       </div>
     }
@@ -50,6 +98,15 @@
 
   <!-- Chat input -->
   <div class="chat-input-area">
+    @if (replyingTo) {
+      <div class="chat-reply-banner">
+        <div class="reply-banner-content">
+          <span class="reply-to-name">Trả lời {{ replyingTo.sender?.display_name || replyingTo.sender?.username }}:</span>
+          <span class="reply-to-text">{{ replyingTo.content | slice:0:50 }}{{ replyingTo.content.length > 50 ? '...' : '' }}</span>
+        </div>
+        <button (click)="cancelReply()" class="cancel-reply-btn" type="button">×</button>
+      </div>
+    }
     <form (submit)="onSendSubmit($event)" class="chat-input-wrapper">
       <input type="text" [(ngModel)]="messageContent" name="messageContent" class="chat-text-input" placeholder="Nhập tin nhắn..." autocomplete="off">
       <button type="submit" style="display:none;"></button>

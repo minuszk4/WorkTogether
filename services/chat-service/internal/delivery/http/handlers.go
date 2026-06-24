@@ -3,12 +3,17 @@ package http
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/websocket"
+	"github.com/worktogether/pkg/env"
 	roomv1 "github.com/worktogether/services/chat-service/api/v1"
 	"github.com/worktogether/services/chat-service/internal/domain"
 	"github.com/worktogether/services/chat-service/internal/usecase"
@@ -18,7 +23,17 @@ var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
-		return true // CORS được quản lý bởi Gateway Nginx
+		origin := r.Header.Get("Origin")
+		allowedOrigins := env.GetEnv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:4200")
+		if origin == "" {
+			return true
+		}
+		for _, o := range strings.Split(allowedOrigins, ",") {
+			if origin == o {
+				return true
+			}
+		}
+		return false
 	},
 }
 
@@ -39,12 +54,55 @@ func NewChatHandler(uc *usecase.ChatUsecase, hub *Hub, rc roomv1.RoomInternalSer
 // 1. WebSocket Handler
 func (h *ChatHandler) HandleWS(c *gin.Context) {
 	roomID := c.Param("id")
-	userIDVal, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Thiếu thông tin đăng nhập"})
+
+	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
+		log.Printf("[WS ERR] Lỗi upgrade socket: %v\n", err)
 		return
 	}
-	userID := userIDVal.(string)
+
+	// Đợi tin nhắn auth đầu tiên (timeout 5s)
+	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	var authMsg struct {
+		Event string `json:"event"`
+		Token string `json:"token"`
+	}
+	err = conn.ReadJSON(&authMsg)
+	if err != nil || authMsg.Event != "auth" || authMsg.Token == "" {
+		conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, "Thiếu token xác thực"))
+		conn.Close()
+		return
+	}
+	conn.SetReadDeadline(time.Time{})
+
+	// Validate token
+	jwtSecret := os.Getenv("JWT_SECRET")
+	token, err := jwt.Parse(authMsg.Token, func(t *jwt.Token) (interface{}, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method")
+		}
+		return []byte(jwtSecret), nil
+	})
+
+	if err != nil || !token.Valid {
+		conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, "Token không hợp lệ"))
+		conn.Close()
+		return
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok || claims["type"] != "access_token" {
+		conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, "Loại token không hợp lệ"))
+		conn.Close()
+		return
+	}
+
+	userID, ok := claims["sub"].(string)
+	if !ok {
+		conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, "Token không chứa userID"))
+		conn.Close()
+		return
+	}
 
 	// Call gRPC room-service để xác thực quyền thành viên
 	res, err := h.roomClient.VerifyRoomMember(context.Background(), &roomv1.VerifyRoomMemberRequest{
@@ -53,13 +111,8 @@ func (h *ChatHandler) HandleWS(c *gin.Context) {
 	})
 	if err != nil || res == nil || !res.IsMember {
 		log.Printf("[WS ERR] Từ chối kết nối WS: User %s không phải thành viên Room %s (Err: %v)\n", userID, roomID, err)
-		c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "Bạn không phải thành viên của phòng này."})
-		return
-	}
-
-	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
-	if err != nil {
-		log.Printf("[WS ERR] Lỗi upgrade socket: %v\n", err)
+		conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, "Bạn không phải thành viên của phòng này."))
+		conn.Close()
 		return
 	}
 
@@ -169,7 +222,7 @@ func (h *ChatHandler) SearchMessages(c *gin.Context) {
 		})
 		return
 	}
-	list, err := h.usecase.SearchMessages(c.Request.Context(), roomID, query)
+	list, err := h.usecase.SearchMessages(c.Request.Context(), userID, roomID, query)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -281,6 +334,7 @@ func (c *Client) readPump(uc *usecase.ChatUsecase, canModerate bool) {
 					RoomID: c.RoomID,
 					Payload: gin.H{
 						"id":          msg.ID,
+						"client_id":   payload.ClientID,
 						"sender_id":   msg.SenderID,
 						"content":     msg.Content,
 						"reply_to_id": msg.ReplyToID,
@@ -290,6 +344,8 @@ func (c *Client) readPump(uc *usecase.ChatUsecase, canModerate bool) {
 				}
 				data, _ := json.Marshal(broadcastMsg)
 				c.Hub.BroadcastToRoom(c.RoomID, data)
+			} else if err != nil {
+				c.sendError(err)
 			}
 
 		case "chat:typing":
@@ -337,6 +393,8 @@ func (c *Client) readPump(uc *usecase.ChatUsecase, canModerate bool) {
 				}
 				data, _ := json.Marshal(broadcastMsg)
 				c.Hub.BroadcastToRoom(c.RoomID, data)
+			} else {
+				c.sendError(err)
 			}
 
 		case "chat:edit_message":
@@ -359,6 +417,8 @@ func (c *Client) readPump(uc *usecase.ChatUsecase, canModerate bool) {
 				}
 				data, _ := json.Marshal(broadcastMsg)
 				c.Hub.BroadcastToRoom(c.RoomID, data)
+			} else if err != nil {
+				c.sendError(err)
 			}
 
 		case "chat:delete_message":
@@ -378,6 +438,8 @@ func (c *Client) readPump(uc *usecase.ChatUsecase, canModerate bool) {
 				}
 				data, _ := json.Marshal(broadcastMsg)
 				c.Hub.BroadcastToRoom(c.RoomID, data)
+			} else {
+				c.sendError(err)
 			}
 
 		case "chat:pin_message":
@@ -398,6 +460,8 @@ func (c *Client) readPump(uc *usecase.ChatUsecase, canModerate bool) {
 				}
 				data, _ := json.Marshal(broadcastMsg)
 				c.Hub.BroadcastToRoom(c.RoomID, data)
+			} else if err != nil {
+				c.sendError(err)
 			}
 
 		case "chat:unpin_message":
@@ -417,8 +481,26 @@ func (c *Client) readPump(uc *usecase.ChatUsecase, canModerate bool) {
 				}
 				data, _ := json.Marshal(broadcastMsg)
 				c.Hub.BroadcastToRoom(c.RoomID, data)
+			} else {
+				c.sendError(err)
 			}
 		}
+	}
+}
+
+func (c *Client) sendError(err error) {
+	errorEvent := domain.WSMessage{
+		Event:  "chat:error",
+		RoomID: c.RoomID,
+		Payload: gin.H{
+			"message": err.Error(),
+			"code":    400,
+		},
+	}
+	errorBytes, _ := json.Marshal(errorEvent)
+	select {
+	case c.Send <- errorBytes:
+	default:
 	}
 }
 

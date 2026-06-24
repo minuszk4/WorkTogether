@@ -1,12 +1,14 @@
 package http
 
 import (
+	"context"
 	"encoding/json"
 	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	"github.com/redis/go-redis/v9"
 	"github.com/worktogether/services/chat-service/internal/domain"
 )
 
@@ -36,12 +38,14 @@ type Hub struct {
 	sync.RWMutex
 	Rooms         map[string]map[*Client]bool
 	RoomPresences map[string]*RoomPresence
+	RedisClient   *redis.Client
 }
 
-func NewHub() *Hub {
+func NewHub(rdb *redis.Client) *Hub {
 	return &Hub{
 		Rooms:         make(map[string]map[*Client]bool),
 		RoomPresences: make(map[string]*RoomPresence),
+		RedisClient:   rdb,
 	}
 }
 
@@ -64,12 +68,20 @@ func (h *Hub) Unregister(c *Client) {
 			c.Conn.Close()
 			if len(h.Rooms[c.RoomID]) == 0 {
 				delete(h.Rooms, c.RoomID)
+				// Fix B3: Cleanup RoomPresences to prevent memory leak
+				delete(h.RoomPresences, c.RoomID)
 			}
 		}
 	}
 }
 
 func (h *Hub) BroadcastToRoom(roomID string, message []byte) {
+	ctx := context.Background()
+	// Parse event type to use correct channel if needed, or default to ch:chat
+	h.RedisClient.Publish(ctx, "ch:chat:"+roomID, message)
+}
+
+func (h *Hub) localBroadcastToRoom(roomID string, message []byte) {
 	h.RLock()
 	defer h.RUnlock()
 	if clients, ok := h.Rooms[roomID]; ok {
@@ -81,6 +93,27 @@ func (h *Hub) BroadcastToRoom(roomID string, message []byte) {
 			}
 		}
 	}
+}
+
+func (h *Hub) StartRedisSubscriber() {
+	pubsub := h.RedisClient.PSubscribe(context.Background(), "ch:chat:*", "ch:presence:*", "ch:reaction:*", "ch:vibe:*")
+	go func() {
+		for msg := range pubsub.Channel() {
+			// e.g. ch:chat:room123
+			// Extract roomID
+			roomID := ""
+			// Find last colon
+			for i := len(msg.Channel) - 1; i >= 0; i-- {
+				if msg.Channel[i] == ':' {
+					roomID = msg.Channel[i+1:]
+					break
+				}
+			}
+			if roomID != "" {
+				h.localBroadcastToRoom(roomID, []byte(msg.Payload))
+			}
+		}
+	}()
 }
 
 func (h *Hub) UpdateClientPresence(roomID string, userID string, isPlaying bool, positionMs int) {
@@ -148,7 +181,21 @@ func (h *Hub) StartVibeTicker() {
 	go func() {
 		for range ticker.C {
 			h.Lock()
-			for roomID, presence := range h.RoomPresences {
+			activeRooms := make([]string, 0, len(h.RoomPresences))
+			for roomID := range h.RoomPresences {
+				activeRooms = append(activeRooms, roomID)
+			}
+			h.Unlock()
+
+			for _, roomID := range activeRooms {
+				h.Lock()
+				presence, exists := h.RoomPresences[roomID]
+				h.Unlock()
+
+				if !exists {
+					continue
+				}
+
 				presence.Lock()
 				
 				currentVibe, scores := h.determineVibe(presence.RecentReactions)
@@ -173,7 +220,6 @@ func (h *Hub) StartVibeTicker() {
 
 				go h.BroadcastToRoom(roomID, data)
 			}
-			h.Unlock()
 		}
 	}()
 }

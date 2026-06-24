@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import { Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { map, shareReplay } from 'rxjs/operators';
 
 export interface ApiResponse<T = any> {
   success: boolean;
@@ -18,6 +18,7 @@ export interface ApiResponse<T = any> {
 })
 export class ApiService {
   private apiBase = environment.apiUrl;
+  private profileCache = new Map<string, Observable<any>>();
 
   private jsonHeaders = new HttpHeaders({ 'Content-Type': 'application/json' });
   private httpOptions = { headers: this.jsonHeaders, withCredentials: true };
@@ -78,8 +79,17 @@ export class ApiService {
 
   // ─── User & Profile APIs ──────────────────────────────────────────
   public user = {
-    getProfile: (userId: string): Observable<any> =>
-      this.get<any>(`/users/${userId}/profile`),
+    getProfile: (userId: string): Observable<any> => {
+      if (!this.profileCache.has(userId)) {
+        const obs = this.get<any>(`/users/${userId}/profile`).pipe(shareReplay(1));
+        this.profileCache.set(userId, obs);
+      }
+      return this.profileCache.get(userId)!;
+    },
+
+    clearProfileCache: (userId: string) => {
+      this.profileCache.delete(userId);
+    },
 
     updateProfile: (displayName: string, bio: string, avatarUrl = ''): Observable<any> =>
       this.put<any>('/users/profile', { display_name: displayName, bio, avatar_url: avatarUrl }),

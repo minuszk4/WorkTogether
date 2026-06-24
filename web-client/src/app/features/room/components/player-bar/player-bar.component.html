@@ -33,36 +33,44 @@
   <div class="pb-right">
     <app-room-volume-control [volumePct]="volumePct" (volume)="onVolume($event)"></app-room-volume-control>
     
-    <app-icon-button [label]="timerOpen ? 'Đóng Pomodoro' : 'Pomodoro Timer'" [variant]="timerOpen ? 'active' : 'default'" (clicked)="toggleTimer()">
+    <app-icon-button [label]="uiState.uiState.isLyricsOpen ? 'Đóng lời bài hát' : 'Lời bài hát'" [variant]="uiState.uiState.isLyricsOpen ? 'active' : 'default'" (clicked)="toggleLyrics()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+    </app-icon-button>
+
+    <app-icon-button [label]="uiState.uiState.isBookmarksOpen ? 'Đóng thẻ ghi nhớ' : 'Thẻ ghi nhớ'" [variant]="uiState.uiState.isBookmarksOpen ? 'active' : 'default'" (clicked)="toggleBookmarks()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
+    </app-icon-button>
+
+    <app-icon-button [label]="uiState.uiState.isTimerOpen ? 'Đóng Pomodoro' : 'Pomodoro Timer'" [variant]="uiState.uiState.isTimerOpen ? 'active' : 'default'" (clicked)="toggleTimer()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
     </app-icon-button>
 
-    <app-icon-button [label]="notesOpen ? 'Đóng ghi chú' : 'Ghi chú nhóm'" [variant]="notesOpen ? 'active' : 'default'" (clicked)="toggleNotes()">
+    <app-icon-button [label]="uiState.uiState.isNotesOpen ? 'Đóng ghi chú' : 'Ghi chú nhóm'" [variant]="uiState.uiState.isNotesOpen ? 'active' : 'default'" (clicked)="toggleNotes()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
     </app-icon-button>
 
-    <app-icon-button [label]="subroomsOpen ? 'Đóng phòng con' : 'Phòng breakout'" [variant]="subroomsOpen ? 'active' : 'default'" (clicked)="toggleSubrooms()">
+    <app-icon-button [label]="uiState.uiState.isSubroomsOpen ? 'Đóng phòng con' : 'Phòng breakout'" [variant]="uiState.uiState.isSubroomsOpen ? 'active' : 'default'" (clicked)="toggleSubrooms()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
     </app-icon-button>
 
-    <app-icon-button [label]="queueOpen ? 'Ẩn hàng đợi' : 'Mở hàng đợi'" [variant]="queueOpen ? 'active' : 'default'" (clicked)="toggleQueue()">
+    <app-icon-button [label]="uiState.uiState.isQueueOpen ? 'Ẩn hàng đợi' : 'Mở hàng đợi'" [variant]="uiState.uiState.isQueueOpen ? 'active' : 'default'" (clicked)="toggleQueue()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
     </app-icon-button>
 
-    <app-icon-button [label]="statsOpen ? 'Đóng thống kê' : 'Thống kê phòng'" [variant]="statsOpen ? 'active' : 'default'" (clicked)="toggleStats()">
+    <app-icon-button [label]="uiState.uiState.isStatsOpen ? 'Đóng thống kê' : 'Thống kê phòng'" [variant]="uiState.uiState.isStatsOpen ? 'active' : 'default'" (clicked)="toggleStats()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
     </app-icon-button>
 
-    <app-icon-button [label]="identityOpen ? 'Đóng cấu hình phòng' : 'Bản sắc phòng'" [variant]="identityOpen ? 'active' : 'default'" (clicked)="toggleIdentity()">
+    <app-icon-button [label]="uiState.uiState.isIdentityOpen ? 'Đóng cấu hình phòng' : 'Bản sắc phòng'" [variant]="uiState.uiState.isIdentityOpen ? 'active' : 'default'" (clicked)="toggleIdentity()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
     </app-icon-button>
 
     <div class="chat-toggle-container">
-      <app-icon-button [label]="chatOpen ? 'Đóng chat' : 'Mở chat'" [variant]="chatOpen ? 'active' : 'default'" (clicked)="toggleChat()">
+      <app-icon-button [label]="uiState.uiState.isChatOpen ? 'Đóng chat' : 'Mở chat'" [variant]="uiState.uiState.isChatOpen ? 'active' : 'default'" (clicked)="toggleChat()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
       </app-icon-button>
-      @if (unreadCount > 0 && !chatOpen) {
-        <span class="unread-badge">{{ unreadCount }}</span>
+      @if (uiState.uiState.unreadCount > 0 && !uiState.uiState.isChatOpen) {
+        <span class="unread-badge">{{ uiState.uiState.unreadCount }}</span>
       }
     </div>
   </div>

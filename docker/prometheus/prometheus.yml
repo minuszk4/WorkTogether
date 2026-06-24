@@ -1,0 +1,15 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'worktogether_services'
+    static_configs:
+      - targets:
+        - 'auth-service:8081'
+        - 'user-service:8082'
+        - 'room-service:8083'
+        - 'chat-service:8084'
+        - 'collab-service:8094'
+        - 'music-service:8085'
+        - 'notification-service:8092'
+        - 'playlist-service:8086'
