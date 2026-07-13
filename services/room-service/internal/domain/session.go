@@ -59,3 +59,12 @@ type PersonalActionItem struct {
 	RoomName     string `json:"room_name"`
 	SessionTitle string `json:"session_title"`
 }
+
+type SessionRecap struct {
+	RoomSession
+	RoomName     string `json:"room_name"`
+	AgendaTotal  int    `json:"agenda_total"`
+	AgendaDone   int    `json:"agenda_done"`
+	ActionsTotal int    `json:"actions_total"`
+	ActionsDone  int    `json:"actions_done"`
+}

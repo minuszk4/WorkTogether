@@ -54,6 +54,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
   public pendingFriendRequests: any[] = [];
   public actionItems: any[] = [];
   public isActionItemsLoading = true;
+  public sessionRecaps: any[] = [];
+  public isSessionRecapsLoading = true;
+  public selectedSessionRecap: any | null = null;
+  public isSessionRecapLoading = false;
 
   ngOnInit(): void {
     const user = this.state.user;
@@ -126,6 +130,31 @@ export class DashboardComponent implements OnInit, OnDestroy {
       item.status = status;
     } catch (error: any) {
       this.toast.error('Khong the cap nhat action item: ' + this.errorMessage(error));
+    }
+  }
+
+  public async loadSessionRecaps(): Promise<void> {
+    this.isSessionRecapsLoading = true;
+    try {
+      this.sessionRecaps = await firstValueFrom(this.api.room.listMySessionRecaps());
+    } catch (error: any) {
+      this.toast.error('Khong the tai session da hoan tat: ' + this.errorMessage(error));
+    } finally {
+      this.isSessionRecapsLoading = false;
+    }
+  }
+
+  public async openSessionRecap(recap: any): Promise<void> {
+    this.isSessionRecapLoading = true;
+    this.selectedSessionRecap = { ...recap, workspace: null };
+    try {
+      const workspace = await firstValueFrom(this.api.room.getSessionWorkspace(recap.room_id, recap.id));
+      this.selectedSessionRecap = { ...recap, workspace };
+    } catch (error: any) {
+      this.selectedSessionRecap = null;
+      this.toast.error('Khong the tai recap: ' + this.errorMessage(error));
+    } finally {
+      this.isSessionRecapLoading = false;
     }
   }
 
@@ -455,7 +484,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.loadFriends(),
       this.loadPendingFriendRequests(),
       this.loadNotifications(),
-      this.loadActionItems()
+      this.loadActionItems(),
+      this.loadSessionRecaps()
     ]);
 
     this.connectNotificationStream();

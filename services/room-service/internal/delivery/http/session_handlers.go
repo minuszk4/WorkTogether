@@ -28,6 +28,16 @@ func (h *RoomHandler) GetPersonalActionItems(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": items, "error": nil})
 }
 
+func (h *RoomHandler) GetMySessionRecaps(c *gin.Context) {
+	userID, _ := c.Get("userID")
+	recaps, err := h.usecase.GetMySessionRecaps(c.Request.Context(), userID.(string))
+	if err != nil {
+		h.writeSessionError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": recaps, "error": nil})
+}
+
 func (h *RoomHandler) StartSession(c *gin.Context) {
 	userID, _ := c.Get("userID")
 	var req struct {

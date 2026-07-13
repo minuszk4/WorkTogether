@@ -208,6 +208,10 @@ func (u *RoomUsecase) GetPersonalActionItems(ctx context.Context, userID string)
 	return u.repo.ListPersonalActionItems(ctx, userID)
 }
 
+func (u *RoomUsecase) GetMySessionRecaps(ctx context.Context, userID string) ([]*domain.SessionRecap, error) {
+	return u.repo.ListSessionRecaps(ctx, userID)
+}
+
 func (u *RoomUsecase) requireHost(ctx context.Context, userID, roomID string) error {
 	member, err := u.repo.GetMember(ctx, roomID, userID)
 	if err != nil {

@@ -580,6 +580,40 @@
 .dashboard-action-item.done .dashboard-action-content { color: var(--text-muted); text-decoration: line-through; }
 .dashboard-action-context { color: var(--text-secondary); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+.session-recaps-section {
+  margin-bottom: 20px;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: rgba(12, 15, 24, 0.82);
+}
+.session-recaps-list { display: grid; gap: 8px; margin-top: 14px; }
+.session-recap-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 12px;
+  width: 100%;
+  padding: 11px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+.session-recap-item:hover { border-color: rgba(83, 120, 255, 0.35); background: rgba(83, 120, 255, 0.08); }
+.session-recap-title { font-size: 13px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.session-recap-context, .session-recap-progress { color: var(--text-secondary); font-size: 11px; }
+.session-recap-progress { grid-column: 2; grid-row: 1 / span 2; align-self: center; text-align: right; }
+
+.session-recap-modal { width: min(760px, calc(100vw - 32px)); max-height: min(680px, calc(100dvh - 32px)); overflow: auto; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; background: #111522; color: var(--text-primary); }
+.recap-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; padding: 18px; }
+.recap-grid h4 { margin: 0 0 10px; font-size: 12px; }
+.recap-grid p { margin: 0 0 8px; color: var(--text-secondary); font-size: 12px; line-height: 1.4; }
+.recap-grid .recap-done { color: var(--text-muted); text-decoration: line-through; }
+.recap-timeline p { display: flex; justify-content: space-between; gap: 8px; }
+.recap-timeline span { color: var(--text-muted); white-space: nowrap; }
+
 .rooms-section {
   display: flex;
   flex-direction: column;

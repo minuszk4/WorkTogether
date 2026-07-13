@@ -71,3 +71,30 @@ func TestStartSessionRejectsMember(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestGetMySessionRecapsReturnsOnlyMemberSessions(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	uc := NewRoomUsecase(repository.NewPostgresRepository(db), nil)
+	now := time.Now()
+	mock.ExpectQuery("FROM room_sessions s").
+		WithArgs("user-1").
+		WillReturnRows(sqlmock.NewRows([]string{
+			"id", "room_id", "room_name", "title", "goal", "template_key", "status", "started_at", "ended_at", "agenda_total", "agenda_done", "actions_total", "actions_done",
+		}).AddRow("session-1", "room-1", "Focus Lab", "Ship recap", "Finish dashboard", "focus", "COMPLETED", now, now, 3, 2, 2, 1))
+
+	recaps, err := uc.GetMySessionRecaps(context.Background(), "user-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(recaps) != 1 || recaps[0].RoomName != "Focus Lab" || recaps[0].AgendaDone != 2 || recaps[0].ActionsDone != 1 {
+		t.Fatalf("unexpected recaps: %#v", recaps)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}

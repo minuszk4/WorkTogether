@@ -132,6 +132,44 @@ func (r *PostgresRepository) ListPersonalActionItems(ctx context.Context, userID
 	return items, rows.Err()
 }
 
+func (r *PostgresRepository) ListSessionRecaps(ctx context.Context, userID string) ([]*domain.SessionRecap, error) {
+	query := `
+		SELECT s.id, s.room_id, r.name, s.title, s.goal, s.template_key, s.status, s.started_at, s.ended_at,
+			(SELECT COUNT(*) FROM room_session_agenda a WHERE a.session_id = s.id),
+			(SELECT COUNT(*) FROM room_session_agenda a WHERE a.session_id = s.id AND a.is_done),
+			(SELECT COUNT(*) FROM room_session_actions a WHERE a.session_id = s.id),
+			(SELECT COUNT(*) FROM room_session_actions a WHERE a.session_id = s.id AND a.status = 'DONE')
+		FROM room_sessions s
+		JOIN rooms r ON r.id = s.room_id
+		JOIN room_members m ON m.room_id = s.room_id AND m.user_id = $1
+		WHERE s.status = 'COMPLETED'
+		ORDER BY s.ended_at DESC
+		LIMIT 20
+	`
+	rows, err := r.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	recaps := []*domain.SessionRecap{}
+	for rows.Next() {
+		recap := &domain.SessionRecap{}
+		var endedAt sql.NullTime
+		if err := rows.Scan(
+			&recap.ID, &recap.RoomID, &recap.RoomName, &recap.Title, &recap.Goal, &recap.TemplateKey, &recap.Status, &recap.StartedAt, &endedAt,
+			&recap.AgendaTotal, &recap.AgendaDone, &recap.ActionsTotal, &recap.ActionsDone,
+		); err != nil {
+			return nil, err
+		}
+		if endedAt.Valid {
+			recap.EndedAt = &endedAt.Time
+		}
+		recaps = append(recaps, recap)
+	}
+	return recaps, rows.Err()
+}
+
 func (r *PostgresRepository) CreateSessionTimelineEvent(ctx context.Context, event *domain.SessionTimelineEvent) error {
 	payload, err := json.Marshal(event.Payload)
 	if err != nil {

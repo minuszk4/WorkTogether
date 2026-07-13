@@ -156,6 +156,31 @@
         </div>
       </section>
 
+      <section class="session-recaps-section">
+        <div class="section-title-bar">
+          <div>
+            <span class="section-eyebrow">Recent outcomes</span>
+            <h2>Session recaps</h2>
+          </div>
+          <span class="panel-count">{{ sessionRecaps.length }}</span>
+        </div>
+        <div class="session-recaps-list">
+          @if (isSessionRecapsLoading) {
+            <div class="panel-empty">Dang tai session da hoan tat...</div>
+          } @else if (sessionRecaps.length === 0) {
+            <div class="panel-empty">Session hoan tat se xuat hien o day.</div>
+          } @else {
+            @for (recap of sessionRecaps; track recap.id) {
+              <button type="button" class="session-recap-item" (click)="openSessionRecap(recap)">
+                <span class="session-recap-title">{{ recap.title }}</span>
+                <span class="session-recap-context">{{ recap.room_name }} · {{ recap.ended_at | date:'dd/MM, HH:mm' }}</span>
+                <span class="session-recap-progress">Agenda {{ recap.agenda_done }}/{{ recap.agenda_total }} · Actions {{ recap.actions_done }}/{{ recap.actions_total }}</span>
+              </button>
+            }
+          }
+        </div>
+      </section>
+
       <section class="rooms-section">
         <div class="section-title-bar">
           <div>
@@ -357,6 +382,44 @@
         <button type="button" class="btn btn-primary" (click)="onCreateRoomSubmit()">Create room</button>
       </div>
     </div>
+  </div>
+}
+
+@if (selectedSessionRecap) {
+  <div class="modal-overlay active" (click)="selectedSessionRecap = null">
+    <section class="session-recap-modal" (click)="$event.stopPropagation()" aria-label="Session recap">
+      <div class="modal-header">
+        <div>
+          <span class="section-eyebrow">{{ selectedSessionRecap.room_name }}</span>
+          <h3>{{ selectedSessionRecap.title }}</h3>
+        </div>
+        <button type="button" class="modal-close" (click)="selectedSessionRecap = null" aria-label="Dong recap">&times;</button>
+      </div>
+      @if (isSessionRecapLoading) {
+        <div class="panel-empty">Dang tai timeline...</div>
+      } @else if (selectedSessionRecap.workspace) {
+        <div class="recap-grid">
+          <div>
+            <h4>Agenda</h4>
+            @for (item of selectedSessionRecap.workspace.agenda; track item.id) {
+              <p [class.recap-done]="item.is_done">{{ item.content }}</p>
+            }
+          </div>
+          <div>
+            <h4>Action items</h4>
+            @for (item of selectedSessionRecap.workspace.actions; track item.id) {
+              <p [class.recap-done]="item.status === 'DONE'">{{ item.content }}</p>
+            }
+          </div>
+          <div class="recap-timeline">
+            <h4>Timeline</h4>
+            @for (event of selectedSessionRecap.workspace.timeline; track event.id) {
+              <p><strong>{{ event.event_type }}</strong><span>{{ event.created_at | date:'HH:mm' }}</span></p>
+            }
+          </div>
+        </div>
+      }
+    </section>
   </div>
 }
 
