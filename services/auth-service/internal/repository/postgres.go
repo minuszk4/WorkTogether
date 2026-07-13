@@ -31,10 +31,10 @@ func (r *PostgresRepository) CreateAccount(ctx context.Context, acc *domain.Acco
 }
 
 func (r *PostgresRepository) GetAccountByID(ctx context.Context, id string) (*domain.Account, error) {
-	query := `SELECT id, email, username, COALESCE(password_hash,''), is_verified, COALESCE(google_id,''), created_at, updated_at FROM accounts WHERE id = $1`
+	query := `SELECT id, email, username, COALESCE(password_hash,''), is_verified, COALESCE(is_admin,false), COALESCE(google_id,''), created_at, updated_at FROM accounts WHERE id = $1`
 	acc := &domain.Account{}
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
-		&acc.ID, &acc.Email, &acc.Username, &acc.PasswordHash, &acc.IsVerified, &acc.GoogleID, &acc.CreatedAt, &acc.UpdatedAt,
+		&acc.ID, &acc.Email, &acc.Username, &acc.PasswordHash, &acc.IsVerified, &acc.IsAdmin, &acc.GoogleID, &acc.CreatedAt, &acc.UpdatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -46,10 +46,10 @@ func (r *PostgresRepository) GetAccountByID(ctx context.Context, id string) (*do
 }
 
 func (r *PostgresRepository) GetAccountByIdentity(ctx context.Context, identity string) (*domain.Account, error) {
-	query := `SELECT id, email, username, COALESCE(password_hash,''), is_verified, COALESCE(google_id,''), created_at, updated_at FROM accounts WHERE email = $1 OR username = $2`
+	query := `SELECT id, email, username, COALESCE(password_hash,''), is_verified, COALESCE(is_admin,false), COALESCE(google_id,''), created_at, updated_at FROM accounts WHERE email = $1 OR username = $2`
 	acc := &domain.Account{}
 	err := r.db.QueryRowContext(ctx, query, identity, identity).Scan(
-		&acc.ID, &acc.Email, &acc.Username, &acc.PasswordHash, &acc.IsVerified, &acc.GoogleID, &acc.CreatedAt, &acc.UpdatedAt,
+		&acc.ID, &acc.Email, &acc.Username, &acc.PasswordHash, &acc.IsVerified, &acc.IsAdmin, &acc.GoogleID, &acc.CreatedAt, &acc.UpdatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -62,10 +62,10 @@ func (r *PostgresRepository) GetAccountByIdentity(ctx context.Context, identity 
 
 // GetAccountByGoogleID tìm tài khoản theo Google ID
 func (r *PostgresRepository) GetAccountByGoogleID(ctx context.Context, googleID string) (*domain.Account, error) {
-	query := `SELECT id, email, username, COALESCE(password_hash,''), is_verified, COALESCE(google_id,''), created_at, updated_at FROM accounts WHERE google_id = $1`
+	query := `SELECT id, email, username, COALESCE(password_hash,''), is_verified, COALESCE(is_admin,false), COALESCE(google_id,''), created_at, updated_at FROM accounts WHERE google_id = $1`
 	acc := &domain.Account{}
 	err := r.db.QueryRowContext(ctx, query, googleID).Scan(
-		&acc.ID, &acc.Email, &acc.Username, &acc.PasswordHash, &acc.IsVerified, &acc.GoogleID, &acc.CreatedAt, &acc.UpdatedAt,
+		&acc.ID, &acc.Email, &acc.Username, &acc.PasswordHash, &acc.IsVerified, &acc.IsAdmin, &acc.GoogleID, &acc.CreatedAt, &acc.UpdatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -78,10 +78,10 @@ func (r *PostgresRepository) GetAccountByGoogleID(ctx context.Context, googleID 
 
 // GetAccountByEmail tìm tài khoản theo email chính xác
 func (r *PostgresRepository) GetAccountByEmail(ctx context.Context, email string) (*domain.Account, error) {
-	query := `SELECT id, email, username, COALESCE(password_hash,''), is_verified, COALESCE(google_id,''), created_at, updated_at FROM accounts WHERE email = $1`
+	query := `SELECT id, email, username, COALESCE(password_hash,''), is_verified, COALESCE(is_admin,false), COALESCE(google_id,''), created_at, updated_at FROM accounts WHERE email = $1`
 	acc := &domain.Account{}
 	err := r.db.QueryRowContext(ctx, query, email).Scan(
-		&acc.ID, &acc.Email, &acc.Username, &acc.PasswordHash, &acc.IsVerified, &acc.GoogleID, &acc.CreatedAt, &acc.UpdatedAt,
+		&acc.ID, &acc.Email, &acc.Username, &acc.PasswordHash, &acc.IsVerified, &acc.IsAdmin, &acc.GoogleID, &acc.CreatedAt, &acc.UpdatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {

@@ -8,6 +8,7 @@ type Account struct {
 	Username     string    `json:"username"`
 	PasswordHash string    `json:"-"`
 	IsVerified   bool      `json:"is_verified"`
+	IsAdmin      bool      `json:"is_admin"`
 	GoogleID     string    `json:"-"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
@@ -51,4 +52,3 @@ type ChangePasswordRequest struct {
 	OldPassword string `json:"old_password" binding:"required"`
 	NewPassword string `json:"new_password" binding:"required,min=6"`
 }
-

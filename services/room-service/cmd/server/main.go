@@ -127,6 +127,7 @@ func main() {
 		roomsGroup.PUT("/:id/settings", handler.UpdateRoomSettings)
 		roomsGroup.PUT("/:id/mode", handler.UpdateRoomMode)
 		roomsGroup.GET("/session-templates", handler.ListSessionTemplates)
+		roomsGroup.GET("/me/actions", handler.GetPersonalActionItems)
 		roomsGroup.GET("/:id/session", handler.GetActiveSession)
 		roomsGroup.POST("/:id/sessions", handler.StartSession)
 		roomsGroup.GET("/:id/sessions/:session_id", handler.GetSessionWorkspace)

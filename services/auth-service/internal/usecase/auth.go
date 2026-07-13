@@ -17,22 +17,22 @@ import (
 )
 
 var (
-	ErrInvalidCredentials = errors.New("tài khoản hoặc mật khẩu không chính xác")
-	ErrAccountNotVerified = errors.New("tài khoản chưa được xác thực email")
-	ErrEmailAlreadyExists = errors.New("email đã tồn tại trên hệ thống")
-	ErrUsernameExists     = errors.New("tên tài khoản đã tồn tại")
-	ErrSessionExpired     = errors.New("phiên làm việc đã hết hạn, vui lòng đăng nhập lại")
-	ErrInvalidSession     = errors.New("phiên làm việc không hợp lệ")
-	ErrInvalidVerifyToken = errors.New("mã xác thực không hợp lệ hoặc đã hết hạn")
+	ErrInvalidCredentials  = errors.New("tài khoản hoặc mật khẩu không chính xác")
+	ErrAccountNotVerified  = errors.New("tài khoản chưa được xác thực email")
+	ErrEmailAlreadyExists  = errors.New("email đã tồn tại trên hệ thống")
+	ErrUsernameExists      = errors.New("tên tài khoản đã tồn tại")
+	ErrSessionExpired      = errors.New("phiên làm việc đã hết hạn, vui lòng đăng nhập lại")
+	ErrInvalidSession      = errors.New("phiên làm việc không hợp lệ")
+	ErrInvalidVerifyToken  = errors.New("mã xác thực không hợp lệ hoặc đã hết hạn")
 	ErrGoogleNotConfigured = errors.New("đăng nhập Google chưa được cấu hình")
 )
 
 type AuthUsecase struct {
-	repo         *repository.PostgresRepository
-	emailSvc     *EmailService
-	jwtSecret    []byte
-	jwtExpMins   int
-	appBaseURL   string
+	repo       *repository.PostgresRepository
+	emailSvc   *EmailService
+	jwtSecret  []byte
+	jwtExpMins int
+	appBaseURL string
 }
 
 func NewAuthUsecase(repo *repository.PostgresRepository, emailSvc *EmailService, secret string, jwtExpMins int) *AuthUsecase {
@@ -297,6 +297,7 @@ func (u *AuthUsecase) generateAccessToken(acc *domain.Account) (string, error) {
 	claims := jwt.MapClaims{
 		"sub":      acc.ID,
 		"username": acc.Username,
+		"is_admin": acc.IsAdmin,
 		"exp":      time.Now().Add(time.Duration(u.jwtExpMins) * time.Minute).Unix(),
 		"type":     "access_token",
 	}
@@ -409,4 +410,3 @@ func (u *AuthUsecase) checkPasswordHash(password, hash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	return err == nil
 }
-

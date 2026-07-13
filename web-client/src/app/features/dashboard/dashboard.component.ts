@@ -52,6 +52,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   public notifications: any[] = [];
   public pendingFriendRequests: any[] = [];
+  public actionItems: any[] = [];
+  public isActionItemsLoading = true;
 
   ngOnInit(): void {
     const user = this.state.user;
@@ -88,6 +90,31 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   public get visibleNotifications(): any[] {
     return this.notifications.slice(0, 8);
+  }
+
+  public get openActionItems(): any[] {
+    return this.actionItems.filter(item => item.status === 'OPEN');
+  }
+
+  public async loadActionItems(): Promise<void> {
+    this.isActionItemsLoading = true;
+    try {
+      this.actionItems = await firstValueFrom(this.api.room.listMyActionItems());
+    } catch (error: any) {
+      this.toast.error('Khong the tai action items: ' + this.errorMessage(error));
+    } finally {
+      this.isActionItemsLoading = false;
+    }
+  }
+
+  public async toggleActionItem(item: any): Promise<void> {
+    const status = item.status === 'DONE' ? 'OPEN' : 'DONE';
+    try {
+      await firstValueFrom(this.api.room.updateActionItem(item.room_id, item.session_id, item.id, status));
+      item.status = status;
+    } catch (error: any) {
+      this.toast.error('Khong the cap nhat action item: ' + this.errorMessage(error));
+    }
   }
 
   public async loadRooms(): Promise<void> {
@@ -415,7 +442,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.loadRooms(),
       this.loadFriends(),
       this.loadPendingFriendRequests(),
-      this.loadNotifications()
+      this.loadNotifications(),
+      this.loadActionItems()
     ]);
 
     this.connectNotificationStream();

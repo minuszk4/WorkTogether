@@ -184,6 +184,10 @@ func (u *RoomUsecase) SetActionStatus(ctx context.Context, userID, roomID, sessi
 	return nil
 }
 
+func (u *RoomUsecase) GetPersonalActionItems(ctx context.Context, userID string) ([]*domain.PersonalActionItem, error) {
+	return u.repo.ListPersonalActionItems(ctx, userID)
+}
+
 func (u *RoomUsecase) requireHost(ctx context.Context, userID, roomID string) error {
 	member, err := u.repo.GetMember(ctx, roomID, userID)
 	if err != nil {

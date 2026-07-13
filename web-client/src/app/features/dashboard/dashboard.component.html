@@ -128,6 +128,31 @@
         </div>
       </section>
 
+      <section class="action-items-section">
+        <div class="section-title-bar">
+          <div>
+            <span class="section-eyebrow">Personal Queue</span>
+            <h2>Action items</h2>
+          </div>
+          <span class="panel-count">{{ openActionItems.length }}</span>
+        </div>
+        <div class="action-items-list">
+          @if (isActionItemsLoading) {
+            <div class="panel-empty">Dang tai action items...</div>
+          } @else if (actionItems.length === 0) {
+            <div class="panel-empty">Chua co action item nao duoc giao cho ban.</div>
+          } @else {
+            @for (item of actionItems; track item.id) {
+              <label class="dashboard-action-item" [class.done]="item.status === 'DONE'">
+                <input type="checkbox" [checked]="item.status === 'DONE'" (change)="toggleActionItem(item)">
+                <span class="dashboard-action-content">{{ item.content }}</span>
+                <span class="dashboard-action-context">{{ item.room_name }} / {{ item.session_title }}</span>
+              </label>
+            }
+          }
+        </div>
+      </section>
+
       <section class="rooms-section">
         <div class="section-title-bar">
           <div>

@@ -98,6 +98,40 @@ func (r *PostgresRepository) ListActionItems(ctx context.Context, sessionID stri
 	return items, rows.Err()
 }
 
+func (r *PostgresRepository) ListPersonalActionItems(ctx context.Context, userID string) ([]*domain.PersonalActionItem, error) {
+	query := `
+		SELECT a.id, a.session_id, a.content, a.assignee_id, a.due_at, a.status, a.created_by, a.created_at, a.updated_at, r.id, r.name, s.title
+		FROM room_session_actions a
+		JOIN room_sessions s ON s.id = a.session_id
+		JOIN rooms r ON r.id = s.room_id
+		WHERE a.assignee_id = $1 OR a.created_by = $1
+		ORDER BY CASE WHEN a.status = 'OPEN' THEN 0 ELSE 1 END, a.due_at NULLS LAST, a.updated_at DESC
+		LIMIT 100
+	`
+	rows, err := r.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []*domain.PersonalActionItem{}
+	for rows.Next() {
+		item := &domain.PersonalActionItem{}
+		var assigneeID sql.NullString
+		var dueAt sql.NullTime
+		if err := rows.Scan(&item.ID, &item.SessionID, &item.Content, &assigneeID, &dueAt, &item.Status, &item.CreatedBy, &item.CreatedAt, &item.UpdatedAt, &item.RoomID, &item.RoomName, &item.SessionTitle); err != nil {
+			return nil, err
+		}
+		if assigneeID.Valid {
+			item.AssigneeID = &assigneeID.String
+		}
+		if dueAt.Valid {
+			item.DueAt = &dueAt.Time
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
 func (r *PostgresRepository) CreateSessionTimelineEvent(ctx context.Context, event *domain.SessionTimelineEvent) error {
 	payload, err := json.Marshal(event.Payload)
 	if err != nil {

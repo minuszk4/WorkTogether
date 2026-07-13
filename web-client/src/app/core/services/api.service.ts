@@ -160,6 +160,9 @@ export class ApiService {
     listSessionTemplates: (): Observable<any[]> =>
       this.get<any[]>('/rooms/session-templates'),
 
+    listMyActionItems: (): Observable<any[]> =>
+      this.get<any[]>('/rooms/me/actions'),
+
     getActiveSession: (roomId: string): Observable<any | null> =>
       this.get<any | null>(`/rooms/${roomId}/session`),
 

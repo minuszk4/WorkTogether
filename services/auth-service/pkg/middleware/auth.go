@@ -90,6 +90,8 @@ func AuthMiddleware(secret string) gin.HandlerFunc {
 
 		// Lưu userID vào context của request
 		c.Set("userID", userID)
+		isAdmin, _ := claims["is_admin"].(bool)
+		c.Set("isAdmin", isAdmin)
 		c.Next()
 	}
 }

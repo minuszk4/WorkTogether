@@ -9,9 +9,26 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/worktogether/services/auth-service/internal/domain"
 	"github.com/worktogether/services/auth-service/internal/repository"
 	"golang.org/x/crypto/bcrypt"
 )
+
+func TestGenerateAccessTokenIncludesAdminClaim(t *testing.T) {
+	uc := NewAuthUsecase(nil, NewEmailService(), "test_secret", 15)
+	tokenStr, err := uc.generateAccessToken(&domain.Account{ID: "admin-1", Username: "admin", IsAdmin: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) { return []byte("test_secret"), nil })
+	if err != nil || !token.Valid {
+		t.Fatalf("invalid token: %v", err)
+	}
+	claims := token.Claims.(jwt.MapClaims)
+	if isAdmin, ok := claims["is_admin"].(bool); !ok || !isAdmin {
+		t.Fatalf("expected is_admin claim, got %#v", claims["is_admin"])
+	}
+}
 
 func TestAuthUsecase_ForgotPassword(t *testing.T) {
 	db, mock, err := sqlmock.New()
@@ -30,10 +47,10 @@ func TestAuthUsecase_ForgotPassword(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		email := "test@example.com"
-		expectedQuery := regexp.QuoteMeta("SELECT id, email, username, COALESCE(password_hash,''), is_verified, COALESCE(google_id,''), created_at, updated_at FROM accounts WHERE email = $1")
+		expectedQuery := regexp.QuoteMeta("SELECT id, email, username, COALESCE(password_hash,''), is_verified, COALESCE(is_admin,false), COALESCE(google_id,''), created_at, updated_at FROM accounts WHERE email = $1")
 
-		rows := sqlmock.NewRows([]string{"id", "email", "username", "password_hash", "is_verified", "google_id", "created_at", "updated_at"}).
-			AddRow("acc-123", email, "testuser", "some_hash", true, "", time.Now(), time.Now())
+		rows := sqlmock.NewRows([]string{"id", "email", "username", "password_hash", "is_verified", "is_admin", "google_id", "created_at", "updated_at"}).
+			AddRow("acc-123", email, "testuser", "some_hash", true, false, "", time.Now(), time.Now())
 
 		mock.ExpectQuery(expectedQuery).WithArgs(email).WillReturnRows(rows)
 
@@ -49,7 +66,7 @@ func TestAuthUsecase_ForgotPassword(t *testing.T) {
 
 	t.Run("account not found", func(t *testing.T) {
 		email := "unknown@example.com"
-		expectedQuery := regexp.QuoteMeta("SELECT id, email, username, COALESCE(password_hash,''), is_verified, COALESCE(google_id,''), created_at, updated_at FROM accounts WHERE email = $1")
+		expectedQuery := regexp.QuoteMeta("SELECT id, email, username, COALESCE(password_hash,''), is_verified, COALESCE(is_admin,false), COALESCE(google_id,''), created_at, updated_at FROM accounts WHERE email = $1")
 
 		mock.ExpectQuery(expectedQuery).WithArgs(email).WillReturnError(sql.ErrNoRows)
 
@@ -232,12 +249,12 @@ func TestAuthUsecase_ChangePassword(t *testing.T) {
 	hashedOldPassword, _ := bcrypt.GenerateFromPassword([]byte(oldPassword), bcrypt.DefaultCost)
 
 	t.Run("success", func(t *testing.T) {
-		expectedGetQuery := regexp.QuoteMeta("SELECT id, email, username, COALESCE(password_hash,''), is_verified, COALESCE(google_id,''), created_at, updated_at FROM accounts WHERE id = $1")
+		expectedGetQuery := regexp.QuoteMeta("SELECT id, email, username, COALESCE(password_hash,''), is_verified, COALESCE(is_admin,false), COALESCE(google_id,''), created_at, updated_at FROM accounts WHERE id = $1")
 		expectedUpdateQuery := regexp.QuoteMeta("UPDATE accounts SET password_hash = $1, updated_at = NOW() WHERE id = $2")
 		expectedDeleteSessionsQuery := regexp.QuoteMeta("DELETE FROM sessions WHERE account_id = $1")
 
-		rows := sqlmock.NewRows([]string{"id", "email", "username", "password_hash", "is_verified", "google_id", "created_at", "updated_at"}).
-			AddRow(userID, "test@example.com", "testuser", string(hashedOldPassword), true, "", time.Now(), time.Now())
+		rows := sqlmock.NewRows([]string{"id", "email", "username", "password_hash", "is_verified", "is_admin", "google_id", "created_at", "updated_at"}).
+			AddRow(userID, "test@example.com", "testuser", string(hashedOldPassword), true, false, "", time.Now(), time.Now())
 
 		mock.ExpectQuery(expectedGetQuery).WithArgs(userID).WillReturnRows(rows)
 		mock.ExpectExec(expectedUpdateQuery).WithArgs(sqlmock.AnyArg(), userID).WillReturnResult(sqlmock.NewResult(1, 1))
@@ -254,10 +271,10 @@ func TestAuthUsecase_ChangePassword(t *testing.T) {
 	})
 
 	t.Run("incorrect old password", func(t *testing.T) {
-		expectedGetQuery := regexp.QuoteMeta("SELECT id, email, username, COALESCE(password_hash,''), is_verified, COALESCE(google_id,''), created_at, updated_at FROM accounts WHERE id = $1")
+		expectedGetQuery := regexp.QuoteMeta("SELECT id, email, username, COALESCE(password_hash,''), is_verified, COALESCE(is_admin,false), COALESCE(google_id,''), created_at, updated_at FROM accounts WHERE id = $1")
 
-		rows := sqlmock.NewRows([]string{"id", "email", "username", "password_hash", "is_verified", "google_id", "created_at", "updated_at"}).
-			AddRow(userID, "test@example.com", "testuser", string(hashedOldPassword), true, "", time.Now(), time.Now())
+		rows := sqlmock.NewRows([]string{"id", "email", "username", "password_hash", "is_verified", "is_admin", "google_id", "created_at", "updated_at"}).
+			AddRow(userID, "test@example.com", "testuser", string(hashedOldPassword), true, false, "", time.Now(), time.Now())
 
 		mock.ExpectQuery(expectedGetQuery).WithArgs(userID).WillReturnRows(rows)
 
@@ -274,7 +291,7 @@ func TestAuthUsecase_ChangePassword(t *testing.T) {
 	})
 
 	t.Run("account not found", func(t *testing.T) {
-		expectedGetQuery := regexp.QuoteMeta("SELECT id, email, username, COALESCE(password_hash,''), is_verified, COALESCE(google_id,''), created_at, updated_at FROM accounts WHERE id = $1")
+		expectedGetQuery := regexp.QuoteMeta("SELECT id, email, username, COALESCE(password_hash,''), is_verified, COALESCE(is_admin,false), COALESCE(google_id,''), created_at, updated_at FROM accounts WHERE id = $1")
 
 		mock.ExpectQuery(expectedGetQuery).WithArgs(userID).WillReturnError(sql.ErrNoRows)
 

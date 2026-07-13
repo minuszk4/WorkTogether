@@ -52,3 +52,10 @@ type SessionWorkspace struct {
 	Actions  []*SessionActionItem    `json:"actions"`
 	Timeline []*SessionTimelineEvent `json:"timeline"`
 }
+
+type PersonalActionItem struct {
+	SessionActionItem
+	RoomID       string `json:"room_id"`
+	RoomName     string `json:"room_name"`
+	SessionTitle string `json:"session_title"`
+}

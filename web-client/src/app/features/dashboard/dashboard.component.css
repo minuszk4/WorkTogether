@@ -565,6 +565,21 @@
   resize: vertical;
 }
 
+.action-items-section {
+  margin-bottom: 20px;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  background: rgba(12, 15, 24, 0.82);
+}
+.action-items-list { display: grid; gap: 8px; margin-top: 14px; }
+.dashboard-action-item {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px;
+  padding: 10px; border-radius: 8px; background: rgba(255, 255, 255, 0.03); color: var(--text-primary); cursor: pointer;
+}
+.dashboard-action-item.done .dashboard-action-content { color: var(--text-muted); text-decoration: line-through; }
+.dashboard-action-context { color: var(--text-secondary); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
 .rooms-section {
   display: flex;
   flex-direction: column;
