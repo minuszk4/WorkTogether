@@ -172,6 +172,9 @@ export class ApiService {
     createEvent: (roomId: string, title: string, startsAt: string, description = ''): Observable<any> =>
       this.post<any>(`/rooms/${roomId}/events`, { title, description, starts_at: startsAt }),
 
+    cancelEvent: (roomId: string, eventId: string): Observable<any> =>
+      this.delete<any>(`/rooms/${roomId}/events/${eventId}`),
+
     getActiveSession: (roomId: string): Observable<any | null> =>
       this.get<any | null>(`/rooms/${roomId}/session`),
 

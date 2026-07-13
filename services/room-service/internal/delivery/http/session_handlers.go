@@ -67,6 +67,15 @@ func (h *RoomHandler) CreateRoomEvent(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"success": true, "data": event, "error": nil})
 }
 
+func (h *RoomHandler) CancelRoomEvent(c *gin.Context) {
+	userID, _ := c.Get("userID")
+	if err := h.usecase.CancelRoomEvent(c.Request.Context(), userID.(string), c.Param("id"), c.Param("event_id")); err != nil {
+		h.writeSessionError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"id": c.Param("event_id")}, "error": nil})
+}
+
 func (h *RoomHandler) StartSession(c *gin.Context) {
 	userID, _ := c.Get("userID")
 	var req struct {

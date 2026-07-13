@@ -133,6 +133,7 @@ func main() {
 		roomsGroup.GET("/:id/session", handler.GetActiveSession)
 		roomsGroup.GET("/:id/events", handler.ListRoomEvents)
 		roomsGroup.POST("/:id/events", handler.CreateRoomEvent)
+		roomsGroup.DELETE("/:id/events/:event_id", handler.CancelRoomEvent)
 		roomsGroup.POST("/:id/sessions", handler.StartSession)
 		roomsGroup.GET("/:id/sessions/:session_id", handler.GetSessionWorkspace)
 		roomsGroup.PUT("/:id/sessions/:session_id/complete", handler.CompleteSession)

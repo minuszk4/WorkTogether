@@ -45,6 +45,11 @@ func (r *PostgresRepository) ClaimDueRoomEvents(ctx context.Context) ([]*domain.
 	return events, rows.Err()
 }
 
+func (r *PostgresRepository) CancelRoomEvent(ctx context.Context, roomID, eventID string) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE room_events SET cancelled_at = NOW(), updated_at = NOW() WHERE id = $1 AND room_id = $2 AND cancelled_at IS NULL`, eventID, roomID)
+	return err
+}
+
 func scanRoomEvent(row interface{ Scan(...any) error }) (*domain.RoomEvent, error) {
 	event := &domain.RoomEvent{}
 	var reminder, cancelled sql.NullTime

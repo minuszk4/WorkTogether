@@ -85,3 +85,17 @@ func (u *RoomUsecase) ListUpcomingRoomEvents(ctx context.Context, userID, roomID
 	}
 	return u.repo.ListUpcomingRoomEvents(ctx, roomID)
 }
+
+func (u *RoomUsecase) CancelRoomEvent(ctx context.Context, userID, roomID, eventID string) error {
+	member, err := u.repo.GetMember(ctx, roomID, userID)
+	if err != nil {
+		return err
+	}
+	if member == nil {
+		return ErrNotMember
+	}
+	if member.RoleType != "OWNER" && !hasRoomPermission(u.ResolvePermissions(ctx, member), "CAN_MODERATE_MEMBERS") {
+		return ErrUnauthorized
+	}
+	return u.repo.CancelRoomEvent(ctx, roomID, eventID)
+}
