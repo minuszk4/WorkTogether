@@ -348,10 +348,13 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - PORT=8093
+      - ROOM_SERVICE_GRPC=room-service:50051
     depends_on:
       redis:
         condition: service_healthy
       playback-service:
+        condition: service_healthy
+      room-service:
         condition: service_healthy
     healthcheck: *service-healthcheck
     restart: unless-stopped

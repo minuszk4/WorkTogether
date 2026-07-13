@@ -1,9 +1,9 @@
 package main
 
 import (
-	"github.com/worktogether/pkg/env"
 	"context"
 	"fmt"
+	"github.com/worktogether/pkg/env"
 	"log"
 	"net/http"
 	"os"
@@ -11,11 +11,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	v1 "github.com/worktogether/services/timer-service/api/v1"
 	"github.com/worktogether/services/timer-service/internal/delivery/ws"
 	"github.com/worktogether/services/timer-service/internal/usecase"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
@@ -30,6 +30,7 @@ func main() {
 	}
 	port := env.GetEnv("PORT", "8093")
 	playbackServiceGrpc := env.GetEnv("PLAYBACK_SERVICE_GRPC", "playback-service:50052")
+	roomServiceGrpc := env.GetEnv("ROOM_SERVICE_GRPC", env.GetEnv("ROOM_SERVICE_GRPC_ADDR", "room-service:50051"))
 
 	// Connect to Redis with retry
 	var rdb *redis.Client
@@ -75,8 +76,24 @@ func main() {
 	playbackClient := v1.NewPlaybackInternalServiceClient(conn)
 	log.Println("Khởi tạo kết nối gRPC sang playback-service thành công.")
 
+	var roomConn *grpc.ClientConn
+	for i := 0; i < 10; i++ {
+		roomConn, err = grpc.Dial(roomServiceGrpc, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+		if err == nil {
+			break
+		}
+		log.Printf("Chưa kết nối gRPC room-service (Thử lại %d/10): %v\n", i+1, err)
+		time.Sleep(3 * time.Second)
+	}
+	if err != nil {
+		log.Fatalf("Không thể kết nối gRPC đến room-service: %v\n", err)
+	}
+	defer roomConn.Close()
+	roomClient := v1.NewRoomInternalServiceClient(roomConn)
+	log.Println("Khởi tạo kết nối gRPC sang room-service thành công.")
+
 	// Set up Hub and Usecase
-	hub := ws.NewHub(jwtSecret)
+	hub := ws.NewHub(jwtSecret, roomClient)
 	uc := usecase.NewTimerUsecase(rdb, playbackClient, hub)
 	hub.Usecase = uc
 
@@ -101,4 +118,3 @@ func main() {
 		log.Fatalf("Lỗi khởi chạy Gin: %v\n", err)
 	}
 }
-
