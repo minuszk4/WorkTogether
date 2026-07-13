@@ -10,6 +10,23 @@
 
 **WorkTogether ≠ Spotify + Discord.** Bản sắc nằm ở chỗ: sự hiện diện của người khác **thay đổi** trải nghiệm nghe, không chỉ là backdrop. Khi bạn vào phòng, bạn phải *cảm nhận được* phòng đang sống — ai đang nghe, ai đang cảm, phòng đang ở mood nào.
 
+## Product bet: làm app thật sự ấn tượng
+
+WorkTogether nên thắng bằng **khoảnh khắc đồng bộ**: người dùng vào phòng và trong 10 giây hiểu ngay "mình đang ở cùng người khác", không phải đang dùng một music player có chat gắn thêm.
+
+Ba khoảnh khắc cần làm thật sắc:
+
+1. **Join moment** — vào phòng thấy ngay nhạc đang phát, vibe phòng, ai đang nghe, ai đang nói, ai vừa reaction. Không màn hình trống, không phải tự khám phá.
+2. **Drop moment** — khi đoạn nhạc hay tới, reaction bay lên player, avatar pulse, vibe meter đổi. Cảm giác giống một mini live show cho nhóm nhỏ.
+3. **Focus moment** — bật Pomodoro/focus mode, cả phòng chuyển sang trạng thái tập trung: nhạc dịu hơn, chat bớt nổi, timer chung, note/checklist hiện đúng chỗ.
+
+North-star metric nên theo dõi:
+
+- `time_to_first_shared_moment`: từ lúc vào phòng đến khi user thấy hoặc tạo một event realtime chung.
+- `rooms_with_2plus_active_users`: số phòng thật sự có tương tác, không chỉ phòng được tạo.
+- `shared_playback_minutes`: tổng phút nghe đồng bộ có ít nhất 2 người active.
+- `return_to_same_room_7d`: người dùng có quay lại cùng một phòng trong 7 ngày không.
+
 4 trụ cột tính năng phân biệt, theo thứ tự ưu tiên thực hiện:
 
 | # | Nhóm | Đặc trưng | Backend |
@@ -55,6 +72,13 @@ Mỗi pha là một vòng lặp hoàn chỉnh: **brainstorm → spec → plan �
 - **Bookmark khoảnh khắc** — mark timestamp + note ("đoạn này hay"), share vào chat, jump tới được.
 - **Up-next realtime poll** — mini-poll trước khi bài kết thúc: "Bài tiếp: A hay B?".
 - **DJ mode / takeover** — host nhường quyền control playback cho thành viên vài phút (guest DJ).
+
+**Slice đề xuất để làm trước:** Bookmark khoảnh khắc + Up-next poll. Đây là cặp tính năng vừa "wow", vừa đo được retention nhanh: người dùng có lý do quay lại lịch sử phòng và cùng quyết định bài tiếp theo.
+
+**UX cần đạt:**
+- Bookmark là một chip nằm trên timeline/player, click vào là seek đúng đoạn.
+- Poll hiện tự động khi bài còn 30 giây, không che player.
+- Kết quả poll chuyển thành queue action ngay, không cần host thao tác lại.
 
 **Tại sao làm thứ 2:** Tận dụng playback-ws + NTP sync đã có. Lyrics + bookmark là tính năng "wow" nhưng scope vừa phải.
 
@@ -126,3 +150,10 @@ Mỗi pha là một vòng lặp hoàn chỉnh: **brainstorm → spec → plan �
 - Khi bắt đầu 1 pha: đọc lại triết lý + nguyên tắc, rồi invoke `brainstorming` skill để chốt scope chi tiết cho pha đó.
 - Khi xong 1 pha: cập nhật "Trạng thái pha" (✅ done), ghi link spec/plan, thêm 1-2 dòng lesson learned.
 - Document này là **north star** — khi lan man, quay lại đây để nhớ vì sao chọn thứ tự này.
+
+## Engineering bar cho các pha tiếp theo
+
+- Mỗi feature realtime phải có event contract rõ: event name, payload, source service, fanout path, reconnect behavior.
+- Feature nào có UI realtime phải có degraded state khi WebSocket mất kết nối.
+- Mọi service mới phải có `/health`, metrics, Docker healthcheck, và smoke test trong CI trước khi merge.
+- Không thêm service mới nếu có thể mở rộng service hiện tại bằng một module nhỏ, trừ khi có ownership hoặc scaling boundary rõ ràng.
