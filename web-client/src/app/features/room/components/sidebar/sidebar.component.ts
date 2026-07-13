@@ -16,6 +16,7 @@ import { IconButtonComponent } from '../../../../shared/components/icon-button/i
         <app-icon-button label="Kênh voice" [variant]="isMicActive ? 'active' : 'default'" [disabled]="isVoiceBusy" (clicked)="voiceChannel.emit()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>
         </app-icon-button>
+		<span class="voice-status" [class]="'voice-status state-' + connectionState" [title]="connectionLabel"></span>
 
         <app-icon-button [label]="isMuted ? 'Bật microphone' : 'Tắt microphone'" [variant]="isMicActive && !isMuted ? 'active' : 'default'" [disabled]="!isMicActive || isVoiceBusy" (clicked)="muteToggle.emit()">
           @if (isMicActive && isMuted) {
@@ -55,6 +56,7 @@ export class SidebarComponent {
   @Input() isVoiceBusy = false;
   @Input() isScreenShareBusy = false;
   @Input() isCameraBusy = false;
+	@Input() connectionState = 'disconnected';
   @Input() avatarUrl = '';
   @Input() displayName = '';
 
@@ -67,4 +69,15 @@ export class SidebarComponent {
   get initials(): string {
     return (this.displayName || 'WT').slice(0, 2).toUpperCase();
   }
+
+	get connectionLabel(): string {
+	  const labels: Record<string, string> = {
+		connecting: 'Voice đang kết nối',
+		connected: 'Voice đã kết nối',
+		reconnecting: 'Voice đang kết nối lại',
+		degraded: 'Kết nối voice yếu',
+		disconnected: 'Voice chưa kết nối'
+	  };
+	  return labels[this.connectionState] || labels['disconnected'];
+	}
 }

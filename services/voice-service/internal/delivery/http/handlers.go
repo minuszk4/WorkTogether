@@ -2,27 +2,29 @@ package http
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/livekit/protocol/auth"
 	"github.com/livekit/protocol/webhook"
-	"github.com/worktogether/pkg/env"
 	roomv1 "github.com/worktogether/services/voice-service/api/v1"
 	"github.com/worktogether/services/voice-service/internal/domain"
 	"github.com/worktogether/services/voice-service/internal/usecase"
 )
 
 type VoiceHandler struct {
-	usecase    *usecase.VoiceUsecase
-	roomClient roomv1.RoomInternalServiceClient
-	livekitURL string
+	usecase     *usecase.VoiceUsecase
+	roomClient  roomv1.RoomInternalServiceClient
+	livekitURL  string
+	keyProvider auth.KeyProvider
 }
 
-func NewVoiceHandler(uc *usecase.VoiceUsecase, rc roomv1.RoomInternalServiceClient, lkURL string) *VoiceHandler {
+func NewVoiceHandler(uc *usecase.VoiceUsecase, rc roomv1.RoomInternalServiceClient, lkURL, apiKey, apiSecret string) *VoiceHandler {
 	return &VoiceHandler{
-		usecase:    uc,
-		roomClient: rc,
-		livekitURL: lkURL,
+		usecase:     uc,
+		roomClient:  rc,
+		livekitURL:  lkURL,
+		keyProvider: auth.NewSimpleKeyProvider(apiKey, apiSecret),
 	}
 }
 
@@ -30,6 +32,14 @@ func (h *VoiceHandler) GetToken(c *gin.Context) {
 	roomID := c.Param("room_id")
 	userIDVal, _ := c.Get("userID")
 	userID := userIDVal.(string)
+	var req struct {
+		ChannelID      string   `json:"channel_id"`
+		PublishSources []string `json:"publish_sources"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"code": "INVALID_REQUEST", "message": "Yêu cầu token voice không hợp lệ."}})
+		return
+	}
 
 	// Gọi gRPC room-service xác thực
 	res, err := h.roomClient.VerifyRoomMember(c.Request.Context(), &roomv1.VerifyRoomMemberRequest{
@@ -37,7 +47,7 @@ func (h *VoiceHandler) GetToken(c *gin.Context) {
 		UserID: userID,
 	})
 
-	if err != nil || res == nil || !res.IsMember {
+	if err != nil || res == nil || !res.IsMember || !contains(res.Permissions, "CAN_USE_VOICE") {
 		c.JSON(http.StatusForbidden, gin.H{
 			"success": false,
 			"data":    nil,
@@ -48,10 +58,18 @@ func (h *VoiceHandler) GetToken(c *gin.Context) {
 		})
 		return
 	}
+	if req.ChannelID != "" && req.ChannelID != res.ActiveSubRoomID {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "error": gin.H{"code": "FORBIDDEN", "message": "Bạn không thuộc phòng thảo luận này."}})
+		return
+	}
 
-	// Độc lập sinh token
-	username := "User_" + userID[:8]
-	token, err := h.usecase.GenerateToken(c.Request.Context(), roomID, userID, username)
+	shortID := userID
+	if len(shortID) > 8 {
+		shortID = shortID[:8]
+	}
+	username := "User_" + shortID
+	roomName := usecase.LiveKitRoomName(roomID, req.ChannelID)
+	token, err := h.usecase.GenerateToken(roomName, userID, username, req.PublishSources)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -69,24 +87,33 @@ func (h *VoiceHandler) GetToken(c *gin.Context) {
 		"data": gin.H{
 			"livekit_url": h.livekitURL,
 			"token":       token,
+			"expires_in":  int(usecase.TokenTTL.Seconds()),
+			"room_name":   roomName,
 		},
 		"error": nil,
 	})
 }
 
-func (h *VoiceHandler) HandleWebhook(c *gin.Context) {
-	apiKey := env.GetEnv("LIVEKIT_API_KEY", "devkey")
-	apiSecret := env.GetEnv("LIVEKIT_API_SECRET", "your_super_secret_livekit_key")
-	provider := auth.NewSimpleKeyProvider(apiKey, apiSecret)
+func contains(values []string, expected string) bool {
+	for _, value := range values {
+		if strings.EqualFold(value, expected) {
+			return true
+		}
+	}
+	return false
+}
 
-	event, err := webhook.ReceiveWebhookEvent(c.Request, provider)
+func (h *VoiceHandler) HandleWebhook(c *gin.Context) {
+	event, err := webhook.ReceiveWebhookEvent(c.Request, h.keyProvider)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid webhook signature"})
 		return
 	}
 
 	req := domain.LiveKitWebhookRequest{
-		Event: event.Event,
+		ID:        event.Id,
+		Event:     event.Event,
+		CreatedAt: event.CreatedAt,
 	}
 	if event.Room != nil {
 		req.Room = domain.LiveKitRoom{
@@ -97,6 +124,7 @@ func (h *VoiceHandler) HandleWebhook(c *gin.Context) {
 	if event.Participant != nil {
 		req.Participant = domain.LiveKitParticipant{
 			Identity: event.Participant.Identity,
+			SID:      event.Participant.Sid,
 			State:    event.Participant.State.String(),
 			JoinedAt: event.Participant.JoinedAt,
 		}

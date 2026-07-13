@@ -1,4 +1,4 @@
-import { TestBed } from '@angular/core/testing';
+import { fakeAsync, TestBed, tick } from '@angular/core/testing';
 import { RouterTestingModule } from '@angular/router/testing';
 import { RoomComponent } from './room.component';
 import { ApiService } from '../../core/services/api.service';
@@ -25,6 +25,9 @@ describe('RoomComponent', () => {
         get: () => of({ name: 'Test Room', description: 'Test Desc' }),
         listMembers: () => of([])
       },
+	  user: {
+		updateStatus: () => of({})
+	  },
       voice: {
         getToken: () => of({ livekit_url: 'ws://livekit', token: 'token' })
       }
@@ -60,7 +63,8 @@ describe('RoomComponent', () => {
       isScreenSharing$: new BehaviorSubject(false),
       isCameraActive$: new BehaviorSubject(false),
       participants$: new BehaviorSubject([]),
-      activeSpeakers$: new BehaviorSubject([])
+	  activeSpeakers$: new BehaviorSubject([]),
+	  connectionState$: new BehaviorSubject('disconnected')
     };
     mockToastService = {
       success: () => {},
@@ -91,4 +95,14 @@ describe('RoomComponent', () => {
     const fixture = TestBed.createComponent(RoomComponent);
     expect(fixture.componentInstance).toBeTruthy();
   });
+
+  it('does not join voice or request microphone permission when the room opens', fakeAsync(() => {
+	const getToken = spyOn(mockApiService.voice, 'getToken').and.callThrough();
+	const fixture = TestBed.createComponent(RoomComponent);
+	fixture.componentInstance.ngOnInit();
+	tick(1000);
+
+	expect(getToken).not.toHaveBeenCalled();
+	fixture.componentInstance.ngOnDestroy();
+  }));
 });

@@ -6,6 +6,10 @@
   display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 16px 0;
 }
 .sidebar-top, .sidebar-bottom { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.voice-status { width: 6px; height: 6px; border-radius: 50%; background: var(--text-muted); margin-top: -6px; }
+.voice-status.state-connected { background: #22c55e; }
+.voice-status.state-connecting, .voice-status.state-reconnecting { background: #f59e0b; }
+.voice-status.state-degraded { background: #ef4444; }
 .sb-avatar {
   width: 40px; height: 40px; border-radius: 50%; overflow: hidden;
   background: var(--bg-elevated); border: 1px solid var(--border-color);

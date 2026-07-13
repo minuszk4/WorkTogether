@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
-import { Participant, Room, RoomEvent } from 'livekit-client';
+import { ConnectionQuality, Participant, Room, RoomEvent } from 'livekit-client';
 import { environment } from '../../../environments/environment';
 
 @Injectable({
@@ -16,90 +16,24 @@ export class VoiceService {
   public isMuted$ = new BehaviorSubject<boolean>(false);
   public isScreenSharing$ = new BehaviorSubject<boolean>(false);
   public isCameraActive$ = new BehaviorSubject<boolean>(false);
+  public connectionState$ = new BehaviorSubject<'disconnected' | 'connecting' | 'connected' | 'reconnecting' | 'degraded'>('disconnected');
+  private audioHost: HTMLElement | null = null;
 
-  constructor() {
-    // TCP-only is disabled to allow high-performance UDP. WebRTC will automatically fallback to TCP if UDP is blocked.
-    // this.forceWebRtcTcpOnly();
-  }
-
-  private forceWebRtcTcpOnly(): void {
-    if (typeof window === 'undefined' || (window as any).__webrtc_forced_tcp) {
-      return;
-    }
-    (window as any).__webrtc_forced_tcp = true;
-
-    // Helper to strip UDP candidates from SDP text
-    const stripUdpFromSdp = (sdp: string): string => {
-      const lines = sdp.split('\n');
-      const filteredLines = lines.filter(line => {
-        if (line.startsWith('a=candidate:') && line.toLowerCase().includes(' udp ')) {
-          return false;
-        }
-        return true;
-      });
-      return filteredLines.join('\n');
-    };
-
-    // 1. Filter UDP candidates added via trickle ICE
-    const originalAddIceCandidate = RTCPeerConnection.prototype.addIceCandidate;
-    RTCPeerConnection.prototype.addIceCandidate = function (
-      candidate?: any,
-      successCallback?: any,
-      failureCallback?: any
-    ): Promise<void> {
-      if (candidate) {
-        const candidateStr = typeof candidate === 'string' ? candidate : (candidate.candidate || '');
-        if (candidateStr.toLowerCase().includes(' udp ')) {
-          if (successCallback) successCallback();
-          return Promise.resolve();
-        }
-      }
-      return originalAddIceCandidate.apply(this, arguments as any);
-    };
-
-    // 2. Filter UDP candidates from Remote Session Description (SDP)
-    const originalSetRemoteDescription = RTCPeerConnection.prototype.setRemoteDescription;
-    RTCPeerConnection.prototype.setRemoteDescription = function (description: RTCSessionDescriptionInit): Promise<void> {
-      let desc = description;
-      if (description && description.sdp) {
-        desc = {
-          type: description.type,
-          sdp: stripUdpFromSdp(description.sdp)
-        };
-      }
-      return (originalSetRemoteDescription as any).call(this, desc);
-    };
-
-    // 3. Filter UDP candidates from Local Session Description (SDP)
-    const originalSetLocalDescription = RTCPeerConnection.prototype.setLocalDescription;
-    RTCPeerConnection.prototype.setLocalDescription = function (description: RTCSessionDescriptionInit): Promise<void> {
-      let desc = description;
-      if (description && description.sdp) {
-        desc = {
-          type: description.type,
-          sdp: stripUdpFromSdp(description.sdp)
-        };
-      }
-      return (originalSetLocalDescription as any).call(this, desc);
-    };
-
-    console.log('[WebRTC] Forced TCP-only mode enabled. Filtered out UDP candidates.');
-  }
-
-  public async connect(serverUrl: string, token: string): Promise<void> {
+  public async connect(serverUrl: string, token: string, audioDeviceId = ''): Promise<void> {
     if (this.connected$.value) return;
     if (this.connectInFlight) return this.connectInFlight;
 
-    this.connectInFlight = this.doConnect(serverUrl, token).finally(() => {
+    this.connectInFlight = this.doConnect(serverUrl, token, audioDeviceId).finally(() => {
       this.connectInFlight = null;
     });
 
     return this.connectInFlight;
   }
 
-  private async doConnect(serverUrl: string, token: string): Promise<void> {
+  private async doConnect(serverUrl: string, token: string, audioDeviceId: string): Promise<void> {
     try {
       this.disconnect();
+	  this.connectionState$.next('connecting');
 
       this.room = new Room({
         adaptiveStream: true,
@@ -113,10 +47,10 @@ export class VoiceService {
         throw new Error('Kết nối LiveKit bị hủy hoặc không thành công.');
       }
       this.connected$.next(true);
-
-      if (this.room.localParticipant) {
-        await this.room.localParticipant.setMicrophoneEnabled(true);
-      }
+	  this.connectionState$.next('connected');
+	  if (audioDeviceId) {
+		await this.room.switchActiveDevice('audioinput', audioDeviceId);
+	  }
       this.updateParticipants();
       this.syncLocalState();
     } catch (err) {
@@ -142,9 +76,7 @@ export class VoiceService {
       .on(RoomEvent.TrackSubscribed, (track) => {
         if (track.kind === 'audio') {
           const element = track.attach();
-          if (typeof document !== 'undefined') {
-            document.body.appendChild(element);
-          }
+		  this.getAudioHost()?.appendChild(element);
         }
         this.updateParticipants();
       })
@@ -161,6 +93,15 @@ export class VoiceService {
         this.activeSpeakers$.next(speakers.map(speaker => speaker.sid));
         this.updateParticipants();
       })
+	  .on(RoomEvent.Reconnecting, () => this.connectionState$.next('reconnecting'))
+	  .on(RoomEvent.Reconnected, () => this.connectionState$.next('connected'))
+	  .on(RoomEvent.ConnectionQualityChanged, (quality, participant) => {
+		if (participant.isLocal) {
+		  this.connectionState$.next(
+			quality === ConnectionQuality.Poor || quality === ConnectionQuality.Lost ? 'degraded' : 'connected'
+		  );
+		}
+	  })
       .on(RoomEvent.Disconnected, () => {
         this.resetState();
       });
@@ -280,6 +221,17 @@ export class VoiceService {
     this.resetState();
   }
 
+  private getAudioHost(): HTMLElement | null {
+	if (typeof document === 'undefined') return null;
+	if (!this.audioHost) {
+	  this.audioHost = document.createElement('div');
+	  this.audioHost.hidden = true;
+	  this.audioHost.dataset['livekitAudio'] = 'true';
+	  document.body.appendChild(this.audioHost);
+	}
+	return this.audioHost;
+  }
+
   private normalizeLiveKitUrl(serverUrl: string): string {
     let normalizedUrl = serverUrl || environment.livekitUrl;
     normalizedUrl = normalizedUrl.replace(/^http:\/\//i, 'ws://').replace(/^https:\/\//i, 'wss://');
@@ -296,6 +248,8 @@ export class VoiceService {
   }
 
   private resetState(): void {
+	this.audioHost?.remove();
+	this.audioHost = null;
     this.room = null;
     this.connected$.next(false);
     this.participants$.next([]);
@@ -303,5 +257,6 @@ export class VoiceService {
     this.isMuted$.next(false);
     this.isScreenSharing$.next(false);
     this.isCameraActive$.next(false);
+	this.connectionState$.next('disconnected');
   }
 }

@@ -1,5 +1,6 @@
 import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { ApiService } from '../../core/services/api.service';
@@ -32,7 +33,7 @@ import { HistoryStatsComponent } from './components/history-stats/history-stats.
   selector: 'app-room',
   standalone: true,
   imports: [
-    CommonModule, SidebarComponent, StageComponent,
+	CommonModule, FormsModule, SidebarComponent, StageComponent,
     VoicePillsComponent, ChatComponent, QueueComponent, PlayerBarComponent,
     QuickReactionsComponent, ReactionsCanvasComponent, RoomVibeMeterComponent,
     PollWidgetComponent, SubroomsComponent, TimerComponent, CollabNotesComponent,
@@ -63,6 +64,9 @@ export class RoomComponent implements OnInit, OnDestroy {
   public isScreenShareBusy = false;
   public isCameraBusy = false;
   public isLeavingRoom = false;
+	public isVoicePrejoinOpen = false;
+	public audioInputDevices: MediaDeviceInfo[] = [];
+	public selectedAudioInput = '';
   public currentSubRoomId: string | null = null;
   public savedVolume: number | null = null;
 
@@ -92,7 +96,6 @@ export class RoomComponent implements OnInit, OnDestroy {
         this.state.activeRoom$.next(room);
         this.loadRoomMembers();
         this.connectWebSockets();
-        setTimeout(() => this.onVoiceChannelClick(), 800);
       },
       error: (err) => {
         this.toast.error('Không thể tải phòng: ' + err.message);
@@ -140,24 +143,36 @@ export class RoomComponent implements OnInit, OnDestroy {
     this.uiState.setStageMode(mode);
   }
 
-  public onVoiceChannelClick(): Promise<void> {
+  public async onVoiceChannelClick(): Promise<void> {
     if (this.isVoiceBusy) return Promise.resolve();
     if (this.isMicActive) {
       this.voiceService.disconnect();
       this.toast.success('Đã rời kênh voice.');
       return Promise.resolve();
     }
+	this.isVoicePrejoinOpen = true;
+	try {
+	  const devices = await navigator.mediaDevices?.enumerateDevices();
+	  this.audioInputDevices = (devices || []).filter(device => device.kind === 'audioinput');
+	  this.selectedAudioInput ||= this.audioInputDevices[0]?.deviceId || '';
+	} catch {
+	  this.audioInputDevices = [];
+	}
+	return Promise.resolve();
+  }
+
+	public confirmVoiceJoin(): void {
+	this.isVoicePrejoinOpen = false;
     this.isVoiceBusy = true;
     this.toast.info('Đang kết nối voice...');
-    this.api.voice.getToken(this.roomId).subscribe({
+	this.api.voice.getToken(this.roomId, this.currentSubRoomId).subscribe({
       next: async (res) => {
-        try { await this.voiceService.connect(res.livekit_url, res.token); this.toast.success('Đã tham gia voice.'); }
+		try { await this.voiceService.connect(res.livekit_url, res.token, this.selectedAudioInput); this.toast.success('Đã tham gia voice với mic tắt.'); }
         catch (err: any) { this.toast.error('Lỗi voice: ' + err.message); }
         finally { this.isVoiceBusy = false; }
       },
       error: (err) => { this.isVoiceBusy = false; this.toast.error('Không xin được token voice: ' + err.message); }
     });
-    return Promise.resolve();
   }
 
   public async onMuteToggleClick(): Promise<void> {
@@ -299,6 +314,7 @@ export class RoomComponent implements OnInit, OnDestroy {
   }
 
   get currentUserAvatar(): string { return this.state.user?.avatar_url || ''; }
+	get voiceConnectionState(): string { return this.voiceService.connectionState$.value; }
   get currentUserDisplayName(): string {
     const u = this.state.user;
     return u?.display_name || u?.username || 'WT';
@@ -314,8 +330,10 @@ export class RoomComponent implements OnInit, OnDestroy {
   get isStatsOpen(): boolean { return this.uiState.uiState.isStatsOpen; }
 
   private handleVoiceSubRoomSwitch(subRoomId: string | null): void {
+	const wasConnected = this.voiceService.connected$.value;
     this.voiceService.disconnect();
     this.isMicActive = false;
+	if (!wasConnected) return;
     
     if (subRoomId) {
       // Mute main music player when entering breakout subroom
@@ -325,8 +343,7 @@ export class RoomComponent implements OnInit, OnDestroy {
       this.playerEngine.setVolumeFromFraction(0);
 
       this.toast.info('Đang kết nối voice phòng con...');
-      const voiceRoomName = `room-${this.roomId}-sub-${subRoomId}`;
-      this.api.voice.getToken(voiceRoomName).subscribe({
+	  this.api.voice.getToken(this.roomId, subRoomId).subscribe({
         next: async (res) => {
           try {
             await this.voiceService.connect(res.livekit_url, res.token);
@@ -347,7 +364,7 @@ export class RoomComponent implements OnInit, OnDestroy {
       }
 
       this.toast.info('Đang quay lại voice sảnh chính...');
-      this.api.voice.getToken(this.roomId).subscribe({
+	  this.api.voice.getToken(this.roomId, null).subscribe({
         next: async (res) => {
           try {
             await this.voiceService.connect(res.livekit_url, res.token);

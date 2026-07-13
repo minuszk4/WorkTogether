@@ -34,9 +34,10 @@ type VerifyRoomMemberRequest struct {
 }
 
 type VerifyRoomMemberResponse struct {
-	IsMember    bool     `json:"is_member"`
-	Role        string   `json:"role"`
-	Permissions []string `json:"permissions"`
+	IsMember        bool     `json:"is_member"`
+	Role            string   `json:"role"`
+	Permissions     []string `json:"permissions"`
+	ActiveSubRoomID string   `json:"active_sub_room_id,omitempty"`
 }
 
 // Client part used by voice-service to query room-service
@@ -61,4 +62,3 @@ func (c *roomInternalServiceClient) VerifyRoomMember(ctx context.Context, in *Ve
 	}
 	return out, nil
 }
-

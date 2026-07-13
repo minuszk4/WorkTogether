@@ -6,9 +6,11 @@ type VoiceTokenResponse struct {
 }
 
 type LiveKitWebhookRequest struct {
-	Event       string                 `json:"event"`
-	Room        LiveKitRoom            `json:"room"`
-	Participant LiveKitParticipant     `json:"participant"`
+	ID          string             `json:"id"`
+	Event       string             `json:"event"`
+	CreatedAt   int64              `json:"created_at"`
+	Room        LiveKitRoom        `json:"room"`
+	Participant LiveKitParticipant `json:"participant"`
 }
 
 type LiveKitRoom struct {
@@ -18,6 +20,7 @@ type LiveKitRoom struct {
 
 type LiveKitParticipant struct {
 	Identity string `json:"identity"`
+	SID      string `json:"sid"`
 	State    string `json:"state"`
 	JoinedAt int64  `json:"joined_at"`
 }

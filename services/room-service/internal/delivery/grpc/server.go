@@ -68,9 +68,15 @@ func (s *RoomGrpcServer) VerifyRoomMember(ctx context.Context, req *roomv1.Verif
 		permissions = filtered
 	}
 
+	activeSubRoomID := ""
+	if m.ActiveSubRoomID != nil {
+		activeSubRoomID = *m.ActiveSubRoomID
+	}
+
 	return &roomv1.VerifyRoomMemberResponse{
-		IsMember:    true,
-		Role:        m.RoleType,
-		Permissions: permissions,
+		IsMember:        true,
+		Role:            m.RoleType,
+		Permissions:     permissions,
+		ActiveSubRoomID: activeSubRoomID,
 	}, nil
 }

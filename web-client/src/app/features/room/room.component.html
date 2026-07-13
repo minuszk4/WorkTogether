@@ -7,6 +7,7 @@
     [isVoiceBusy]="isVoiceBusy"
     [isScreenShareBusy]="isScreenShareBusy"
     [isCameraBusy]="isCameraBusy"
+	[connectionState]="voiceConnectionState"
     [avatarUrl]="currentUserAvatar"
     [displayName]="currentUserDisplayName"
     (back)="onBackToLobbyClick()"
@@ -86,4 +87,26 @@
   }
 
   <app-room-poll-widget></app-room-poll-widget>
+
+	@if (isVoicePrejoinOpen) {
+	  <div class="voice-prejoin-backdrop" (click)="isVoicePrejoinOpen = false">
+		<section class="voice-prejoin" role="dialog" aria-modal="true" aria-labelledby="voice-prejoin-title" (click)="$event.stopPropagation()">
+		  <h2 id="voice-prejoin-title">Tham gia voice</h2>
+		  <p>Microphone sẽ tắt khi bạn vào phòng.</p>
+		  <label for="voice-microphone">Microphone</label>
+		  <select id="voice-microphone" [(ngModel)]="selectedAudioInput">
+			@if (audioInputDevices.length === 0) {
+			  <option value="">Thiết bị mặc định</option>
+			}
+			@for (device of audioInputDevices; track device.deviceId; let index = $index) {
+			  <option [value]="device.deviceId">{{ device.label || ('Microphone ' + (index + 1)) }}</option>
+			}
+		  </select>
+		  <div class="voice-prejoin-actions">
+			<button type="button" class="btn btn-secondary" (click)="isVoicePrejoinOpen = false">Hủy</button>
+			<button type="button" class="btn btn-primary" (click)="confirmVoiceJoin()">Vào phòng</button>
+		  </div>
+		</section>
+	  </div>
+	}
 </div>

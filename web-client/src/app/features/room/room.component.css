@@ -121,6 +121,23 @@ app-room-quick-reactions {
   animation: panel-slide-in var(--transition-panel, 0.3s ease);
 }
 
+.voice-prejoin-backdrop {
+  position: fixed; inset: 0; z-index: var(--z-modal, 1000); display: grid; place-items: center;
+  padding: 16px; background: rgba(0, 0, 0, 0.64);
+}
+.voice-prejoin {
+  width: min(400px, 100%); padding: 20px; border: 1px solid var(--border-color);
+  border-radius: var(--radius-md); background: var(--bg-elevated); box-shadow: var(--shadow-lg);
+}
+.voice-prejoin h2 { margin: 0 0 8px; font-size: 20px; }
+.voice-prejoin p { margin: 0 0 20px; color: var(--text-secondary); }
+.voice-prejoin label { display: block; margin-bottom: 8px; font-size: 13px; color: var(--text-secondary); }
+.voice-prejoin select {
+  width: 100%; min-height: 42px; padding: 0 10px; color: var(--text-primary);
+  background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-sm);
+}
+.voice-prejoin-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+
 /* Theme variables overrides */
 .room-shell.theme-sunset-glow {
   --bg-base:       #190b08;
@@ -178,5 +195,4 @@ app-room-quick-reactions {
   --accent-gradient:  linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
   --border-focus:     #3b82f6;
 }
-
 

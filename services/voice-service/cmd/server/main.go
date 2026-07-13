@@ -1,24 +1,24 @@
 package main
 
 import (
-	"os/signal"
-	"syscall"
-	"github.com/worktogether/pkg/env"
 	"context"
 	"fmt"
+	"github.com/worktogether/pkg/env"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	roomv1 "github.com/worktogether/services/voice-service/api/v1"
 	delivery "github.com/worktogether/services/voice-service/internal/delivery/http"
 	"github.com/worktogether/services/voice-service/internal/usecase"
 	"github.com/worktogether/services/voice-service/pkg/middleware"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
@@ -81,7 +81,7 @@ func main() {
 	}
 
 	uc := usecase.NewVoiceUsecase(livekitURL, livekitKey, livekitSecret, rdb)
-	handler := delivery.NewVoiceHandler(uc, roomClient, livekitURL)
+	handler := delivery.NewVoiceHandler(uc, roomClient, livekitURL, livekitKey, livekitSecret)
 
 	port := env.GetEnv("PORT", "8088")
 	jwtSecret := os.Getenv("JWT_SECRET")
@@ -99,8 +99,8 @@ func main() {
 	voiceGroup := r.Group("/api/v1/voice")
 	{
 		// Lấy token thoại yêu cầu đăng nhập
-		voiceGroup.GET("/rooms/:room_id/token", middleware.AuthMiddleware(jwtSecret), handler.GetToken)
-		
+		voiceGroup.POST("/rooms/:room_id/token", middleware.AuthMiddleware(jwtSecret), handler.GetToken)
+
 		// Webhook từ LiveKit (không dùng AuthMiddleware vì được gọi bởi LiveKit Server)
 		voiceGroup.POST("/webhooks", handler.HandleWebhook)
 	}
@@ -135,4 +135,3 @@ func main() {
 
 	log.Println("Server đã thoát an toàn.")
 }
-

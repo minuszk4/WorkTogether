@@ -210,10 +210,25 @@ export class ApiService {
       this.post<any>(`/playlists/tracks/${itemID}/vote`, { vote_type: voteType }),
   };
 
+  // ─── Playback APIs ────────────────────────────────────────────────
+  public playback = {
+    assignGuestDj: (roomId: string, userId: string, durationSeconds = 3600): Observable<any> =>
+      this.post<any>(`/rooms/${roomId}/playback/dj`, {
+        user_id: userId,
+        duration_seconds: durationSeconds,
+      }),
+
+    revokeGuestDj: (roomId: string): Observable<any> =>
+      this.delete<any>(`/rooms/${roomId}/playback/dj`),
+  };
+
   // ─── Voice APIs ───────────────────────────────────────────────────
   public voice = {
-    getToken: (roomId: string): Observable<any> =>
-      this.get<any>(`/voice/rooms/${roomId}/token`),
+    getToken: (roomId: string, channelId: string | null = null): Observable<any> =>
+      this.post<any>(`/voice/rooms/${roomId}/token`, {
+        channel_id: channelId,
+        publish_sources: ['microphone', 'camera', 'screen_share']
+      }),
   };
 
   // ─── Notification APIs ────────────────────────────────────────────
