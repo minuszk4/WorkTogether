@@ -152,6 +152,7 @@ export class RoomComponent implements OnInit, OnDestroy {
     this.uiState.applyRoomMode(mode);
     const room = this.state.activeRoom$.value;
     if (room) this.state.activeRoom$.next({ ...room, mode });
+    this.updateRoomPresence();
   }
 
   private normalizeRoomMode(mode: unknown): RoomMode {
@@ -293,16 +294,22 @@ export class RoomComponent implements OnInit, OnDestroy {
 
   private startPresenceHeartbeat(): void {
     this.stopPresenceHeartbeat();
-    
-    void this.api.user.updateStatus('online', 'Xem chung').toPromise().catch(err => {
-      console.warn('Initial presence update failed:', err);
-    });
-
+    this.updateRoomPresence();
     this.presenceTimer = setInterval(() => {
-      void this.api.user.updateStatus('online', 'Xem chung').toPromise().catch(err => {
-        console.warn('Presence heartbeat update failed:', err);
-      });
+      this.updateRoomPresence();
     }, 45 * 1000);
+  }
+
+  private updateRoomPresence(): void {
+    const roomName = this.state.activeRoom$.value?.name || 'một room';
+    const activity = this.roomMode === 'focus'
+      ? `Đang focus tại ${roomName}`
+      : this.roomMode === 'collaborate'
+        ? `Đang cộng tác tại ${roomName}`
+        : `Đang thư giãn tại ${roomName}`;
+    void this.api.user.updateStatus('online', activity).toPromise().catch(err => {
+      console.warn('Room presence update failed:', err);
+    });
   }
 
   private stopPresenceHeartbeat(): void {
