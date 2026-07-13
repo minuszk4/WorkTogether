@@ -65,6 +65,17 @@ export class LyricsComponent implements OnInit, OnDestroy {
     this.subs.forEach(s => s.unsubscribe());
   }
 
+  public get canEditLyrics(): boolean {
+    const token = this.state.accessToken;
+    if (!token) return false;
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+      return payload.is_admin === true;
+    } catch {
+      return false;
+    }
+  }
+
   private loadLyrics(trackId: string): void {
     this.isLoading = true;
     this.lyricsService.getLyrics(trackId).subscribe({
@@ -151,6 +162,7 @@ export class LyricsComponent implements OnInit, OnDestroy {
   }
 
   public openEditModal(): void {
+	if (!this.canEditLyrics) return;
     this.isEditing = true;
   }
 

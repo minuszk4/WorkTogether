@@ -294,6 +294,9 @@ func (h *MusicHandler) GetLyrics(c *gin.Context) {
 }
 
 func (h *MusicHandler) SaveLyrics(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
 	trackID := c.Param("track_id")
 	var req struct {
 		Content string `json:"content" binding:"required"`

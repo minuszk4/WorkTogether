@@ -99,4 +99,12 @@ describe('LyricsComponent', () => {
     expect(mockLyricsService.saveLyrics).toHaveBeenCalledWith('track-1', '[00:05.00]Hello');
     expect(mockToastService.success).toHaveBeenCalled();
   });
+
+  it('allows lyric editing only for an admin access token', () => {
+    mockStateService.accessToken = `${btoa(JSON.stringify({ alg: 'none' }))}.${btoa(JSON.stringify({ is_admin: false }))}.signature`;
+    expect(component.canEditLyrics).toBeFalse();
+
+    mockStateService.accessToken = `${btoa(JSON.stringify({ alg: 'none' }))}.${btoa(JSON.stringify({ is_admin: true }))}.signature`;
+    expect(component.canEditLyrics).toBeTrue();
+  });
 });
