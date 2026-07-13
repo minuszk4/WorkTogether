@@ -60,13 +60,39 @@ func NewHub(u *usecase.PlaybackUsecase, rc roomv1.RoomInternalServiceClient, jwt
 	}
 }
 
+func (h *Hub) roomMembership(ctx context.Context, roomID, userID string) *roomv1.VerifyRoomMemberResponse {
+	if h.roomClient == nil {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	member, err := h.roomClient.VerifyRoomMember(ctx, &roomv1.VerifyRoomMemberRequest{RoomID: roomID, UserID: userID})
+	if err != nil || member == nil || !member.IsMember {
+		return nil
+	}
+	return member
+}
+
+func (h *Hub) canControlPlayback(ctx context.Context, roomID, userID string) bool {
+	member := h.roomMembership(ctx, roomID, userID)
+	if member == nil {
+		return false
+	}
+	for _, permission := range member.Permissions {
+		if strings.EqualFold(permission, "CAN_CONTROL_PLAYBACK") {
+			return true
+		}
+	}
+	return false
+}
+
 func (h *Hub) Run() {
 	// Khởi chạy vòng lặp kiểm tra trạng thái phát nhạc của tất cả các phòng có người kết nối
 	go func() {
 		ticker := time.NewTicker(2 * time.Second)
 		for range ticker.C {
 			ctx := context.Background()
-			
+
 			h.mutex.RLock()
 			roomIDs := make([]string, 0, len(h.rooms))
 			for rID := range h.rooms {
@@ -97,8 +123,8 @@ func (h *Hub) Run() {
 			if err == nil {
 				payloadBytes, _ := json.Marshal(state)
 				msg := domain.WSMessage{
-					Event:  "playback:sync",
-					RoomID: client.RoomID,
+					Event:   "playback:sync",
+					RoomID:  client.RoomID,
 					Payload: json.RawMessage(payloadBytes),
 				}
 				msgBytes, _ := json.Marshal(msg)
@@ -231,32 +257,14 @@ func (c *Client) ReadPump() {
 				continue
 			}
 
-			// Kiểm tra xem phòng có Guest DJ đang hoạt động không
+			// Guest DJ có thể điều khiển trong thời hạn được cấp; các host/moderator
+			// vẫn có thể override bằng quyền CAN_CONTROL_PLAYBACK.
 			guestDJ, err := c.Hub.usecase.GetGuestDJ(ctx, c.RoomID)
-			if err == nil && guestDJ != "" {
-				// Nếu người gửi không phải là Guest DJ hiện tại
-				if c.UserID != guestDJ {
-					// Kiểm tra xem người gửi có phải là Host (OWNER) không
-					res, err := c.Hub.roomClient.VerifyRoomMember(ctx, &roomv1.VerifyRoomMemberRequest{
-						RoomID: c.RoomID,
-						UserID: c.UserID,
-					})
-					if err != nil || res == nil || res.Role != "OWNER" {
-						// Không phải Host cũng không phải Guest DJ -> Trả lỗi và bỏ qua lệnh
-						payloadBytes, _ := json.Marshal(map[string]interface{}{
-							"code":    "FORBIDDEN",
-							"message": "Phòng đang có Guest DJ làm chủ bàn nhạc. Chỉ Host hoặc Guest DJ hiện tại mới có quyền thay đổi phát nhạc.",
-						})
-						resp := domain.WSMessage{
-							Event:   "playback:error",
-							RoomID:  c.RoomID,
-							Payload: json.RawMessage(payloadBytes),
-						}
-						respBytes, _ := json.Marshal(resp)
-						c.Send <- respBytes
-						continue
-					}
-				}
+			if (err != nil || c.UserID != guestDJ) && !c.Hub.canControlPlayback(ctx, c.RoomID, c.UserID) {
+				payloadBytes, _ := json.Marshal(map[string]string{"code": "FORBIDDEN", "message": "Bạn không có quyền điều khiển phát nhạc của phòng này."})
+				respBytes, _ := json.Marshal(domain.WSMessage{Event: "playback:error", RoomID: c.RoomID, Payload: json.RawMessage(payloadBytes)})
+				c.Send <- respBytes
+				continue
 			}
 
 			// Lưu trạng thái mới vào Redis
@@ -352,6 +360,10 @@ func ServePlaybackWS(hub *Hub) gin.HandlerFunc {
 		}
 
 		userID, _ := claims["sub"].(string)
+		if hub.roomMembership(c.Request.Context(), roomID, userID) == nil {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Bạn không phải thành viên của phòng này"})
+			return
+		}
 
 		conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 		if err != nil {
@@ -468,7 +480,7 @@ func (h *Hub) startPlaylistPoll(ctx context.Context, roomID string, token string
 	if len(tracks) < limit {
 		limit = len(tracks)
 	}
-	
+
 	// Tránh đề xuất chính bài đang phát hiện tại
 	state, _ := h.usecase.GetOrCreateState(ctx, roomID)
 	currentIndex := -1
@@ -564,7 +576,7 @@ func (h *Hub) advanceToNextTrack(ctx context.Context, roomID string, token strin
 		if len(candidates) > 0 {
 			userTracksMap := make(map[string][]*playlistTrackInfo)
 			var activeUsers []string
-			
+
 			for _, t := range candidates {
 				user := t.AddedBy
 				if len(userTracksMap[user]) == 0 {
@@ -585,21 +597,21 @@ func (h *Hub) advanceToNextTrack(ctx context.Context, roomID string, token strin
 			sort.Slice(activeUsers, func(i, j int) bool {
 				uI := activeUsers[i]
 				uJ := activeUsers[j]
-				
+
 				minPosI := 9999999
 				for _, t := range userTracksMap[uI] {
 					if t.Position < minPosI {
 						minPosI = t.Position
 					}
 				}
-				
+
 				minPosJ := 9999999
 				for _, t := range userTracksMap[uJ] {
 					if t.Position < minPosJ {
 						minPosJ = t.Position
 					}
 				}
-				
+
 				return minPosI < minPosJ
 			})
 
@@ -680,7 +692,7 @@ func (h *Hub) advanceToNextTrack(ctx context.Context, roomID string, token strin
 
 	syncBytes, _ := json.Marshal(newState)
 	h.BroadcastToRoom(roomID, "playback:sync", json.RawMessage(syncBytes))
-	
+
 	h.BroadcastToRoom(roomID, "poll:end", map[string]interface{}{
 		"winner": map[string]interface{}{
 			"track_id": nextTrack.TrackID,
@@ -772,12 +784,12 @@ func (h *Hub) fetchPlaylistTracks(ctx context.Context, playlistID string, token 
 
 func (h *Hub) moveTrackInPlaylist(ctx context.Context, playlistID string, itemID string, newPosition int, token string) error {
 	url := fmt.Sprintf("http://playlist-service:8086/api/v1/playlists/%s/tracks/%s/move", playlistID, itemID)
-	
+
 	bodyMap := map[string]interface{}{
 		"new_position": newPosition,
 	}
 	bodyBytes, _ := json.Marshal(bodyMap)
-	
+
 	req, err := http.NewRequestWithContext(ctx, "PUT", url, strings.NewReader(string(bodyBytes)))
 	if err != nil {
 		return err
