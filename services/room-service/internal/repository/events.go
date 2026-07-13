@@ -28,6 +28,23 @@ func (r *PostgresRepository) ListUpcomingRoomEvents(ctx context.Context, roomID 
 	return events, rows.Err()
 }
 
+func (r *PostgresRepository) ClaimDueRoomEvents(ctx context.Context) ([]*domain.RoomEvent, error) {
+	rows, err := r.db.QueryContext(ctx, `UPDATE room_events SET reminder_sent_at = NOW(), updated_at = NOW() WHERE id IN (SELECT id FROM room_events WHERE cancelled_at IS NULL AND reminder_sent_at IS NULL AND starts_at <= NOW() + INTERVAL '15 minutes' AND starts_at > NOW() FOR UPDATE SKIP LOCKED) RETURNING id, room_id, created_by, title, description, starts_at, reminder_sent_at, cancelled_at, created_at, updated_at`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	events := []*domain.RoomEvent{}
+	for rows.Next() {
+		event, err := scanRoomEvent(rows)
+		if err != nil {
+			return nil, err
+		}
+		events = append(events, event)
+	}
+	return events, rows.Err()
+}
+
 func scanRoomEvent(row interface{ Scan(...any) error }) (*domain.RoomEvent, error) {
 	event := &domain.RoomEvent{}
 	var reminder, cancelled sql.NullTime
