@@ -8,6 +8,9 @@
     </div>
 
     <div class="sidebar-cluster">
+	@if (isAdmin) {
+	  <button type="button" class="slim-nav-item" (click)="openAdmin()" title="Admin Console"><span class="slim-nav-glyph">A</span></button>
+	}
       <button type="button" class="slim-avatar" (click)="isProfileSettingsModalOpen = true" title="Ho so ca nhan">
         @if (state.user?.avatar_url) {
           <img [src]="state.user?.avatar_url" alt="User avatar">

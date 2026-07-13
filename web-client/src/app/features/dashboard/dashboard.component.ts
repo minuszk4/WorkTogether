@@ -92,6 +92,18 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return this.notifications.slice(0, 8);
   }
 
+  public get isAdmin(): boolean {
+    try {
+      const token = this.state.accessToken;
+      const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+      return payload.is_admin === true;
+    } catch {
+      return false;
+    }
+  }
+
+  public openAdmin(): void { void this.router.navigate(['/admin']); }
+
   public get openActionItems(): any[] {
     return this.actionItems.filter(item => item.status === 'OPEN');
   }

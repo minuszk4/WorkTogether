@@ -188,6 +188,12 @@ export class ApiService {
       this.put<any>(`/rooms/${roomId}/sessions/${sessionId}/actions/${actionId}`, { status }),
   };
 
+  public admin = {
+    listRooms: (): Observable<any[]> => this.get<any[]>('/admin/rooms'),
+    updateRoom: (roomId: string, room: any): Observable<any> => this.put<any>(`/admin/rooms/${roomId}`, room),
+    deleteRoom: (roomId: string): Observable<any> => this.delete<any>(`/admin/rooms/${roomId}`),
+  };
+
   // ─── Music APIs ───────────────────────────────────────────────────
   public music = {
     extract: (sourceUrl: string): Observable<any> =>

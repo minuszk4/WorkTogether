@@ -156,6 +156,14 @@ func main() {
 		roomsGroup.PUT("/:id/members/:user_id/move", handler.MoveMember)
 	}
 
+	adminGroup := r.Group("/api/v1/admin")
+	adminGroup.Use(middleware.AuthMiddleware(jwtSecret))
+	{
+		adminGroup.GET("/rooms", handler.AdminListRooms)
+		adminGroup.PUT("/rooms/:id", handler.AdminUpdateRoom)
+		adminGroup.DELETE("/rooms/:id", handler.AdminDeleteRoom)
+	}
+
 	// Liveness & Readiness probe
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "UP"})
