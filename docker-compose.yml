@@ -246,8 +246,11 @@ services:
       - DB_PASSWORD=${POSTGRES_PASSWORD}
       - DB_NAME=worktogether_playlist
       - PORT=${PLAYLIST_PORT}
+      - ROOM_SERVICE_GRPC=room-service:50051
     depends_on:
       postgres:
+        condition: service_healthy
+      room-service:
         condition: service_healthy
     healthcheck: *service-healthcheck
     restart: unless-stopped

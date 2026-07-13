@@ -95,6 +95,19 @@ func (r *PostgresRepository) GetPlaylistByID(ctx context.Context, id string) (*d
 	return &p, nil
 }
 
+func (r *PostgresRepository) GetPlaylistByTrackID(ctx context.Context, trackID string) (*domain.Playlist, error) {
+	query := `SELECT p.id, p.room_id, p.user_id, p.name, p.created_at FROM playlists p JOIN playlist_tracks t ON t.playlist_id = p.id WHERE t.id = $1`
+	p := &domain.Playlist{}
+	err := r.db.QueryRowContext(ctx, query, trackID).Scan(&p.ID, &p.RoomID, &p.UserID, &p.Name, &p.CreatedAt)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return p, nil
+}
+
 func (r *PostgresRepository) GetRoomPlaylists(ctx context.Context, roomID string) ([]*domain.Playlist, error) {
 	query := `SELECT id, room_id, user_id, name, created_at FROM playlists WHERE room_id = $1 ORDER BY created_at DESC`
 	rows, err := r.db.QueryContext(ctx, query, roomID)

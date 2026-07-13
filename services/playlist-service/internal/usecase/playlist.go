@@ -36,6 +36,10 @@ func (u *PlaylistUsecase) GetPlaylist(ctx context.Context, id string) (*domain.P
 	return u.postgresRepo.GetPlaylistByID(ctx, id)
 }
 
+func (u *PlaylistUsecase) GetPlaylistByTrackID(ctx context.Context, trackID string) (*domain.Playlist, error) {
+	return u.postgresRepo.GetPlaylistByTrackID(ctx, trackID)
+}
+
 func (u *PlaylistUsecase) GetRoomPlaylists(ctx context.Context, roomID string) ([]*domain.Playlist, error) {
 	return u.postgresRepo.GetRoomPlaylists(ctx, roomID)
 }
