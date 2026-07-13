@@ -292,12 +292,10 @@ func (h *MusicHandler) GetBookmarks(c *gin.Context) {
 
 func (h *MusicHandler) SaveBookmark(c *gin.Context) {
 	roomID := c.Param("room_id")
-	userID := c.GetString("user_id")
+	userID := c.GetString("userID")
 	if userID == "" {
-		userID = c.GetHeader("X-User-Id")
-	}
-	if userID == "" {
-		userID = "anonymous"
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": gin.H{"code": "UNAUTHORIZED", "message": "Thiếu định danh người dùng."}})
+		return
 	}
 
 	var req struct {
