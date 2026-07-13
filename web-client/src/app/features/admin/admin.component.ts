@@ -17,15 +17,18 @@ export class AdminComponent implements OnInit {
   public members: any[] = [];
   public messages: any[] = [];
   public tracks: any[] = [];
+  public playlists: any[] = [];
   public membersLoading = false;
   public messagesLoading = false;
   public selected: any | null = null;
   public loading = true;
   public saving = false;
 
-  async ngOnInit(): Promise<void> { await Promise.all([this.loadRooms(), this.loadAccounts(), this.loadAudit(), this.loadTracks()]); }
+  async ngOnInit(): Promise<void> { await Promise.all([this.loadRooms(), this.loadAccounts(), this.loadAudit(), this.loadTracks(), this.loadPlaylists()]); }
   public async loadTracks(): Promise<void> { try { this.tracks = await firstValueFrom(this.api.admin.listTracks()); } catch { this.tracks = []; } }
   public async removeTrack(track: any): Promise<void> { if (!window.confirm(`Xóa track ${track.title}?`)) return; try { await firstValueFrom(this.api.admin.deleteTrack(track.id)); this.tracks = this.tracks.filter(item => item.id !== track.id); } catch (error: any) { this.toast.error(error?.message || 'Không thể xóa track.'); } }
+  public async loadPlaylists(): Promise<void> { try { this.playlists = await firstValueFrom(this.api.admin.listPlaylists()); } catch { this.playlists = []; } }
+  public async removePlaylist(playlist: any): Promise<void> { if (!window.confirm(`Xóa playlist ${playlist.name}?`)) return; try { await firstValueFrom(this.api.admin.deletePlaylist(playlist.id)); this.playlists = this.playlists.filter(item => item.id !== playlist.id); } catch (error: any) { this.toast.error(error?.message || 'Không thể xóa playlist.'); } }
   public async loadRooms(): Promise<void> {
     this.loading = true;
     try { this.rooms = (await firstValueFrom(this.api.admin.listRooms())).map(room => this.normalizeRoom(room)); }

@@ -73,6 +73,8 @@ func main() {
 	playlistGroup := r.Group("/api/v1/playlists")
 	playlistGroup.Use(middleware.AuthMiddleware(jwtSecret))
 	{
+		playlistGroup.GET("/admin", handler.AdminListPlaylists)
+		playlistGroup.DELETE("/admin/:id", handler.AdminDeletePlaylist)
 		playlistGroup.POST("/", handler.CreatePlaylist)
 		playlistGroup.GET("/room/:room_id", handler.GetRoomPlaylists)
 		playlistGroup.GET("/user", handler.GetUserPlaylists)

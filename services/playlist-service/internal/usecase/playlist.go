@@ -48,6 +48,10 @@ func (u *PlaylistUsecase) GetUserPlaylists(ctx context.Context, userID string) (
 	return u.postgresRepo.GetUserPlaylists(ctx, userID)
 }
 
+func (u *PlaylistUsecase) AdminListPlaylists(ctx context.Context) ([]*domain.Playlist, error) {
+	return u.postgresRepo.GetAllPlaylists(ctx, 200)
+}
+
 func (u *PlaylistUsecase) DeletePlaylist(ctx context.Context, id string) error {
 	return u.postgresRepo.DeletePlaylist(ctx, id)
 }

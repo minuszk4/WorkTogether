@@ -146,6 +146,24 @@ func (r *PostgresRepository) GetUserPlaylists(ctx context.Context, userID string
 	return playlists, nil
 }
 
+func (r *PostgresRepository) GetAllPlaylists(ctx context.Context, limit int) ([]*domain.Playlist, error) {
+	rows, err := r.db.QueryContext(ctx, `SELECT id, room_id, user_id, name, created_at FROM playlists ORDER BY created_at DESC LIMIT $1`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	playlists := make([]*domain.Playlist, 0)
+	for rows.Next() {
+		var playlist domain.Playlist
+		if err := rows.Scan(&playlist.ID, &playlist.RoomID, &playlist.UserID, &playlist.Name, &playlist.CreatedAt); err != nil {
+			return nil, err
+		}
+		playlists = append(playlists, &playlist)
+	}
+	return playlists, rows.Err()
+}
+
 func (r *PostgresRepository) DeletePlaylist(ctx context.Context, id string) error {
 	query := `DELETE FROM playlists WHERE id = $1`
 	_, err := r.db.ExecContext(ctx, query, id)

@@ -203,6 +203,8 @@ export class ApiService {
     setAccountSuspended: (accountId: string, isSuspended: boolean): Observable<any> => this.put<any>(`/auth/admin/accounts/${accountId}/suspension`, { is_suspended: isSuspended }),
     listTracks: (): Observable<any[]> => this.get<any[]>('/music/admin/tracks'),
     deleteTrack: (trackId: string): Observable<any> => this.delete<any>(`/music/admin/tracks/${trackId}`),
+    listPlaylists: (): Observable<any[]> => this.get<any[]>('/playlists/admin'),
+    deletePlaylist: (playlistId: string): Observable<any> => this.delete<any>(`/playlists/admin/${playlistId}`),
     listRoomMessages: (roomId: string): Observable<any[]> => this.get<any[]>(`/rooms/${roomId}/chat/messages`),
     deleteRoomMessage: (roomId: string, messageId: string): Observable<any> => this.delete<any>(`/rooms/${roomId}/chat/messages/${messageId}`),
   };

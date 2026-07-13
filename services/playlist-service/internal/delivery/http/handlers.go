@@ -19,6 +19,37 @@ func NewPlaylistHandler(u *usecase.PlaylistUsecase, roomClient roomv1.RoomIntern
 	return &PlaylistHandler{usecase: u, roomClient: roomClient}
 }
 
+func (h *PlaylistHandler) requireAdmin(c *gin.Context) bool {
+	if isAdmin, _ := c.Get("isAdmin"); isAdmin == true {
+		return true
+	}
+	c.JSON(http.StatusForbidden, gin.H{"success": false, "error": gin.H{"code": "FORBIDDEN"}})
+	return false
+}
+
+func (h *PlaylistHandler) AdminListPlaylists(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	playlists, err := h.usecase.AdminListPlaylists(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"code": "SERVER_ERROR", "message": err.Error()}})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": playlists, "error": nil})
+}
+
+func (h *PlaylistHandler) AdminDeletePlaylist(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	if err := h.usecase.DeletePlaylist(c.Request.Context(), c.Param("id")); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"code": "SERVER_ERROR", "message": err.Error()}})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"id": c.Param("id")}, "error": nil})
+}
+
 func hasPermission(permissions []string, expected string) bool {
 	for _, permission := range permissions {
 		if strings.EqualFold(permission, expected) {

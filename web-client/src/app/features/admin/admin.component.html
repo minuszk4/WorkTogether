@@ -7,6 +7,8 @@
       @for (account of accounts; track account.id) { <div class="admin-account"><div><strong>{{ account.username }}</strong><span>{{ account.email }} · {{ account.is_suspended ? 'Suspended' : 'Active' }}</span></div><div class="account-actions"><button type="button" [class.active]="account.is_admin" (click)="toggleAdmin(account)">{{ account.is_admin ? 'Admin' : 'Member' }}</button><button type="button" class="suspension" [class.active]="account.is_suspended" (click)="toggleSuspension(account)">{{ account.is_suspended ? 'Restore' : 'Suspend' }}</button></div></div> }
       <div class="admin-users-head"><h2>Tracks</h2><button type="button" (click)="loadTracks()">Reload</button></div>
       @for (track of tracks; track track.id) { <div class="admin-account"><div><strong>{{ track.title }}</strong><span>{{ track.artist }}</span></div><button type="button" class="danger" (click)="removeTrack(track)">Delete</button></div> }
+      <div class="admin-users-head"><h2>Playlists</h2><button type="button" (click)="loadPlaylists()">Reload</button></div>
+      @for (playlist of playlists; track playlist.id) { <div class="admin-account"><div><strong>{{ playlist.name }}</strong><span>{{ playlist.room_id ? 'Room playlist' : 'Personal playlist' }}</span></div><button type="button" class="danger" (click)="removePlaylist(playlist)">Delete</button></div> }
       <div class="admin-users-head"><h2>Audit log</h2><button type="button" (click)="loadAudit()">Reload</button></div>
       @for (event of auditEvents; track event.id) { <div class="admin-audit"><strong>{{ event.action }}</strong><span>{{ event.target_type }} · {{ event.created_at | date:'short' }}</span></div> }
     </div>
