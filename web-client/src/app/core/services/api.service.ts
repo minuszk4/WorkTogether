@@ -201,6 +201,8 @@ export class ApiService {
     listAccounts: (): Observable<any[]> => this.get<any[]>('/auth/admin/accounts'),
     setAccountAdmin: (accountId: string, isAdmin: boolean): Observable<any> => this.put<any>(`/auth/admin/accounts/${accountId}`, { is_admin: isAdmin }),
     setAccountSuspended: (accountId: string, isSuspended: boolean): Observable<any> => this.put<any>(`/auth/admin/accounts/${accountId}/suspension`, { is_suspended: isSuspended }),
+    listTracks: (): Observable<any[]> => this.get<any[]>('/music/admin/tracks'),
+    deleteTrack: (trackId: string): Observable<any> => this.delete<any>(`/music/admin/tracks/${trackId}`),
   };
 
   // ─── Music APIs ───────────────────────────────────────────────────

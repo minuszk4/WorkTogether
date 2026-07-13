@@ -79,6 +79,8 @@ func main() {
 	musicGroup := r.Group("/api/v1/music")
 	musicGroup.Use(middleware.AuthMiddleware(jwtSecret))
 	{
+		musicGroup.GET("/admin/tracks", handler.AdminListTracks)
+		musicGroup.DELETE("/admin/tracks/:id", handler.AdminDeleteTrack)
 		musicGroup.POST("/extract", handler.ExtractYoutube)
 		musicGroup.POST("/upload", handler.UploadAudio)
 		musicGroup.GET("/search", handler.Search)

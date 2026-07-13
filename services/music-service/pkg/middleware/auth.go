@@ -89,6 +89,8 @@ func AuthMiddleware(secret string) gin.HandlerFunc {
 		}
 
 		c.Set("userID", userID)
+		isAdmin, _ := claims["is_admin"].(bool)
+		c.Set("isAdmin", isAdmin)
 		c.Next()
 	}
 }

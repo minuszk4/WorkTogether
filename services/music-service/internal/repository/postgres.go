@@ -79,7 +79,7 @@ func (r *PostgresRepository) initTables() error {
 	if _, err := r.db.ExecContext(ctx, bookmarksSchema); err != nil {
 		return err
 	}
-	
+
 	// Tạo chỉ mục cho bookmarks.room_id
 	if _, err := r.db.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS idx_bookmarks_room ON bookmarks(room_id);`); err != nil {
 		return err
@@ -152,6 +152,11 @@ func (r *PostgresRepository) SearchTracks(ctx context.Context, keyword string, l
 		tracks = append(tracks, &t)
 	}
 	return tracks, nil
+}
+
+func (r *PostgresRepository) DeleteTrack(ctx context.Context, id string) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM tracks WHERE id = $1`, id)
+	return err
 }
 
 func (r *PostgresRepository) SavePlaybackHistory(ctx context.Context, h *domain.PlaybackHistory) error {

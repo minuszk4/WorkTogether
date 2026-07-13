@@ -187,13 +187,13 @@ func (u *MusicUsecase) ExtractTrackMetadata(ctx context.Context, sourceURL strin
 
 func (u *MusicUsecase) ExtractSoundCloudMetadata(ctx context.Context, trackURL string) (*domain.Track, error) {
 	oembedURL := fmt.Sprintf("https://soundcloud.com/oembed?url=%s&format=json", url.QueryEscape(trackURL))
-	
+
 	client := &http.Client{Timeout: 5 * time.Second}
 	req, err := http.NewRequestWithContext(ctx, "GET", oembedURL, nil)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("không thể kết nối dịch vụ SoundCloud: %v", err)
@@ -308,7 +308,7 @@ func (u *MusicUsecase) UploadAudioFile(ctx context.Context, reader io.Reader, fi
 		ID:           uuid.New().String(),
 		Title:        title,
 		Artist:       artist,
-		ThumbnailURL: "", // Có thể bổ sung thumbnail mặc định
+		ThumbnailURL: "",     // Có thể bổ sung thumbnail mặc định
 		DurationMS:   180000, // MP3 upload giả định 3 phút hoặc cần thư viện đọc audio header
 		Source:       "upload",
 		SourceURL:    sourceURL,
@@ -340,6 +340,14 @@ func (u *MusicUsecase) SearchTracks(ctx context.Context, keyword string) ([]*dom
 	}
 
 	return results, nil
+}
+
+func (u *MusicUsecase) AdminListTracks(ctx context.Context) ([]*domain.Track, error) {
+	return u.postgresRepo.SearchTracks(ctx, "", 200)
+}
+
+func (u *MusicUsecase) AdminDeleteTrack(ctx context.Context, id string) error {
+	return u.postgresRepo.DeleteTrack(ctx, id)
 }
 
 func (u *MusicUsecase) SearchYoutubeScrape(ctx context.Context, keyword string) ([]*domain.Track, error) {

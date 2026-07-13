@@ -16,6 +16,37 @@ type MusicHandler struct {
 	roomClient roomv1.RoomInternalServiceClient
 }
 
+func (h *MusicHandler) requireAdmin(c *gin.Context) bool {
+	if isAdmin, _ := c.Get("isAdmin"); isAdmin == true {
+		return true
+	}
+	c.JSON(http.StatusForbidden, gin.H{"success": false, "error": gin.H{"code": "FORBIDDEN"}})
+	return false
+}
+
+func (h *MusicHandler) AdminListTracks(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	tracks, err := h.usecase.AdminListTracks(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"code": "SERVER_ERROR", "message": err.Error()}})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": tracks, "error": nil})
+}
+
+func (h *MusicHandler) AdminDeleteTrack(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+	if err := h.usecase.AdminDeleteTrack(c.Request.Context(), c.Param("id")); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"code": "SERVER_ERROR", "message": err.Error()}})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"id": c.Param("id")}, "error": nil})
+}
+
 func NewMusicHandler(u *usecase.MusicUsecase, roomClient roomv1.RoomInternalServiceClient) *MusicHandler {
 	return &MusicHandler{usecase: u, roomClient: roomClient}
 }

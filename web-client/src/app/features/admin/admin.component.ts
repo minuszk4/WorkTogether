@@ -15,12 +15,15 @@ export class AdminComponent implements OnInit {
   public accounts: any[] = [];
   public auditEvents: any[] = [];
   public members: any[] = [];
+  public tracks: any[] = [];
   public membersLoading = false;
   public selected: any | null = null;
   public loading = true;
   public saving = false;
 
-  async ngOnInit(): Promise<void> { await Promise.all([this.loadRooms(), this.loadAccounts(), this.loadAudit()]); }
+  async ngOnInit(): Promise<void> { await Promise.all([this.loadRooms(), this.loadAccounts(), this.loadAudit(), this.loadTracks()]); }
+  public async loadTracks(): Promise<void> { try { this.tracks = await firstValueFrom(this.api.admin.listTracks()); } catch { this.tracks = []; } }
+  public async removeTrack(track: any): Promise<void> { if (!window.confirm(`Xóa track ${track.title}?`)) return; try { await firstValueFrom(this.api.admin.deleteTrack(track.id)); this.tracks = this.tracks.filter(item => item.id !== track.id); } catch (error: any) { this.toast.error(error?.message || 'Không thể xóa track.'); } }
   public async loadRooms(): Promise<void> {
     this.loading = true;
     try { this.rooms = (await firstValueFrom(this.api.admin.listRooms())).map(room => this.normalizeRoom(room)); }
