@@ -32,6 +32,9 @@ func TestStartSessionAllowsHostAndCreatesTimeline(t *testing.T) {
 	mock.ExpectQuery("INSERT INTO room_session_timeline").
 		WithArgs("session-1", "owner-1", "session.started", sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "created_at"}).AddRow("event-1", time.Now()))
+	mock.ExpectExec("UPDATE rooms SET mode = \\$1, updated_at = NOW\\(\\) WHERE id = \\$2").
+		WithArgs("focus", "room-1").
+		WillReturnResult(sqlmock.NewResult(1, 1))
 
 	session, err := uc.StartSession(context.Background(), "owner-1", "room-1", &StartSessionInput{
 		Title: "Focus sprint", Goal: "Finish the API", TemplateKey: "focus",

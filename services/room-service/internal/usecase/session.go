@@ -49,8 +49,28 @@ func (u *RoomUsecase) StartSession(ctx context.Context, userID, roomID string, i
 	if err := u.recordSessionEvent(ctx, session.ID, userID, "session.started", map[string]any{"title": session.Title, "template_key": session.TemplateKey}); err != nil {
 		return nil, err
 	}
+	if mode := roomModeForTemplate(session.TemplateKey); mode != "" {
+		if err := u.repo.UpdateRoomMode(ctx, roomID, mode); err != nil {
+			return nil, err
+		}
+		u.invalidateRoomCache(ctx, roomID)
+		u.publishRoomEvent(ctx, roomID, "room:mode_changed", map[string]string{"mode": mode, "changed_by": userID})
+	}
 	u.publishRoomEvent(ctx, roomID, "session:started", map[string]any{"session": session})
 	return session, nil
+}
+
+func roomModeForTemplate(templateKey string) string {
+	switch templateKey {
+	case "focus", "study":
+		return "focus"
+	case "standup":
+		return "collaborate"
+	case "chill":
+		return "chill"
+	default:
+		return ""
+	}
 }
 
 func (u *RoomUsecase) GetActiveSession(ctx context.Context, userID, roomID string) (*domain.RoomSession, error) {
