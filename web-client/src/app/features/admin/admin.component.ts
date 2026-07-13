@@ -13,7 +13,9 @@ export class AdminComponent implements OnInit {
   private router = inject(Router);
   public rooms: any[] = [];
   public accounts: any[] = [];
-	public auditEvents: any[] = [];
+  public auditEvents: any[] = [];
+  public members: any[] = [];
+  public membersLoading = false;
   public selected: any | null = null;
   public loading = true;
   public saving = false;
@@ -25,11 +27,18 @@ export class AdminComponent implements OnInit {
     catch (error: any) { this.toast.error(error?.message || 'Không thể tải dữ liệu quản trị.'); }
     finally { this.loading = false; }
   }
-  public select(room: any): void { this.selected = { ...room }; }
-	public async loadAccounts(): Promise<void> {
-		try { this.accounts = await firstValueFrom(this.api.admin.listAccounts()); }
-		catch (error: any) { this.toast.error(error?.message || 'Không thể tải accounts.'); }
-	}
+  public async select(room: any): Promise<void> {
+    this.selected = { ...room };
+    this.members = [];
+    this.membersLoading = true;
+    try { this.members = await firstValueFrom(this.api.admin.listRoomMembers(room.id)); }
+    catch (error: any) { this.toast.error(error?.message || 'Không thể tải members.'); }
+    finally { this.membersLoading = false; }
+  }
+  public async loadAccounts(): Promise<void> {
+    try { this.accounts = await firstValueFrom(this.api.admin.listAccounts()); }
+    catch (error: any) { this.toast.error(error?.message || 'Không thể tải accounts.'); }
+  }
   public async toggleAdmin(account: any): Promise<void> {
 		try {
 			const result = await firstValueFrom(this.api.admin.setAccountAdmin(account.id, !account.is_admin));
@@ -49,7 +58,16 @@ export class AdminComponent implements OnInit {
     } catch (error: any) { this.toast.error(error?.message || 'Không thể lưu room.'); }
     finally { this.saving = false; }
   }
-	public async loadAudit(): Promise<void> { try { this.auditEvents = await firstValueFrom(this.api.admin.listAudit()); } catch { this.auditEvents = []; } }
+  public async loadAudit(): Promise<void> { try { this.auditEvents = await firstValueFrom(this.api.admin.listAudit()); } catch { this.auditEvents = []; } }
+  public async removeMember(member: any): Promise<void> {
+    if (!this.selected || member.role_type === 'OWNER' || !window.confirm(`Gỡ ${member.user_id} khỏi room?`)) return;
+    try {
+      await firstValueFrom(this.api.admin.removeRoomMember(this.selected.id, member.user_id));
+      this.members = this.members.filter(item => item.user_id !== member.user_id);
+      await this.loadAudit();
+      this.toast.success('Đã gỡ member khỏi room.');
+    } catch (error: any) { this.toast.error(error?.message || 'Không thể gỡ member.'); }
+  }
   public async remove(): Promise<void> {
     if (!this.selected || !window.confirm(`Xóa room "${this.selected.name}"?`)) return;
     try {

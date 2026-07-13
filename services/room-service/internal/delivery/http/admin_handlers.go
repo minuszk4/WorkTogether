@@ -27,6 +27,24 @@ func (h *RoomHandler) AdminListAuditEvents(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": events, "error": nil})
 }
 
+func (h *RoomHandler) AdminListMembers(c *gin.Context) {
+	members, err := h.usecase.AdminListMembers(c.Request.Context(), isAdmin(c), c.Param("id"))
+	if err != nil {
+		h.writeAdminError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": members, "error": nil})
+}
+
+func (h *RoomHandler) AdminRemoveMember(c *gin.Context) {
+	actorID, _ := c.Get("userID")
+	if err := h.usecase.AdminRemoveMember(c.Request.Context(), isAdmin(c), actorID.(string), c.Param("id"), c.Param("user_id")); err != nil {
+		h.writeAdminError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"user_id": c.Param("user_id")}, "error": nil})
+}
+
 func (h *RoomHandler) AdminUpdateRoom(c *gin.Context) {
 	var req struct {
 		Name           string  `json:"name" binding:"required,min=3,max=100"`
@@ -72,6 +90,9 @@ func (h *RoomHandler) writeAdminError(c *gin.Context, err error) {
 	}
 	if errors.Is(err, usecase.ErrRoomNotFound) {
 		status, code = http.StatusNotFound, "ROOM_NOT_FOUND"
+	}
+	if errors.Is(err, usecase.ErrTargetMemberNotFound) {
+		status, code = http.StatusNotFound, "MEMBER_NOT_FOUND"
 	}
 	c.JSON(status, gin.H{"success": false, "data": nil, "error": gin.H{"code": code, "message": err.Error()}})
 }

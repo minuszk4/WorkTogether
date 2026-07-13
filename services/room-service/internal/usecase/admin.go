@@ -21,6 +21,34 @@ func (u *RoomUsecase) AdminListAuditEvents(ctx context.Context, isAdmin bool) ([
 	return u.repo.ListAdminAuditEvents(ctx, 100)
 }
 
+func (u *RoomUsecase) AdminListMembers(ctx context.Context, isAdmin bool, roomID string) ([]*domain.RoomMember, error) {
+	if !isAdmin {
+		return nil, ErrUnauthorized
+	}
+	return u.repo.ListMembers(ctx, roomID)
+}
+
+func (u *RoomUsecase) AdminRemoveMember(ctx context.Context, isAdmin bool, actorID, roomID, memberID string) error {
+	if !isAdmin {
+		return ErrUnauthorized
+	}
+	member, err := u.repo.GetMember(ctx, roomID, memberID)
+	if err != nil {
+		return err
+	}
+	if member == nil {
+		return ErrTargetMemberNotFound
+	}
+	if member.RoleType == "OWNER" {
+		return ErrCannotKickOwner
+	}
+	if err := u.repo.RemoveMember(ctx, roomID, memberID); err != nil {
+		return err
+	}
+	u.invalidateRoomCache(ctx, roomID)
+	return u.repo.CreateAdminAuditEvent(ctx, actorID, "room.member_removed", "room_member", memberID, map[string]any{"room_id": roomID})
+}
+
 func (u *RoomUsecase) AdminUpdateRoom(ctx context.Context, isAdmin bool, actorID, roomID string, input *domain.Room) (*domain.Room, error) {
 	if !isAdmin {
 		return nil, ErrUnauthorized

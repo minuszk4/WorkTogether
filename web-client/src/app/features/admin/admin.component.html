@@ -2,7 +2,7 @@
   <header class="admin-header"><div><span>System administration</span><h1>Admin Console</h1></div><button type="button" (click)="back()">Back to lobby</button></header>
   <section class="admin-grid">
     <div class="admin-list"><div class="admin-list-head"><h2>Rooms</h2><button type="button" (click)="loadRooms()">Reload</button></div>
-      @if (loading) { <p>Đang tải rooms...</p> } @else { @for (room of rooms; track room.id) { <button type="button" class="admin-room" [class.active]="selected?.id === room.id" (click)="select(room)"><strong>{{ room.name }}</strong><span>{{ room.privacy }} · {{ room.mode }}</span></button> } }
+      @if (loading) { <p>Đang tải rooms...</p> } @else { @for (room of rooms; track room.id) { <button type="button" class="admin-room" [class.active]="selected?.id === room.id" (click)="select(room)"><strong>{{ room.name }}</strong><span>{{ room.privacy }} · {{ room.mode }} @if (room.parent_id) { · Subroom }</span></button> } }
       <div class="admin-users-head"><h2>Accounts</h2><button type="button" (click)="loadAccounts()">Reload</button></div>
       @for (account of accounts; track account.id) { <div class="admin-account"><div><strong>{{ account.username }}</strong><span>{{ account.email }}</span></div><button type="button" [class.active]="account.is_admin" (click)="toggleAdmin(account)">{{ account.is_admin ? 'Admin' : 'Member' }}</button></div> }
       <div class="admin-users-head"><h2>Audit log</h2><button type="button" (click)="loadAudit()">Reload</button></div>
@@ -16,6 +16,9 @@
         <div class="editor-row"><label>Privacy<select [(ngModel)]="selected.privacy"><option value="public">Public</option><option value="private">Private</option><option value="friends">Friends</option></select></label><label>Mode<select [(ngModel)]="selected.mode"><option value="chill">Chill</option><option value="focus">Focus</option><option value="collaborate">Collaborate</option></select></label></div>
         <div class="editor-row"><label>Music policy<select [(ngModel)]="selected.add_music_policy"><option value="all">All</option><option value="nobody">Nobody</option><option value="dj_only">DJ only</option></select></label><label>Theme<input [(ngModel)]="selected.theme"></label></div>
         <label>Rules<textarea [(ngModel)]="selected.rules"></textarea></label><button type="button" class="save" (click)="save()" [disabled]="saving">{{ saving ? 'Saving...' : 'Save changes' }}</button>
+        <section class="admin-members"><div class="admin-users-head"><h3>Members</h3><span>{{ members.length }}</span></div>
+          @if (membersLoading) { <p>Đang tải members...</p> } @else { @for (member of members; track member.id) { <div class="admin-member"><div><strong>{{ member.user_id }}</strong><span>{{ member.role_type }}</span></div><button type="button" class="danger" [disabled]="member.role_type === 'OWNER'" (click)="removeMember(member)">Remove</button></div> } }
+        </section>
       }
     </section>
   </section>

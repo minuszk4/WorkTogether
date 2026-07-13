@@ -162,8 +162,10 @@ func main() {
 	{
 		adminGroup.GET("/rooms", handler.AdminListRooms)
 		adminGroup.GET("/audit", handler.AdminListAuditEvents)
+		adminGroup.GET("/rooms/:id/members", handler.AdminListMembers)
 		adminGroup.PUT("/rooms/:id", handler.AdminUpdateRoom)
 		adminGroup.DELETE("/rooms/:id", handler.AdminDeleteRoom)
+		adminGroup.DELETE("/rooms/:id/members/:user_id", handler.AdminRemoveMember)
 	}
 
 	// Liveness & Readiness probe

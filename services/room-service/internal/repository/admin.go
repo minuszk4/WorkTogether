@@ -37,7 +37,7 @@ func scanAdminRoom(rows *sql.Rows) (*domain.Room, error) {
 }
 
 func (r *PostgresRepository) ListAdminRooms(ctx context.Context, limit int) ([]*domain.Room, error) {
-	query := `SELECT id, name, description, privacy, password_hash, invite_code, owner_id, add_music_policy, parent_id, avatar_url, rules, theme, mode, created_at, updated_at FROM rooms WHERE parent_id IS NULL ORDER BY created_at DESC LIMIT $1`
+	query := `SELECT id, name, description, privacy, password_hash, invite_code, owner_id, add_music_policy, parent_id, avatar_url, rules, theme, mode, created_at, updated_at FROM rooms ORDER BY created_at DESC LIMIT $1`
 	rows, err := r.db.QueryContext(ctx, query, limit)
 	if err != nil {
 		return nil, err
