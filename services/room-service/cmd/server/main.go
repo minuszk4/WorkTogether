@@ -80,6 +80,7 @@ func main() {
 	// 2. Khởi tạo Layers
 	repo := repository.NewPostgresRepository(db)
 	uc := usecase.NewRoomUsecase(repo, rdb)
+	uc.StartEventReminderWorker(context.Background())
 
 	// 3. Khởi chạy gRPC Server nội bộ
 	grpcPort := env.GetEnv("GRPC_PORT", "50051")
