@@ -12,11 +12,12 @@ export class AdminComponent implements OnInit {
   private toast = inject(ToastService);
   private router = inject(Router);
   public rooms: any[] = [];
+	public accounts: any[] = [];
   public selected: any | null = null;
   public loading = true;
   public saving = false;
 
-  async ngOnInit(): Promise<void> { await this.loadRooms(); }
+  async ngOnInit(): Promise<void> { await Promise.all([this.loadRooms(), this.loadAccounts()]); }
   public async loadRooms(): Promise<void> {
     this.loading = true;
     try { this.rooms = (await firstValueFrom(this.api.admin.listRooms())).map(room => this.normalizeRoom(room)); }
@@ -24,6 +25,17 @@ export class AdminComponent implements OnInit {
     finally { this.loading = false; }
   }
   public select(room: any): void { this.selected = { ...room }; }
+	public async loadAccounts(): Promise<void> {
+		try { this.accounts = await firstValueFrom(this.api.admin.listAccounts()); }
+		catch (error: any) { this.toast.error(error?.message || 'Không thể tải accounts.'); }
+	}
+	public async toggleAdmin(account: any): Promise<void> {
+		try {
+			const result = await firstValueFrom(this.api.admin.setAccountAdmin(account.id, !account.is_admin));
+			account.is_admin = result.is_admin;
+			this.toast.success('Đã cập nhật quyền account. Token mới áp dụng khi người dùng refresh hoặc đăng nhập lại.');
+		} catch (error: any) { this.toast.error(error?.message || 'Không thể cập nhật quyền account.'); }
+	}
   public async save(): Promise<void> {
     if (!this.selected || this.saving) return;
     this.saving = true;

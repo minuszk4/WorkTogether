@@ -192,6 +192,8 @@ export class ApiService {
     listRooms: (): Observable<any[]> => this.get<any[]>('/admin/rooms'),
     updateRoom: (roomId: string, room: any): Observable<any> => this.put<any>(`/admin/rooms/${roomId}`, room),
     deleteRoom: (roomId: string): Observable<any> => this.delete<any>(`/admin/rooms/${roomId}`),
+	listAccounts: (): Observable<any[]> => this.get<any[]>('/auth/admin/accounts'),
+	setAccountAdmin: (accountId: string, isAdmin: boolean): Observable<any> => this.put<any>(`/auth/admin/accounts/${accountId}`, { is_admin: isAdmin }),
   };
 
   // ─── Music APIs ───────────────────────────────────────────────────

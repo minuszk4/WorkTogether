@@ -25,6 +25,7 @@ var (
 	ErrInvalidSession      = errors.New("phiên làm việc không hợp lệ")
 	ErrInvalidVerifyToken  = errors.New("mã xác thực không hợp lệ hoặc đã hết hạn")
 	ErrGoogleNotConfigured = errors.New("đăng nhập Google chưa được cấu hình")
+	ErrUnauthorized        = errors.New("bạn không có quyền thực hiện hành động này")
 )
 
 type AuthUsecase struct {
@@ -33,6 +34,23 @@ type AuthUsecase struct {
 	jwtSecret  []byte
 	jwtExpMins int
 	appBaseURL string
+}
+
+func (u *AuthUsecase) ListAccounts(ctx context.Context, isAdmin bool) ([]*domain.Account, error) {
+	if !isAdmin {
+		return nil, ErrUnauthorized
+	}
+	return u.repo.ListAccounts(ctx, 200)
+}
+
+func (u *AuthUsecase) SetAccountAdmin(ctx context.Context, isAdmin bool, actorID, accountID string, enabled bool) error {
+	if !isAdmin {
+		return ErrUnauthorized
+	}
+	if actorID == accountID && !enabled {
+		return errors.New("không thể tự thu hồi quyền admin")
+	}
+	return u.repo.SetAccountAdmin(ctx, accountID, enabled)
 }
 
 func NewAuthUsecase(repo *repository.PostgresRepository, emailSvc *EmailService, secret string, jwtExpMins int) *AuthUsecase {

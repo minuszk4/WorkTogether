@@ -113,6 +113,41 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}))
 }
 
+func (h *AuthHandler) AdminListAccounts(c *gin.Context) {
+	isAdmin, _ := c.Get("isAdmin")
+	accounts, err := h.usecase.ListAccounts(c.Request.Context(), isAdmin == true)
+	if err != nil {
+		h.writeAdminError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, successResp(accounts))
+}
+
+func (h *AuthHandler) AdminSetAccountRole(c *gin.Context) {
+	isAdmin, _ := c.Get("isAdmin")
+	actorID, _ := c.Get("userID")
+	var req struct {
+		IsAdmin bool `json:"is_admin"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, errorResp("INVALID_PARAMETERS", err.Error()))
+		return
+	}
+	if err := h.usecase.SetAccountAdmin(c.Request.Context(), isAdmin == true, actorID.(string), c.Param("id"), req.IsAdmin); err != nil {
+		h.writeAdminError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, successResp(gin.H{"id": c.Param("id"), "is_admin": req.IsAdmin}))
+}
+
+func (h *AuthHandler) writeAdminError(c *gin.Context, err error) {
+	if errors.Is(err, usecase.ErrUnauthorized) {
+		c.JSON(http.StatusForbidden, errorResp("FORBIDDEN", err.Error()))
+		return
+	}
+	c.JSON(http.StatusBadRequest, errorResp("ADMIN_FAILED", err.Error()))
+}
+
 // ─── Google OAuth ─────────────────────────────────────────────────────────────
 
 // GoogleLogin redirect người dùng sang trang đăng nhập Google
@@ -286,4 +321,3 @@ func generateState() string {
 	rand.Read(b)
 	return base64.URLEncoding.EncodeToString(b)
 }
-

@@ -3,6 +3,8 @@
   <section class="admin-grid">
     <div class="admin-list"><div class="admin-list-head"><h2>Rooms</h2><button type="button" (click)="loadRooms()">Reload</button></div>
       @if (loading) { <p>Đang tải rooms...</p> } @else { @for (room of rooms; track room.id) { <button type="button" class="admin-room" [class.active]="selected?.id === room.id" (click)="select(room)"><strong>{{ room.name }}</strong><span>{{ room.privacy }} · {{ room.mode }}</span></button> } }
+      <div class="admin-users-head"><h2>Accounts</h2><button type="button" (click)="loadAccounts()">Reload</button></div>
+      @for (account of accounts; track account.id) { <div class="admin-account"><div><strong>{{ account.username }}</strong><span>{{ account.email }}</span></div><button type="button" [class.active]="account.is_admin" (click)="toggleAdmin(account)">{{ account.is_admin ? 'Admin' : 'Member' }}</button></div> }
     </div>
     <section class="admin-editor">
       @if (!selected) { <p>Chọn một room để quản trị.</p> } @else {

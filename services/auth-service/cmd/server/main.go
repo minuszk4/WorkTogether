@@ -111,6 +111,8 @@ func main() {
 		authGroup.POST("/forgot-password", handler.ForgotPassword)
 		authGroup.POST("/reset-password", handler.ResetPassword)
 		authGroup.POST("/change-password", middleware.AuthMiddleware(jwtSecret), handler.ChangePassword)
+		authGroup.GET("/admin/accounts", middleware.AuthMiddleware(jwtSecret), handler.AdminListAccounts)
+		authGroup.PUT("/admin/accounts/:id", middleware.AuthMiddleware(jwtSecret), handler.AdminSetAccountRole)
 	}
 
 	r.GET("/health", func(c *gin.Context) {
@@ -143,4 +145,3 @@ func main() {
 
 	log.Println("Server đã thoát an toàn.")
 }
-

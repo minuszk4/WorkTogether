@@ -30,6 +30,13 @@ func TestGenerateAccessTokenIncludesAdminClaim(t *testing.T) {
 	}
 }
 
+func TestSetAccountAdminRequiresAdministrator(t *testing.T) {
+	uc := NewAuthUsecase(nil, NewEmailService(), "test_secret", 15)
+	if err := uc.SetAccountAdmin(context.Background(), false, "actor", "target", true); err != ErrUnauthorized {
+		t.Fatalf("expected ErrUnauthorized, got %v", err)
+	}
+}
+
 func TestAuthUsecase_ForgotPassword(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
