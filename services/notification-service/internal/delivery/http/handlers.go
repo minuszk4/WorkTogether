@@ -26,6 +26,14 @@ func NewNotificationHandler(u *usecase.NotificationUsecase, jwtSecret string) *N
 	}
 }
 
+func (h *NotificationHandler) requireAdmin(c *gin.Context) bool {
+	if isAdmin, _ := c.Get("isAdmin"); isAdmin == true {
+		return true
+	}
+	c.JSON(http.StatusForbidden, gin.H{"success": false, "error": gin.H{"code": "FORBIDDEN"}})
+	return false
+}
+
 func (h *NotificationHandler) ServeSSE(c *gin.Context) {
 	origin := c.Request.Header.Get("Origin")
 	if origin != "" {
@@ -207,6 +215,9 @@ func (h *NotificationHandler) GetUnreadCount(c *gin.Context) {
 
 // REST trigger để kích hoạt test thông báo
 func (h *NotificationHandler) TriggerNotification(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
 	var req domain.TriggerNotificationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Dữ liệu không hợp lệ"})
@@ -215,7 +226,7 @@ func (h *NotificationHandler) TriggerNotification(c *gin.Context) {
 
 	n := &domain.Notification{
 		ReceiverID: req.ReceiverID,
-		SenderID:   req.SenderID,
+		SenderID:   c.GetString("userID"),
 		Type:       req.Type,
 		Content:    req.Content,
 		IsRead:     false,

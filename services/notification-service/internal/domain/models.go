@@ -14,7 +14,6 @@ type Notification struct {
 
 type TriggerNotificationRequest struct {
 	ReceiverID string `json:"receiver_id" binding:"required"`
-	SenderID   string `json:"sender_id" binding:"required"`
 	Type       string `json:"type" binding:"required"`
 	Content    string `json:"content" binding:"required"`
 }
