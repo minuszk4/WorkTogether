@@ -2,6 +2,19 @@ package domain
 
 import "time"
 
+type RoomEvent struct {
+	ID             string     `json:"id"`
+	RoomID         string     `json:"room_id"`
+	CreatedBy      string     `json:"created_by"`
+	Title          string     `json:"title"`
+	Description    string     `json:"description"`
+	StartsAt       time.Time  `json:"starts_at"`
+	ReminderSentAt *time.Time `json:"reminder_sent_at,omitempty"`
+	CancelledAt    *time.Time `json:"cancelled_at,omitempty"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
+}
+
 type Room struct {
 	ID             string    `json:"id"`
 	Name           string    `json:"name"`
@@ -37,8 +50,8 @@ type RoomMember struct {
 	ID              string     `json:"id"`
 	RoomID          string     `json:"room_id"`
 	UserID          string     `json:"user_id"`
-	RoleID          string     `json:"role_id,omitempty"`   // custom role
-	RoleType        string     `json:"role_type"`           // OWNER, MODERATOR, MEMBER
+	RoleID          string     `json:"role_id,omitempty"` // custom role
+	RoleType        string     `json:"role_type"`         // OWNER, MODERATOR, MEMBER
 	ActiveSubRoomID *string    `json:"active_sub_room_id,omitempty"`
 	MutedUntil      *time.Time `json:"muted_until,omitempty"`
 	JoinedAt        time.Time  `json:"joined_at"`

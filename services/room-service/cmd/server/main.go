@@ -1,22 +1,22 @@
 package main
 
 import (
-	"os/signal"
-	"syscall"
-	"github.com/worktogether/pkg/env"
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/worktogether/pkg/env"
 	"log"
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/redis/go-redis/v9"
-	_ "github.com/jackc/pgx/v5/stdlib"
 	roomv1 "github.com/worktogether/services/room-service/api/v1"
 	deliveryGrpc "github.com/worktogether/services/room-service/internal/delivery/grpc"
 	deliveryHttp "github.com/worktogether/services/room-service/internal/delivery/http"
@@ -130,6 +130,8 @@ func main() {
 		roomsGroup.GET("/me/actions", handler.GetPersonalActionItems)
 		roomsGroup.GET("/me/sessions", handler.GetMySessionRecaps)
 		roomsGroup.GET("/:id/session", handler.GetActiveSession)
+		roomsGroup.GET("/:id/events", handler.ListRoomEvents)
+		roomsGroup.POST("/:id/events", handler.CreateRoomEvent)
 		roomsGroup.POST("/:id/sessions", handler.StartSession)
 		roomsGroup.GET("/:id/sessions/:session_id", handler.GetSessionWorkspace)
 		roomsGroup.PUT("/:id/sessions/:session_id/complete", handler.CompleteSession)

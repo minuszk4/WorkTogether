@@ -38,6 +38,35 @@ func (h *RoomHandler) GetMySessionRecaps(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": recaps, "error": nil})
 }
 
+func (h *RoomHandler) ListRoomEvents(c *gin.Context) {
+	userID, _ := c.Get("userID")
+	events, err := h.usecase.ListUpcomingRoomEvents(c.Request.Context(), userID.(string), c.Param("id"))
+	if err != nil {
+		h.writeSessionError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": events, "error": nil})
+}
+
+func (h *RoomHandler) CreateRoomEvent(c *gin.Context) {
+	userID, _ := c.Get("userID")
+	var req struct {
+		Title       string    `json:"title" binding:"required,min=3,max=160"`
+		Description string    `json:"description" binding:"max=1000"`
+		StartsAt    time.Time `json:"starts_at" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.writeSessionBadRequest(c, err)
+		return
+	}
+	event, err := h.usecase.CreateRoomEvent(c.Request.Context(), userID.(string), c.Param("id"), req.Title, req.Description, req.StartsAt)
+	if err != nil {
+		h.writeSessionError(c, err)
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"success": true, "data": event, "error": nil})
+}
+
 func (h *RoomHandler) StartSession(c *gin.Context) {
 	userID, _ := c.Get("userID")
 	var req struct {
