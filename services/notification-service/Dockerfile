@@ -9,8 +9,8 @@ COPY go.work go.work.sum ./
 # Copy shared pkg
 COPY pkg ./pkg
 
-# Copy target service
-COPY services/notification-service ./services/notification-service
+# Copy workspace services so go.work can resolve all local modules
+COPY services ./services
 
 WORKDIR /app/services/notification-service
 RUN go mod download
@@ -23,10 +23,12 @@ FROM alpine:latest
 
 WORKDIR /app
 
-RUN apk --no-cache add ca-certificates tzdata
+RUN apk --no-cache add ca-certificates tzdata && addgroup -S app && adduser -S app -G app
 
-COPY --from=builder /app/services/notification-service/notification-service .
+COPY --from=builder --chown=app:app /app/services/notification-service/notification-service .
 
 EXPOSE 8089
+
+USER app
 
 CMD ["./notification-service"]

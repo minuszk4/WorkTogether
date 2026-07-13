@@ -1,0 +1,48 @@
+configs:
+  livekit_prod_config:
+    content: |
+      port: 7880
+      bind_addresses:
+        - "0.0.0.0"
+      rtc:
+        tcp_port: 7881
+        port_range_start: 50000
+        port_range_end: 50050
+        use_external_ip: true
+      logging:
+        level: info
+        json: true
+      prometheus_port: 6789
+      turn:
+        enabled: true
+        domain: "${LIVEKIT_TURN_DOMAIN}"
+        tls_port: 5349
+        cert_file: /etc/livekit/tls/tls.crt
+        key_file: /etc/livekit/tls/tls.key
+      webhook:
+        api_key: "${LIVEKIT_API_KEY}"
+        urls:
+          - "http://voice-service:8088/api/v1/voice/webhooks"
+
+services:
+  livekit:
+    command: --config /etc/livekit.prod.yaml
+    environment:
+      LIVEKIT_KEYS: "${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}"
+    configs:
+      - source: livekit_prod_config
+        target: /etc/livekit.prod.yaml
+    volumes:
+      - ${LIVEKIT_TURN_CERT_FILE}:/etc/livekit/tls/tls.crt:ro
+      - ${LIVEKIT_TURN_KEY_FILE}:/etc/livekit/tls/tls.key:ro
+    ports:
+      - "7880:7880"
+      - "7881:7881"
+      - "5349:5349"
+      - "50000-50050:50000-50050/udp"
+
+  voice-service:
+    environment:
+      - LIVEKIT_URL=wss://${LIVEKIT_DOMAIN}
+      - LIVEKIT_API_KEY=${LIVEKIT_API_KEY}
+      - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET}

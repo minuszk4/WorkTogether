@@ -1,3 +1,10 @@
+x-service-healthcheck: &service-healthcheck
+  test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:$${PORT}/health >/dev/null || exit 1"]
+  interval: 10s
+  timeout: 5s
+  retries: 5
+  start_period: 10s
+
 services:
   # ----------------------------------------------------
   # Infrastructure
@@ -41,7 +48,7 @@ services:
       - worktogether_network
 
   minio:
-    image: minio/minio
+    image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
     container_name: worktogether_minio
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
@@ -57,15 +64,18 @@ services:
       - worktogether_network
 
   livekit:
-    image: livekit/livekit-server:v1.8
+    image: livekit/livekit-server@sha256:2c6869d2d5ff6c9c0166f47be1c92dad6928bfecfa5e4060a6ece48db8accfa3
     container_name: worktogether_livekit
     command: --config /etc/livekit.yaml
+    env_file: .env
+    environment:
+      LIVEKIT_KEYS: "devkey: dev_livekit_secret_change_me_32_chars_minimum"
     ports:
       - "7880:7880"
       - "7881:7881"
-      - "50000-50050:50000-50050/udp"
+      - "50100-50150:50100-50150/udp"
     volumes:
-      - ./docker/livekit/livekit.yaml:/etc/livekit.yaml
+      - ./docker/livekit/livekit.yaml:/etc/livekit.yaml:ro
     restart: unless-stopped
     networks:
       - worktogether_network
@@ -91,6 +101,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck: *service-healthcheck
     restart: unless-stopped
     networks:
       - worktogether_network
@@ -119,6 +130,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck: *service-healthcheck
     restart: unless-stopped
     networks:
       - worktogether_network
@@ -148,7 +160,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      - jaeger
+      jaeger:
+        condition: service_started
+    healthcheck: *service-healthcheck
     restart: unless-stopped
     networks:
       - worktogether_network
@@ -179,8 +193,11 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      - room-service
-      - jaeger
+      room-service:
+        condition: service_healthy
+      jaeger:
+        condition: service_started
+    healthcheck: *service-healthcheck
     restart: unless-stopped
     networks:
       - worktogether_network
@@ -205,7 +222,9 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      - minio
+      minio:
+        condition: service_started
+    healthcheck: *service-healthcheck
     restart: unless-stopped
     networks:
       - worktogether_network
@@ -230,6 +249,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck: *service-healthcheck
     restart: unless-stopped
     networks:
       - worktogether_network
@@ -251,6 +271,7 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+    healthcheck: *service-healthcheck
     restart: unless-stopped
     networks:
       - worktogether_network
@@ -270,11 +291,16 @@ services:
       - REDIS_PORT=6379
       - ROOM_SERVICE_GRPC=room-service:50051
       - PORT=${VOICE_PORT}
+      - LIVEKIT_API_KEY=devkey
+      - LIVEKIT_API_SECRET=dev_livekit_secret_change_me_32_chars_minimum
     depends_on:
       redis:
         condition: service_healthy
-      - room-service
-      - livekit
+      room-service:
+        condition: service_healthy
+      livekit:
+        condition: service_started
+    healthcheck: *service-healthcheck
     restart: unless-stopped
     networks:
       - worktogether_network
@@ -303,6 +329,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck: *service-healthcheck
     restart: unless-stopped
     networks:
       - worktogether_network
@@ -324,7 +351,9 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-      - playback-service
+      playback-service:
+        condition: service_healthy
+    healthcheck: *service-healthcheck
     restart: unless-stopped
     networks:
       - worktogether_network
@@ -349,6 +378,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck: *service-healthcheck
     restart: unless-stopped
     networks:
       - worktogether_network
@@ -361,7 +391,7 @@ services:
   # API Gateway
   # ----------------------------------------------------
   nginx:
-    image: nginx:alpine
+    image: nginx@sha256:54f2a904c251d5a34adf545a72d32515a15e08418dae0266e23be2e18c66fefa
     container_name: worktogether_nginx
     ports:
       - "${GATEWAY_PORT}:8080"
@@ -369,27 +399,27 @@ services:
       - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       auth-service:
-        condition: service_started
+        condition: service_healthy
       user-service:
-        condition: service_started
+        condition: service_healthy
       room-service:
-        condition: service_started
+        condition: service_healthy
       chat-service:
-        condition: service_started
+        condition: service_healthy
       music-service:
-        condition: service_started
+        condition: service_healthy
       playlist-service:
-        condition: service_started
+        condition: service_healthy
       playback-service:
-        condition: service_started
+        condition: service_healthy
       voice-service:
-        condition: service_started
+        condition: service_healthy
       notification-service:
-        condition: service_started
+        condition: service_healthy
       timer-service:
-        condition: service_started
+        condition: service_healthy
       collab-service:
-        condition: service_started
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - worktogether_network
@@ -398,7 +428,7 @@ services:
   # Observability
   # ----------------------------------------------------
   jaeger:
-    image: jaegertracing/all-in-one:latest
+    image: jaegertracing/all-in-one@sha256:ab6f1a1f0fb49ea08bcd19f6b84f6081d0d44b364b6de148e1798eb5816bacac
     container_name: worktogether_jaeger
     ports:
       - "16686:16686"
@@ -409,7 +439,7 @@ services:
       - worktogether_network
 
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus@sha256:3c42b892cf723fa54d2f262c37a0e1f80aa8c8ddb1da7b9b0df9455a35a7f893
     container_name: worktogether_prometheus
     volumes:
       - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
@@ -420,7 +450,7 @@ services:
       - worktogether_network
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana@sha256:121a7a9ece6dc10b969f1f96eed64b4f07dfac0d0b8abc070f7cb83bbde86f63
     container_name: worktogether_grafana
     ports:
       - "3000:3000"

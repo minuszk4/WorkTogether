@@ -9,8 +9,8 @@ COPY go.work go.work.sum ./
 # Copy shared pkg
 COPY pkg ./pkg
 
-# Copy target service
-COPY services/playlist-service ./services/playlist-service
+# Copy workspace services so go.work can resolve all local modules
+COPY services ./services
 
 WORKDIR /app/services/playlist-service
 RUN go mod download
@@ -23,10 +23,12 @@ FROM alpine:latest
 
 WORKDIR /app
 
-RUN apk --no-cache add ca-certificates tzdata
+RUN apk --no-cache add ca-certificates tzdata && addgroup -S app && adduser -S app -G app
 
-COPY --from=builder /app/services/playlist-service/playlist-service .
+COPY --from=builder --chown=app:app /app/services/playlist-service/playlist-service .
 
 EXPOSE 8086
+
+USER app
 
 CMD ["./playlist-service"]

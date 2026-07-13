@@ -9,8 +9,8 @@ COPY go.work go.work.sum ./
 # Copy shared pkg
 COPY pkg ./pkg
 
-# Copy target service
-COPY services/timer-service ./services/timer-service
+# Copy workspace services so go.work can resolve all local modules
+COPY services ./services
 
 WORKDIR /app/services/timer-service
 RUN go mod download
@@ -23,10 +23,12 @@ FROM alpine:latest
 
 WORKDIR /app
 
-RUN apk --no-cache add ca-certificates tzdata
+RUN apk --no-cache add ca-certificates tzdata && addgroup -S app && adduser -S app -G app
 
-COPY --from=builder /app/services/timer-service/timer-service .
+COPY --from=builder --chown=app:app /app/services/timer-service/timer-service .
 
 EXPOSE 8093
+
+USER app
 
 CMD ["./timer-service"]
