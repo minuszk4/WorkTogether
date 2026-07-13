@@ -9,6 +9,7 @@ import { VoiceService } from '../../core/services/voice.service';
 import { ToastService } from '../../shared/services/toast.service';
 import { RoomUiStateService } from './room-ui-state.service';
 import { BehaviorSubject, of } from 'rxjs';
+import { ActivatedRoute, convertToParamMap } from '@angular/router';
 
 describe('RoomComponent', () => {
   let mockApiService: any;
@@ -80,6 +81,10 @@ describe('RoomComponent', () => {
     TestBed.configureTestingModule({
       imports: [RouterTestingModule, RoomComponent],
       providers: [
+		{
+		  provide: ActivatedRoute,
+		  useValue: { snapshot: { paramMap: convertToParamMap({ room_id: 'room-123' }) } }
+		},
         { provide: ApiService, useValue: mockApiService },
         { provide: StateService, useValue: mockStateService },
         { provide: ChatWsService, useValue: mockChatWsService },

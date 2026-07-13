@@ -5,6 +5,7 @@ import { StateService } from '../../../../core/services/state.service';
 import { ChatWsService } from '../../../../core/services/websocket/chat-ws.service';
 import { PlaybackWsService } from '../../../../core/services/websocket/playback-ws.service';
 import { BehaviorSubject } from 'rxjs';
+import { provideHttpClient } from '@angular/common/http';
 
 describe('VoicePillsComponent', () => {
   let component: VoicePillsComponent;
@@ -41,6 +42,7 @@ describe('VoicePillsComponent', () => {
     await TestBed.configureTestingModule({
       imports: [VoicePillsComponent],
       providers: [
+		provideHttpClient(),
         { provide: VoiceService, useValue: mockVoiceService },
         { provide: StateService, useValue: mockStateService },
         { provide: ChatWsService, useValue: mockChatWsService },

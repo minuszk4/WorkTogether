@@ -2,6 +2,7 @@ import { TestBed, ComponentFixture, fakeAsync, tick } from '@angular/core/testin
 import { VoicePillComponent } from './voice-pill.component';
 import { ChatWsService } from '../../../../core/services/websocket/chat-ws.service';
 import { Subject } from 'rxjs';
+import { provideHttpClient } from '@angular/common/http';
 
 describe('VoicePillComponent', () => {
   let component: VoicePillComponent;
@@ -18,6 +19,7 @@ describe('VoicePillComponent', () => {
     await TestBed.configureTestingModule({
       imports: [VoicePillComponent],
       providers: [
+		provideHttpClient(),
         { provide: ChatWsService, useValue: mockChatWsService }
       ]
     }).compileComponents();
