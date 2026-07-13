@@ -166,6 +166,12 @@ export class ApiService {
     listMySessionRecaps: (): Observable<any[]> =>
       this.get<any[]>('/rooms/me/sessions'),
 
+    listEvents: (roomId: string): Observable<any[]> =>
+      this.get<any[]>(`/rooms/${roomId}/events`),
+
+    createEvent: (roomId: string, title: string, startsAt: string, description = ''): Observable<any> =>
+      this.post<any>(`/rooms/${roomId}/events`, { title, description, starts_at: startsAt }),
+
     getActiveSession: (roomId: string): Observable<any | null> =>
       this.get<any | null>(`/rooms/${roomId}/session`),
 
