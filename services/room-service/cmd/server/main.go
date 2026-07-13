@@ -160,6 +160,7 @@ func main() {
 	adminGroup.Use(middleware.AuthMiddleware(jwtSecret))
 	{
 		adminGroup.GET("/rooms", handler.AdminListRooms)
+		adminGroup.GET("/audit", handler.AdminListAuditEvents)
 		adminGroup.PUT("/rooms/:id", handler.AdminUpdateRoom)
 		adminGroup.DELETE("/rooms/:id", handler.AdminDeleteRoom)
 	}

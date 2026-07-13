@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/worktogether/services/room-service/internal/domain"
+	"github.com/worktogether/services/room-service/internal/repository"
 )
 
 func (u *RoomUsecase) AdminListRooms(ctx context.Context, isAdmin bool) ([]*domain.Room, error) {
@@ -11,6 +12,13 @@ func (u *RoomUsecase) AdminListRooms(ctx context.Context, isAdmin bool) ([]*doma
 		return nil, ErrUnauthorized
 	}
 	return u.repo.ListAdminRooms(ctx, 200)
+}
+
+func (u *RoomUsecase) AdminListAuditEvents(ctx context.Context, isAdmin bool) ([]*repository.AdminAuditEvent, error) {
+	if !isAdmin {
+		return nil, ErrUnauthorized
+	}
+	return u.repo.ListAdminAuditEvents(ctx, 100)
 }
 
 func (u *RoomUsecase) AdminUpdateRoom(ctx context.Context, isAdmin bool, actorID, roomID string, input *domain.Room) (*domain.Room, error) {

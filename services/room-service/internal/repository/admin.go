@@ -8,6 +8,15 @@ import (
 	"github.com/worktogether/services/room-service/internal/domain"
 )
 
+type AdminAuditEvent struct {
+	ID         string `json:"id"`
+	ActorID    string `json:"actor_id"`
+	Action     string `json:"action"`
+	TargetType string `json:"target_type"`
+	TargetID   string `json:"target_id"`
+	CreatedAt  string `json:"created_at"`
+}
+
 func scanAdminRoom(rows *sql.Rows) (*domain.Room, error) {
 	rm := &domain.Room{}
 	var parentID, avatarURL, rules sql.NullString
@@ -52,4 +61,21 @@ func (r *PostgresRepository) CreateAdminAuditEvent(ctx context.Context, actorID,
 	}
 	_, err = r.db.ExecContext(ctx, `INSERT INTO admin_audit_events (actor_id, action, target_type, target_id, payload) VALUES ($1, $2, $3, $4, $5)`, actorID, action, targetType, targetID, data)
 	return err
+}
+
+func (r *PostgresRepository) ListAdminAuditEvents(ctx context.Context, limit int) ([]*AdminAuditEvent, error) {
+	rows, err := r.db.QueryContext(ctx, `SELECT id, actor_id, action, target_type, target_id, created_at FROM admin_audit_events ORDER BY created_at DESC LIMIT $1`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	events := []*AdminAuditEvent{}
+	for rows.Next() {
+		event := &AdminAuditEvent{}
+		if err := rows.Scan(&event.ID, &event.ActorID, &event.Action, &event.TargetType, &event.TargetID, &event.CreatedAt); err != nil {
+			return nil, err
+		}
+		events = append(events, event)
+	}
+	return events, rows.Err()
 }

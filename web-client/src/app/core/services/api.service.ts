@@ -190,6 +190,7 @@ export class ApiService {
 
   public admin = {
     listRooms: (): Observable<any[]> => this.get<any[]>('/admin/rooms'),
+	listAudit: (): Observable<any[]> => this.get<any[]>('/admin/audit'),
     updateRoom: (roomId: string, room: any): Observable<any> => this.put<any>(`/admin/rooms/${roomId}`, room),
     deleteRoom: (roomId: string): Observable<any> => this.delete<any>(`/admin/rooms/${roomId}`),
 	listAccounts: (): Observable<any[]> => this.get<any[]>('/auth/admin/accounts'),

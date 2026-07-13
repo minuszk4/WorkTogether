@@ -18,6 +18,15 @@ func (h *RoomHandler) AdminListRooms(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": rooms, "error": nil})
 }
 
+func (h *RoomHandler) AdminListAuditEvents(c *gin.Context) {
+	events, err := h.usecase.AdminListAuditEvents(c.Request.Context(), isAdmin(c))
+	if err != nil {
+		h.writeAdminError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": events, "error": nil})
+}
+
 func (h *RoomHandler) AdminUpdateRoom(c *gin.Context) {
 	var req struct {
 		Name           string  `json:"name" binding:"required,min=3,max=100"`

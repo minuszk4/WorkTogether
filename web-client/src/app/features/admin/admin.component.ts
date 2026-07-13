@@ -12,12 +12,13 @@ export class AdminComponent implements OnInit {
   private toast = inject(ToastService);
   private router = inject(Router);
   public rooms: any[] = [];
-	public accounts: any[] = [];
+  public accounts: any[] = [];
+	public auditEvents: any[] = [];
   public selected: any | null = null;
   public loading = true;
   public saving = false;
 
-  async ngOnInit(): Promise<void> { await Promise.all([this.loadRooms(), this.loadAccounts()]); }
+  async ngOnInit(): Promise<void> { await Promise.all([this.loadRooms(), this.loadAccounts(), this.loadAudit()]); }
   public async loadRooms(): Promise<void> {
     this.loading = true;
     try { this.rooms = (await firstValueFrom(this.api.admin.listRooms())).map(room => this.normalizeRoom(room)); }
@@ -29,7 +30,7 @@ export class AdminComponent implements OnInit {
 		try { this.accounts = await firstValueFrom(this.api.admin.listAccounts()); }
 		catch (error: any) { this.toast.error(error?.message || 'Không thể tải accounts.'); }
 	}
-	public async toggleAdmin(account: any): Promise<void> {
+  public async toggleAdmin(account: any): Promise<void> {
 		try {
 			const result = await firstValueFrom(this.api.admin.setAccountAdmin(account.id, !account.is_admin));
 			account.is_admin = result.is_admin;
@@ -48,6 +49,7 @@ export class AdminComponent implements OnInit {
     } catch (error: any) { this.toast.error(error?.message || 'Không thể lưu room.'); }
     finally { this.saving = false; }
   }
+	public async loadAudit(): Promise<void> { try { this.auditEvents = await firstValueFrom(this.api.admin.listAudit()); } catch { this.auditEvents = []; } }
   public async remove(): Promise<void> {
     if (!this.selected || !window.confirm(`Xóa room "${this.selected.name}"?`)) return;
     try {
