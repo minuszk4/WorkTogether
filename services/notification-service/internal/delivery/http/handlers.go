@@ -34,6 +34,27 @@ func (h *NotificationHandler) requireAdmin(c *gin.Context) bool {
 	return false
 }
 
+func sseTokenSubject(tokenString, secret string) (string, error) {
+	token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method")
+		}
+		return []byte(secret), nil
+	})
+	if err != nil || !token.Valid {
+		return "", fmt.Errorf("invalid token")
+	}
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok || claims["type"] != "access_token" {
+		return "", fmt.Errorf("invalid token type")
+	}
+	userID, ok := claims["sub"].(string)
+	if !ok || userID == "" {
+		return "", fmt.Errorf("missing token subject")
+	}
+	return userID, nil
+}
+
 func (h *NotificationHandler) ServeSSE(c *gin.Context) {
 	origin := c.Request.Header.Get("Origin")
 	if origin != "" {
@@ -59,26 +80,11 @@ func (h *NotificationHandler) ServeSSE(c *gin.Context) {
 		return
 	}
 
-	// Validate token
-	token, err := jwt.Parse(tokenStr, func(t *jwt.Token) (interface{}, error) {
-		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method")
-		}
-		return []byte(h.jwtSecret), nil
-	})
-
-	if err != nil || !token.Valid {
+	userID, err := sseTokenSubject(tokenStr, h.jwtSecret)
+	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Token không hợp lệ hoặc hết hạn"})
 		return
 	}
-
-	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok || claims["type"] != "access_token" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Loại token không hợp lệ"})
-		return
-	}
-
-	userID, _ := claims["sub"].(string)
 
 	// Cấu hình Headers cho SSE
 	c.Writer.Header().Set("Content-Type", "text/event-stream")

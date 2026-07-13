@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 func TestRequireAdminRejectsRegularMember(t *testing.T) {
@@ -20,5 +21,18 @@ func TestRequireAdminRejectsRegularMember(t *testing.T) {
 	}
 	if recorder.Code != http.StatusForbidden {
 		t.Fatalf("expected status %d, got %d", http.StatusForbidden, recorder.Code)
+	}
+}
+
+func TestSSETokenSubjectRejectsMissingSubject(t *testing.T) {
+	secret := "test-secret"
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{"type": "access_token"})
+	tokenString, err := token.SignedString([]byte(secret))
+	if err != nil {
+		t.Fatalf("signing token: %v", err)
+	}
+
+	if _, err := sseTokenSubject(tokenString, secret); err == nil {
+		t.Fatal("expected access token without sub to be rejected")
 	}
 }
