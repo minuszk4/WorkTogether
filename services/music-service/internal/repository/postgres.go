@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"log"
 	"time"
 
@@ -244,6 +245,19 @@ func (r *PostgresRepository) GetBookmarks(ctx context.Context, roomID string) ([
 		list = append(list, &b)
 	}
 	return list, nil
+}
+
+func (r *PostgresRepository) GetBookmarkByID(ctx context.Context, id string) (*domain.Bookmark, error) {
+	bookmark := &domain.Bookmark{}
+	err := r.db.QueryRowContext(ctx, `SELECT id, room_id, user_id, track_id, position_ms, note, created_at FROM bookmarks WHERE id = $1`, id).
+		Scan(&bookmark.ID, &bookmark.RoomID, &bookmark.UserID, &bookmark.TrackID, &bookmark.PositionMS, &bookmark.Note, &bookmark.CreatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return bookmark, nil
 }
 
 func (r *PostgresRepository) DeleteBookmark(ctx context.Context, id string) error {

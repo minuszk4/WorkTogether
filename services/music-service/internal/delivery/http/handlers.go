@@ -408,8 +408,16 @@ func (h *MusicHandler) SaveBookmark(c *gin.Context) {
 }
 
 func (h *MusicHandler) DeleteBookmark(c *gin.Context) {
+	roomID := c.Param("room_id")
+	if !h.requireRoomPermission(c, roomID, "") {
+		return
+	}
 	id := c.Param("id")
-	if err := h.usecase.DeleteBookmark(c.Request.Context(), id); err != nil {
+	if err := h.usecase.DeleteBookmark(c.Request.Context(), c.GetString("userID"), roomID, id); err != nil {
+		if err == usecase.ErrUnauthorized {
+			c.JSON(http.StatusForbidden, gin.H{"success": false, "error": gin.H{"code": "FORBIDDEN"}})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
 			"data":    nil,

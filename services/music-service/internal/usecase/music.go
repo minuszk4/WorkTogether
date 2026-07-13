@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -20,6 +21,8 @@ import (
 	"github.com/worktogether/services/music-service/internal/repository"
 )
 
+var ErrUnauthorized = errors.New("bạn không có quyền thực hiện hành động này")
+
 type MusicUsecase struct {
 	postgresRepo *repository.PostgresRepository
 	minioClient  *minio.Client
@@ -28,6 +31,9 @@ type MusicUsecase struct {
 }
 
 func NewMusicUsecase(pg *repository.PostgresRepository, minioEndpoint, accessKey, secretKey, bucket, minioPublic string) *MusicUsecase {
+	if minioEndpoint == "" {
+		return &MusicUsecase{postgresRepo: pg, minioBucket: bucket, minioPublic: minioPublic}
+	}
 	// Khởi tạo MinIO client
 	var mClient *minio.Client
 	var err error
@@ -535,7 +541,14 @@ func (u *MusicUsecase) GetBookmarks(ctx context.Context, roomID string) ([]*doma
 	return u.postgresRepo.GetBookmarks(ctx, roomID)
 }
 
-func (u *MusicUsecase) DeleteBookmark(ctx context.Context, id string) error {
+func (u *MusicUsecase) DeleteBookmark(ctx context.Context, userID, roomID, id string) error {
+	bookmark, err := u.postgresRepo.GetBookmarkByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if bookmark == nil || bookmark.RoomID != roomID || bookmark.UserID != userID {
+		return ErrUnauthorized
+	}
 	return u.postgresRepo.DeleteBookmark(ctx, id)
 }
 
