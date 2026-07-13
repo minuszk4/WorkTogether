@@ -61,10 +61,21 @@ jobs:
             web-client/package-lock.json
             web-client-vanilla/package-lock.json
 
+      - name: Set up Chrome
+        id: chrome
+        uses: browser-actions/setup-chrome@v1
+
+      - name: Test Angular client
+        working-directory: web-client
+        env:
+          CHROME_BIN: ${{ steps.chrome.outputs.chrome-path }}
+        run: |
+          npm ci
+          npm test -- --watch=false --browsers=ChromeHeadless
+
       - name: Build Angular client
         working-directory: web-client
         run: |
-          npm ci
           npm run build
 
       - name: Build vanilla client
