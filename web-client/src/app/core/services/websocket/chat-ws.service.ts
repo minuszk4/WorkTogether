@@ -17,6 +17,11 @@ export interface ChatMessage {
   reactions?: { emoji: string; users: string[] }[];
 }
 
+export interface RoomModeChange {
+  mode: 'chill' | 'focus' | 'collaborate';
+  changed_by: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -33,6 +38,7 @@ export class ChatWsService {
   public listenerStates$ = new BehaviorSubject<Record<string, { is_playing: boolean; position_ms: number; updated_at: number }>>({});
   public liveReaction$ = new Subject<{ user_id: string; emoji: string }>();
   public roomVibe$ = new BehaviorSubject<{ current_vibe: string; vibe_scores: Record<string, number> } | null>(null);
+  public roomMode$ = new Subject<RoomModeChange>();
 
   constructor() {}
 
@@ -97,6 +103,9 @@ export class ChatWsService {
           break;
         case 'presence:vibe_tick':
           this.roomVibe$.next(msg.payload);
+          break;
+        case 'room:mode_changed':
+          this.roomMode$.next(msg.payload);
           break;
         default:
           console.log('[Chat WS] Sự kiện chưa xử lý:', msg.event);

@@ -98,6 +98,54 @@ func TestDeleteRoom(t *testing.T) {
 	})
 }
 
+func TestUpdateRoomMode(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("Failed to create sqlmock: %s", err)
+	}
+	defer db.Close()
+
+	u := NewRoomUsecase(repository.NewPostgresRepository(db), nil)
+	ctx := context.Background()
+
+	memberRows := func(roomID, userID, role string) *sqlmock.Rows {
+		return sqlmock.NewRows([]string{"id", "room_id", "user_id", "role_id", "role_type", "active_sub_room_id", "muted_until", "joined_at"}).
+			AddRow("member-1", roomID, userID, nil, role, nil, nil, time.Now())
+	}
+
+	t.Run("allows moderator to change mode", func(t *testing.T) {
+		mock.ExpectQuery("SELECT id, room_id, user_id, role_id, role_type, active_sub_room_id, muted_until, joined_at FROM room_members").
+			WithArgs("room-1", "moderator-1").
+			WillReturnRows(memberRows("room-1", "moderator-1", "MODERATOR"))
+		mock.ExpectExec("UPDATE rooms SET mode = \\$1, updated_at = NOW\\(\\) WHERE id = \\$2").
+			WithArgs("focus", "room-1").
+			WillReturnResult(sqlmock.NewResult(1, 1))
+
+		mode, err := u.UpdateRoomMode(ctx, "moderator-1", "room-1", "focus")
+		if err != nil || mode != "focus" {
+			t.Fatalf("got mode=%q err=%v", mode, err)
+		}
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("rejects members and invalid modes", func(t *testing.T) {
+		if _, err := u.UpdateRoomMode(ctx, "member-1", "room-1", "party"); !errors.Is(err, ErrInvalidRoomMode) {
+			t.Fatalf("expected ErrInvalidRoomMode, got %v", err)
+		}
+		mock.ExpectQuery("SELECT id, room_id, user_id, role_id, role_type, active_sub_room_id, muted_until, joined_at FROM room_members").
+			WithArgs("room-1", "member-1").
+			WillReturnRows(memberRows("room-1", "member-1", "MEMBER"))
+		if _, err := u.UpdateRoomMode(ctx, "member-1", "room-1", "chill"); !errors.Is(err, ErrUnauthorized) {
+			t.Fatalf("expected ErrUnauthorized, got %v", err)
+		}
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Fatal(err)
+		}
+	})
+}
+
 func TestMuteMember(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {

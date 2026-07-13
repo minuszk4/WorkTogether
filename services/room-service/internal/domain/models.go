@@ -15,6 +15,7 @@ type Room struct {
 	AvatarURL      *string   `json:"avatar_url,omitempty"`
 	Rules          *string   `json:"rules,omitempty"`
 	Theme          string    `json:"theme"`
+	Mode           string    `json:"mode"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
 }
@@ -57,6 +58,7 @@ type CreateRoomRequest struct {
 	Description string `json:"description" binding:"max=500"`
 	Privacy     string `json:"privacy" binding:"required,oneof=public private friends"`
 	Password    string `json:"password"`
+	Mode        string `json:"mode" binding:"omitempty,oneof=chill focus collaborate"`
 }
 
 type JoinRoomRequest struct {

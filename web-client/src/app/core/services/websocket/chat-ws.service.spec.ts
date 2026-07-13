@@ -37,4 +37,18 @@ describe('ChatWsService', () => {
       }
     }));
   });
+
+  it('emits synchronized room mode changes', (done) => {
+    service.roomMode$.subscribe((change) => {
+      if (!change) return;
+      expect(change.mode).toBe('focus');
+      expect(change.changed_by).toBe('moderator-1');
+      done();
+    });
+
+    (service as any).handleMessage(JSON.stringify({
+      event: 'room:mode_changed',
+      payload: { mode: 'focus', changed_by: 'moderator-1' }
+    }));
+  });
 });

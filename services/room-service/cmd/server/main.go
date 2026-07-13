@@ -125,6 +125,7 @@ func main() {
 		roomsGroup.GET("/invite/:code", handler.GetRoomByInviteCode)
 		roomsGroup.GET("/:id", handler.GetRoomByID)
 		roomsGroup.PUT("/:id/settings", handler.UpdateRoomSettings)
+		roomsGroup.PUT("/:id/mode", handler.UpdateRoomMode)
 		roomsGroup.GET("/:id/members", handler.GetMembers)
 		roomsGroup.POST("/:id/join", handler.JoinRoom)
 		roomsGroup.POST("/:id/leave", handler.LeaveRoom)
@@ -176,4 +177,3 @@ func main() {
 
 	log.Println("Server đã thoát an toàn.")
 }
-

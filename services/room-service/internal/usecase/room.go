@@ -1,13 +1,13 @@
 package usecase
 
 import (
-	"crypto/rand"
-	"math/big"
 	"context"
+	"crypto/rand"
+	"encoding/json"
 	"errors"
+	"math/big"
 	"strings"
 	"time"
-	"encoding/json"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/worktogether/services/room-service/internal/domain"
@@ -26,6 +26,7 @@ var (
 	ErrRoleNotFound         = errors.New("không tìm thấy vai trò")
 	ErrTargetMemberNotFound = errors.New("thành viên mục tiêu không tồn tại")
 	ErrCannotMuteOwner      = errors.New("không thể mute chủ phòng")
+	ErrInvalidRoomMode      = errors.New("chế độ phòng không hợp lệ")
 )
 
 type RoomUsecase struct {
@@ -54,6 +55,7 @@ func (u *RoomUsecase) CreateRoom(ctx context.Context, ownerID string, req *domai
 		PasswordHash: passwordHash,
 		InviteCode:   u.generateInviteCode(),
 		OwnerID:      ownerID,
+		Mode:         roomModeOrDefault(req.Mode),
 	}
 
 	if err := u.repo.CreateRoom(ctx, rm); err != nil {
@@ -70,6 +72,17 @@ func (u *RoomUsecase) CreateRoom(ctx context.Context, ownerID string, req *domai
 	_ = u.repo.AddMember(ctx, m)
 
 	return rm, nil
+}
+
+func roomModeOrDefault(mode string) string {
+	if mode == "" {
+		return "chill"
+	}
+	return mode
+}
+
+func isValidRoomMode(mode string) bool {
+	return mode == "chill" || mode == "focus" || mode == "collaborate"
 }
 
 func (u *RoomUsecase) GetRoomByID(ctx context.Context, id string) (*domain.Room, error) {
@@ -424,6 +437,37 @@ func (u *RoomUsecase) UpdateRoomSettings(ctx context.Context, userID string, roo
 	return rm, nil
 }
 
+func (u *RoomUsecase) UpdateRoomMode(ctx context.Context, userID, roomID, mode string) (string, error) {
+	if !isValidRoomMode(mode) {
+		return "", ErrInvalidRoomMode
+	}
+
+	member, err := u.repo.GetMember(ctx, roomID, userID)
+	if err != nil {
+		return "", err
+	}
+	if member == nil || (member.RoleType != "OWNER" && member.RoleType != "MODERATOR") {
+		return "", ErrUnauthorized
+	}
+	if err := u.repo.UpdateRoomMode(ctx, roomID, mode); err != nil {
+		return "", err
+	}
+
+	u.invalidateRoomCache(ctx, roomID)
+	if u.rdb != nil {
+		message, err := json.Marshal(map[string]any{
+			"event":   "room:mode_changed",
+			"room_id": roomID,
+			"payload": map[string]string{"mode": mode, "changed_by": userID},
+		})
+		if err == nil {
+			u.rdb.Publish(ctx, "ch:chat:"+roomID, message)
+		}
+	}
+
+	return mode, nil
+}
+
 func (u *RoomUsecase) CreateSubRoom(ctx context.Context, ownerID string, parentID string, name string, description string) (*domain.Room, error) {
 	member, err := u.repo.GetMember(ctx, parentID, ownerID)
 	if err != nil {
@@ -523,7 +567,6 @@ func (u *RoomUsecase) MuteMember(ctx context.Context, requesterID, roomID, targe
 	}
 	return err
 }
-
 func (u *RoomUsecase) UnmuteMember(ctx context.Context, requesterID, roomID, targetUserID string) error {
 	reqMember, err := u.repo.GetMember(ctx, roomID, requesterID)
 	if err != nil {
@@ -545,5 +588,3 @@ func (u *RoomUsecase) UnmuteMember(ctx context.Context, requesterID, roomID, tar
 	}
 	return err
 }
-
-

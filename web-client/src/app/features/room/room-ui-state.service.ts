@@ -2,8 +2,10 @@ import { Injectable } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
 
 export type StageMode = 'music-only' | 'music-voice' | 'screenshare' | 'video';
+export type RoomMode = 'chill' | 'focus' | 'collaborate';
 
 export interface RoomUIState {
+  roomMode: RoomMode;
   stageMode: StageMode;
   isChatOpen: boolean;
   isQueueOpen: boolean;
@@ -18,11 +20,17 @@ export interface RoomUIState {
 }
 
 const VALID_MODES: StageMode[] = ['music-only', 'music-voice', 'screenshare', 'video'];
+const ROOM_MODE_PRESETS: Record<RoomMode, Pick<RoomUIState, 'isChatOpen' | 'isQueueOpen' | 'isNotesOpen' | 'isTimerOpen'>> = {
+  chill: { isChatOpen: false, isQueueOpen: true, isNotesOpen: false, isTimerOpen: false },
+  focus: { isChatOpen: false, isQueueOpen: false, isNotesOpen: true, isTimerOpen: true },
+  collaborate: { isChatOpen: true, isQueueOpen: false, isNotesOpen: true, isTimerOpen: false }
+};
 
 /** Local Room UI state, isolated from app-wide StateService. */
 @Injectable({ providedIn: 'root' })
 export class RoomUiStateService {
   private readonly state$ = new BehaviorSubject<RoomUIState>({
+    roomMode: 'chill',
     stageMode: 'music-only',
     isChatOpen: false,
     isQueueOpen: true,
@@ -96,6 +104,11 @@ export class RoomUiStateService {
   public setStageMode(mode: StageMode): void {
     if (!VALID_MODES.includes(mode)) return;
     this.patch({ stageMode: mode });
+  }
+
+  public applyRoomMode(mode: RoomMode): void {
+    if (!Object.prototype.hasOwnProperty.call(ROOM_MODE_PRESETS, mode)) return;
+    this.patch({ roomMode: mode, ...ROOM_MODE_PRESETS[mode] });
   }
 
   private patch(partial: Partial<RoomUIState>): void {

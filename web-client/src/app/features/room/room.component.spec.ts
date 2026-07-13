@@ -49,7 +49,8 @@ describe('RoomComponent', () => {
       pinnedUpdate$: new BehaviorSubject(null),
       listenerStates$: new BehaviorSubject({}),
       liveReaction$: new BehaviorSubject(null),
-      roomVibe$: new BehaviorSubject(null)
+      roomVibe$: new BehaviorSubject(null),
+      roomMode$: new BehaviorSubject(null)
     };
     mockPlaybackWsService = {
       connect: () => {},
@@ -73,9 +74,10 @@ describe('RoomComponent', () => {
       info: () => {}
     };
     mockRoomUiStateService = {
-      changes$: new BehaviorSubject({ isChatOpen: false, isQueueOpen: true, stageMode: 'music-only', unreadCount: 0, isIdentityOpen: false, isStatsOpen: false }),
-      uiState: { isChatOpen: false, isQueueOpen: true, stageMode: 'music-only', unreadCount: 0, isIdentityOpen: false, isStatsOpen: false },
-      setStageMode: () => {}
+      changes$: new BehaviorSubject({ roomMode: 'chill', isChatOpen: false, isQueueOpen: true, stageMode: 'music-only', unreadCount: 0, isIdentityOpen: false, isStatsOpen: false }),
+      uiState: { roomMode: 'chill', isChatOpen: false, isQueueOpen: true, stageMode: 'music-only', unreadCount: 0, isIdentityOpen: false, isStatsOpen: false },
+      setStageMode: () => {},
+      applyRoomMode: () => {}
     };
 
     TestBed.configureTestingModule({

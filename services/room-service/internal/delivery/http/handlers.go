@@ -477,6 +477,30 @@ func (h *RoomHandler) UpdateRoomSettings(c *gin.Context) {
 	})
 }
 
+func (h *RoomHandler) UpdateRoomMode(c *gin.Context) {
+	userID, _ := c.Get("userID")
+	var req struct {
+		Mode string `json:"mode" binding:"required,oneof=chill focus collaborate"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "data": nil, "error": gin.H{"code": "INVALID_PARAMETERS", "message": err.Error()}})
+		return
+	}
+
+	mode, err := h.usecase.UpdateRoomMode(c.Request.Context(), userID.(string), c.Param("id"), req.Mode)
+	if err != nil {
+		status, code := http.StatusInternalServerError, "UPDATE_MODE_FAILED"
+		if errors.Is(err, usecase.ErrUnauthorized) {
+			status, code = http.StatusForbidden, "FORBIDDEN"
+		} else if errors.Is(err, usecase.ErrInvalidRoomMode) {
+			status, code = http.StatusBadRequest, "INVALID_PARAMETERS"
+		}
+		c.JSON(status, gin.H{"success": false, "data": nil, "error": gin.H{"code": code, "message": err.Error()}})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"mode": mode}, "error": nil})
+}
+
 func (h *RoomHandler) CreateSubRoom(c *gin.Context) {
 	parentID := c.Param("id")
 	userID, _ := c.Get("userID")
@@ -728,5 +752,4 @@ func (h *RoomHandler) UnmuteMember(c *gin.Context) {
 		"error":   nil,
 	})
 }
-
 

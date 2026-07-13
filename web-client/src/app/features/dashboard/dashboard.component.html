@@ -306,6 +306,15 @@
             </select>
           </div>
 
+          <div class="form-group">
+            <label class="form-label" for="room-mode">Muc dich phong</label>
+            <select id="room-mode" name="roomMode" [(ngModel)]="roomMode">
+              <option value="chill">Chill</option>
+              <option value="focus">Focus</option>
+              <option value="collaborate">Collaborate</option>
+            </select>
+          </div>
+
           @if (roomPrivacy === 'private') {
             <div class="form-group">
               <label class="form-label" for="room-password">Mat khau phong</label>

@@ -32,4 +32,19 @@ describe('RoomUiStateService', () => {
     svc.setStageMode('nope');
     expect(svc.uiState.stageMode).toBe('screenshare');
   });
+
+  it('applies focused and collaborative room presets without changing the stage', () => {
+    svc.setStageMode('screenshare');
+    svc.applyRoomMode('focus');
+    expect(svc.uiState.roomMode).toBe('focus');
+    expect(svc.uiState.isTimerOpen).toBeTrue();
+    expect(svc.uiState.isNotesOpen).toBeTrue();
+    expect(svc.uiState.isQueueOpen).toBeFalse();
+    expect(svc.uiState.stageMode).toBe('screenshare');
+
+    svc.applyRoomMode('collaborate');
+    expect(svc.uiState.isChatOpen).toBeTrue();
+    expect(svc.uiState.isNotesOpen).toBeTrue();
+    expect(svc.uiState.isTimerOpen).toBeFalse();
+  });
 });

@@ -18,6 +18,11 @@
   </app-room-sidebar>
 
   <main class="room-main">
+    <div class="room-mode-switcher" role="group" aria-label="Chế độ phòng">
+      <button type="button" [class.active]="roomMode === 'chill'" [disabled]="!canChangeRoomMode" (click)="changeRoomMode('chill')">Chill</button>
+      <button type="button" [class.active]="roomMode === 'focus'" [disabled]="!canChangeRoomMode" (click)="changeRoomMode('focus')">Focus</button>
+      <button type="button" [class.active]="roomMode === 'collaborate'" [disabled]="!canChangeRoomMode" (click)="changeRoomMode('collaborate')">Collaborate</button>
+    </div>
     <app-room-vibe-meter></app-room-vibe-meter>
     <app-room-reactions-canvas></app-room-reactions-canvas>
     

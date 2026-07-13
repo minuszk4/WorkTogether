@@ -115,8 +115,8 @@ export class ApiService {
 
   // ─── Room APIs ────────────────────────────────────────────────────
   public room = {
-    create: (name: string, description: string, privacy: string, password = ''): Observable<any> =>
-      this.post<any>('/rooms', { name, description, privacy, password }),
+    create: (name: string, description: string, privacy: string, password = '', mode = 'chill'): Observable<any> =>
+      this.post<any>('/rooms', { name, description, privacy, password, mode }),
 
     list: (keyword = '', limit = 20): Observable<any[]> =>
       this.get<any[]>(`/rooms?search=${keyword}&limit=${limit}`),
@@ -153,6 +153,9 @@ export class ApiService {
 
     updateSettings: (roomId: string, name: string, description: string, addMusicPolicy: string, avatarUrl?: string | null, rules?: string | null, theme?: string): Observable<any> =>
       this.put<any>(`/rooms/${roomId}/settings`, { name, description, add_music_policy: addMusicPolicy, avatar_url: avatarUrl, rules, theme }),
+
+    updateMode: (roomId: string, mode: 'chill' | 'focus' | 'collaborate'): Observable<{ mode: string }> =>
+      this.put<{ mode: string }>(`/rooms/${roomId}/mode`, { mode }),
   };
 
   // ─── Music APIs ───────────────────────────────────────────────────

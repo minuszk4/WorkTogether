@@ -9,7 +9,7 @@ import { ChatWsService } from '../../core/services/websocket/chat-ws.service';
 import { PlaybackWsService } from '../../core/services/websocket/playback-ws.service';
 import { VoiceService } from '../../core/services/voice.service';
 import { ToastService } from '../../shared/services/toast.service';
-import { RoomUiStateService, StageMode } from './room-ui-state.service';
+import { RoomMode, RoomUiStateService, StageMode } from './room-ui-state.service';
 import { SidebarComponent } from './components/sidebar/sidebar.component';
 import { StageComponent } from './components/stage/stage.component';
 import { VoicePillsComponent } from './components/voice-pills/voice-pills.component';
@@ -94,6 +94,7 @@ export class RoomComponent implements OnInit, OnDestroy {
     this.api.room.get(this.roomId).subscribe({
       next: (room) => {
         this.state.activeRoom$.next(room);
+        this.uiState.applyRoomMode(this.normalizeRoomMode(room.mode));
         this.loadRoomMembers();
         this.connectWebSockets();
       },
@@ -131,8 +132,29 @@ export class RoomComponent implements OnInit, OnDestroy {
             this.handleVoiceSubRoomSwitch(targetSubRoomId);
           }
         }
+      }),
+      this.chatWs.roomMode$.subscribe(change => {
+        if (change) this.applyRoomMode(change.mode);
       })
     );
+  }
+
+  public changeRoomMode(mode: RoomMode): void {
+    if (!this.canChangeRoomMode || mode === this.uiState.uiState.roomMode) return;
+    this.api.room.updateMode(this.roomId, mode).subscribe({
+      next: () => this.applyRoomMode(mode),
+      error: (err) => this.toast.error('Không thể đổi chế độ phòng: ' + (err.message || 'lỗi không xác định.'))
+    });
+  }
+
+  private applyRoomMode(mode: RoomMode): void {
+    this.uiState.applyRoomMode(mode);
+    const room = this.state.activeRoom$.value;
+    if (room) this.state.activeRoom$.next({ ...room, mode });
+  }
+
+  private normalizeRoomMode(mode: unknown): RoomMode {
+    return mode === 'focus' || mode === 'collaborate' ? mode : 'chill';
   }
 
   private recomputeStageMode(): void {
@@ -328,6 +350,11 @@ export class RoomComponent implements OnInit, OnDestroy {
   get isBookmarksOpen(): boolean { return this.uiState.uiState.isBookmarksOpen; }
   get isIdentityOpen(): boolean { return this.uiState.uiState.isIdentityOpen; }
   get isStatsOpen(): boolean { return this.uiState.uiState.isStatsOpen; }
+  get roomMode(): RoomMode { return this.uiState.uiState.roomMode; }
+  get canChangeRoomMode(): boolean {
+    const role = this.state.roomMemberRole$.value;
+    return role === 'OWNER' || role === 'MODERATOR';
+  }
 
   private handleVoiceSubRoomSwitch(subRoomId: string | null): void {
 	const wasConnected = this.voiceService.connected$.value;

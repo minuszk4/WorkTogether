@@ -40,6 +40,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   public roomDesc = '';
   public roomPrivacy = 'public';
   public roomPassword = '';
+  public roomMode: 'chill' | 'focus' | 'collaborate' = 'chill';
 
   public profileDisplayName = '';
   public profileBio = '';
@@ -180,7 +181,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
           this.roomName.trim(),
           this.roomDesc.trim(),
           this.roomPrivacy,
-          effectivePassword
+          effectivePassword,
+          this.roomMode
         )
       );
 
@@ -189,6 +191,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.roomDesc = '';
       this.roomPrivacy = 'public';
       this.roomPassword = '';
+      this.roomMode = 'chill';
 
       await this.loadRooms();
       this.toast.success(`Da tao phong "${room.name}". Invite code: ${room.invite_code}`);
