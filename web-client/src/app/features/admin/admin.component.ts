@@ -15,8 +15,10 @@ export class AdminComponent implements OnInit {
   public accounts: any[] = [];
   public auditEvents: any[] = [];
   public members: any[] = [];
+  public messages: any[] = [];
   public tracks: any[] = [];
   public membersLoading = false;
+  public messagesLoading = false;
   public selected: any | null = null;
   public loading = true;
   public saving = false;
@@ -33,10 +35,15 @@ export class AdminComponent implements OnInit {
   public async select(room: any): Promise<void> {
     this.selected = { ...room };
     this.members = [];
+    this.messages = [];
     this.membersLoading = true;
+    this.messagesLoading = true;
     try { this.members = await firstValueFrom(this.api.admin.listRoomMembers(room.id)); }
     catch (error: any) { this.toast.error(error?.message || 'Không thể tải members.'); }
     finally { this.membersLoading = false; }
+    try { this.messages = await firstValueFrom(this.api.admin.listRoomMessages(room.id)); }
+    catch (error: any) { this.toast.error(error?.message || 'Không thể tải chat history.'); }
+    finally { this.messagesLoading = false; }
   }
   public async loadAccounts(): Promise<void> {
     try { this.accounts = await firstValueFrom(this.api.admin.listAccounts()); }
@@ -80,6 +87,14 @@ export class AdminComponent implements OnInit {
       await this.loadAudit();
       this.toast.success('Đã gỡ member khỏi room.');
     } catch (error: any) { this.toast.error(error?.message || 'Không thể gỡ member.'); }
+  }
+  public async removeMessage(message: any): Promise<void> {
+    if (!this.selected || !window.confirm('Xóa tin nhắn này?')) return;
+    try {
+      await firstValueFrom(this.api.admin.deleteRoomMessage(this.selected.id, message.id));
+      this.messages = this.messages.filter(item => item.id !== message.id);
+      this.toast.success('Đã xóa tin nhắn.');
+    } catch (error: any) { this.toast.error(error?.message || 'Không thể xóa tin nhắn.'); }
   }
   public async remove(): Promise<void> {
     if (!this.selected || !window.confirm(`Xóa room "${this.selected.name}"?`)) return;

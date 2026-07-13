@@ -131,6 +131,23 @@ func (u *ChatUsecase) DeleteMessage(ctx context.Context, userID, roomID, msgID s
 	return u.repo.DeleteMessage(ctx, msgID)
 }
 
+func (u *ChatUsecase) AdminDeleteMessage(ctx context.Context, roomID, msgID string) (*domain.Message, error) {
+	msg, err := u.repo.GetMessageByID(ctx, msgID)
+	if err != nil {
+		return nil, err
+	}
+	if msg == nil {
+		return nil, ErrMessageNotFound
+	}
+	if msg.RoomID != roomID {
+		return nil, ErrUnauthorized
+	}
+	if err := u.repo.DeleteMessage(ctx, msgID); err != nil {
+		return nil, err
+	}
+	return msg, nil
+}
+
 func (u *ChatUsecase) AddReaction(ctx context.Context, userID, roomID, msgID, emoji string) (*domain.MessageReaction, error) {
 	msg, err := u.repo.GetMessageByID(ctx, msgID)
 	if err != nil {
@@ -211,4 +228,3 @@ func (u *ChatUsecase) SearchMessages(ctx context.Context, userID, roomID, query 
 	// log.Printf("[AUDIT] User %s is searching messages in room %s with query: %s", userID, roomID, query)
 	return u.repo.SearchMessages(ctx, roomID, query)
 }
-

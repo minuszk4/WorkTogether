@@ -114,6 +114,63 @@ func TestEditMessage(t *testing.T) {
 	})
 }
 
+func TestAdminDeleteMessageRejectsCrossRoomMessage(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("unexpected error opening stub database: %v", err)
+	}
+	defer db.Close()
+
+	uc := usecase.NewChatUsecase(repository.NewPostgresRepository(db), nil)
+	messageID := "message-1"
+	roomID := "room-requested"
+
+	rows := sqlmock.NewRows([]string{"id", "room_id", "sender_id", "content", "reply_to_id", "is_edited", "created_at"}).
+		AddRow(messageID, "room-actual", "sender-1", "content", sql.NullString{}, false, time.Now())
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT id, room_id, sender_id, content, reply_to_id, is_edited, created_at FROM messages WHERE id = $1")).
+		WithArgs(messageID).
+		WillReturnRows(rows)
+
+	_, err = uc.AdminDeleteMessage(context.Background(), roomID, messageID)
+	if !errors.Is(err, usecase.ErrUnauthorized) {
+		t.Fatalf("expected ErrUnauthorized, got %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unexpected database calls: %v", err)
+	}
+}
+
+func TestAdminDeleteMessageDeletesMessageInRequestedRoom(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("unexpected error opening stub database: %v", err)
+	}
+	defer db.Close()
+
+	uc := usecase.NewChatUsecase(repository.NewPostgresRepository(db), nil)
+	messageID := "message-1"
+	roomID := "room-1"
+	rows := sqlmock.NewRows([]string{"id", "room_id", "sender_id", "content", "reply_to_id", "is_edited", "created_at"}).
+		AddRow(messageID, roomID, "sender-1", "content", sql.NullString{}, false, time.Now())
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT id, room_id, sender_id, content, reply_to_id, is_edited, created_at FROM messages WHERE id = $1")).
+		WithArgs(messageID).
+		WillReturnRows(rows)
+	mock.ExpectExec(regexp.QuoteMeta("DELETE FROM messages WHERE id = $1")).
+		WithArgs(messageID).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+
+	message, err := uc.AdminDeleteMessage(context.Background(), roomID, messageID)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if message == nil || message.ID != messageID || message.RoomID != roomID {
+		t.Fatalf("unexpected deleted message: %+v", message)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unexpected database calls: %v", err)
+	}
+}
+
 func TestPinMessage(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
@@ -280,4 +337,3 @@ func TestSaveMessage(t *testing.T) {
 		}
 	})
 }
-

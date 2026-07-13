@@ -1,23 +1,21 @@
 package main
 
 import (
-	"os/signal"
-	"syscall"
-	"github.com/worktogether/pkg/env"
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/worktogether/pkg/env"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/redis/go-redis/v9"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	roomv1 "github.com/worktogether/services/chat-service/api/v1"
 	delivery "github.com/worktogether/services/chat-service/internal/delivery/http"
 	deliveryRedis "github.com/worktogether/services/chat-service/internal/delivery/redis"
@@ -26,6 +24,8 @@ import (
 	"github.com/worktogether/services/chat-service/internal/usecase"
 	"github.com/worktogether/services/chat-service/pkg/middleware"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
@@ -145,6 +145,7 @@ func main() {
 	{
 		chatGroup.GET("/messages", handler.GetMessages)
 		chatGroup.GET("/search", handler.SearchMessages)
+		chatGroup.DELETE("/messages/:message_id", handler.AdminDeleteMessage)
 	}
 
 	r.GET("/health", func(c *gin.Context) {
@@ -177,4 +178,3 @@ func main() {
 
 	log.Println("Server đã thoát an toàn.")
 }
-

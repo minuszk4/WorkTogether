@@ -76,6 +76,10 @@ func (h *Hub) Unregister(c *Client) {
 }
 
 func (h *Hub) BroadcastToRoom(roomID string, message []byte) {
+	if h.RedisClient == nil {
+		h.localBroadcastToRoom(roomID, message)
+		return
+	}
 	ctx := context.Background()
 	// Parse event type to use correct channel if needed, or default to ch:chat
 	h.RedisClient.Publish(ctx, "ch:chat:"+roomID, message)
@@ -197,7 +201,7 @@ func (h *Hub) StartVibeTicker() {
 				}
 
 				presence.Lock()
-				
+
 				currentVibe, scores := h.determineVibe(presence.RecentReactions)
 
 				vibeMsg := domain.WSMessage{

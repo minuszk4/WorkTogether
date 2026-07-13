@@ -21,6 +21,9 @@
         <section class="admin-members"><div class="admin-users-head"><h3>Members</h3><span>{{ members.length }}</span></div>
           @if (membersLoading) { <p>Đang tải members...</p> } @else { @for (member of members; track member.id) { <div class="admin-member"><div><strong>{{ member.user_id }}</strong><span>{{ member.role_type }}</span></div><button type="button" class="danger" [disabled]="member.role_type === 'OWNER'" (click)="removeMember(member)">Remove</button></div> } }
         </section>
+        <section class="admin-members"><div class="admin-users-head"><h3>Chat messages</h3><span>{{ messages.length }}</span></div>
+          @if (messagesLoading) { <p>Đang tải chat...</p> } @else { @for (message of messages; track message.id) { <div class="admin-message"><div><strong>{{ message.sender_id }}</strong><span>{{ message.created_at | date:'short' }}</span><p>{{ message.content }}</p></div><button type="button" class="danger" (click)="removeMessage(message)">Delete</button></div> } @empty { <p>Chưa có tin nhắn.</p> } }
+        </section>
       }
     </section>
   </section>

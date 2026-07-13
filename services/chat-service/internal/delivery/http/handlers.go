@@ -51,6 +51,12 @@ func NewChatHandler(uc *usecase.ChatUsecase, hub *Hub, rc roomv1.RoomInternalSer
 	}
 }
 
+func isAdmin(c *gin.Context) bool {
+	value, ok := c.Get("isAdmin")
+	isAdmin, isBool := value.(bool)
+	return ok && isBool && isAdmin
+}
+
 // 1. WebSocket Handler
 func (h *ChatHandler) HandleWS(c *gin.Context) {
 	roomID := c.Param("id")
@@ -150,20 +156,22 @@ func (h *ChatHandler) GetMessages(c *gin.Context) {
 	roomID := c.Param("id")
 	userID := c.GetString("userID")
 
-	res, err := h.roomClient.VerifyRoomMember(c.Request.Context(), &roomv1.VerifyRoomMemberRequest{
-		RoomID: roomID,
-		UserID: userID,
-	})
-	if err != nil || res == nil || !res.IsMember {
-		c.JSON(http.StatusForbidden, gin.H{
-			"success": false,
-			"data":    nil,
-			"error": gin.H{
-				"code":    "FORBIDDEN",
-				"message": "Bạn không phải thành viên của phòng này.",
-			},
+	if !isAdmin(c) {
+		res, err := h.roomClient.VerifyRoomMember(c.Request.Context(), &roomv1.VerifyRoomMemberRequest{
+			RoomID: roomID,
+			UserID: userID,
 		})
-		return
+		if err != nil || res == nil || !res.IsMember {
+			c.JSON(http.StatusForbidden, gin.H{
+				"success": false,
+				"data":    nil,
+				"error": gin.H{
+					"code":    "FORBIDDEN",
+					"message": "Bạn không phải thành viên của phòng này.",
+				},
+			})
+			return
+		}
 	}
 
 	beforeID := c.Query("before_id")
@@ -194,20 +202,22 @@ func (h *ChatHandler) SearchMessages(c *gin.Context) {
 	roomID := c.Param("id")
 	userID := c.GetString("userID")
 
-	res, err := h.roomClient.VerifyRoomMember(c.Request.Context(), &roomv1.VerifyRoomMemberRequest{
-		RoomID: roomID,
-		UserID: userID,
-	})
-	if err != nil || res == nil || !res.IsMember {
-		c.JSON(http.StatusForbidden, gin.H{
-			"success": false,
-			"data":    nil,
-			"error": gin.H{
-				"code":    "FORBIDDEN",
-				"message": "Bạn không phải thành viên của phòng này.",
-			},
+	if !isAdmin(c) {
+		res, err := h.roomClient.VerifyRoomMember(c.Request.Context(), &roomv1.VerifyRoomMemberRequest{
+			RoomID: roomID,
+			UserID: userID,
 		})
-		return
+		if err != nil || res == nil || !res.IsMember {
+			c.JSON(http.StatusForbidden, gin.H{
+				"success": false,
+				"data":    nil,
+				"error": gin.H{
+					"code":    "FORBIDDEN",
+					"message": "Bạn không phải thành viên của phòng này.",
+				},
+			})
+			return
+		}
 	}
 
 	query := c.Query("q")
@@ -239,6 +249,31 @@ func (h *ChatHandler) SearchMessages(c *gin.Context) {
 		"data":    list,
 		"error":   nil,
 	})
+}
+
+func (h *ChatHandler) AdminDeleteMessage(c *gin.Context) {
+	if !isAdmin(c) {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "data": nil, "error": gin.H{"code": "FORBIDDEN", "message": "Yêu cầu quyền quản trị."}})
+		return
+	}
+
+	roomID := c.Param("id")
+	message, err := h.usecase.AdminDeleteMessage(c.Request.Context(), roomID, c.Param("message_id"))
+	if err != nil {
+		status := http.StatusInternalServerError
+		code := "DELETE_MESSAGE_ERROR"
+		if err == usecase.ErrMessageNotFound {
+			status, code = http.StatusNotFound, "MESSAGE_NOT_FOUND"
+		} else if err == usecase.ErrUnauthorized {
+			status, code = http.StatusNotFound, "MESSAGE_NOT_FOUND"
+		}
+		c.JSON(status, gin.H{"success": false, "data": nil, "error": gin.H{"code": code, "message": err.Error()}})
+		return
+	}
+
+	broadcast, _ := json.Marshal(domain.WSMessage{Event: "chat:message_deleted", RoomID: roomID, Payload: gin.H{"message_id": message.ID}})
+	h.hub.BroadcastToRoom(roomID, broadcast)
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": message, "error": nil})
 }
 
 // WebSocket client pumps implementation
