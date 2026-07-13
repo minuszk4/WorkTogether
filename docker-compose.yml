@@ -219,11 +219,14 @@ services:
       - DB_PASSWORD=${POSTGRES_PASSWORD}
       - DB_NAME=worktogether_music
       - PORT=${MUSIC_PORT}
+      - ROOM_SERVICE_GRPC=room-service:50051
     depends_on:
       postgres:
         condition: service_healthy
       minio:
         condition: service_started
+      room-service:
+        condition: service_healthy
     healthcheck: *service-healthcheck
     restart: unless-stopped
     networks:

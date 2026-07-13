@@ -2,23 +2,26 @@ package main
 
 import (
 	"context"
-	"os/signal"
-	"syscall"
+	"fmt"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	dbpkg "github.com/worktogether/pkg/db"
 	"github.com/worktogether/pkg/env"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	roomv1 "github.com/worktogether/services/music-service/api/v1"
 	delivery "github.com/worktogether/services/music-service/internal/delivery/http"
 	"github.com/worktogether/services/music-service/internal/repository"
 	"github.com/worktogether/services/music-service/internal/usecase"
 	"github.com/worktogether/services/music-service/pkg/middleware"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
@@ -58,7 +61,12 @@ func main() {
 	// Khởi tạo các lớp Layer
 	repo := repository.NewPostgresRepository(db)
 	uc := usecase.NewMusicUsecase(repo, minioEndpoint, minioAccess, minioSecret, minioBucket, minioPublic)
-	handler := delivery.NewMusicHandler(uc)
+	roomConn, err := grpc.Dial(env.GetEnv("ROOM_SERVICE_GRPC", "room-service:50051"), grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+	if err != nil {
+		log.Fatalf("Không thể kết nối gRPC đến room-service: %v", err)
+	}
+	defer roomConn.Close()
+	handler := delivery.NewMusicHandler(uc, roomv1.NewRoomInternalServiceClient(roomConn))
 
 	// Khởi tạo Gin
 	gin.SetMode(gin.ReleaseMode)
@@ -120,4 +128,3 @@ func main() {
 
 	log.Println("Server đã thoát an toàn.")
 }
-

@@ -2,19 +2,40 @@ package http
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	roomv1 "github.com/worktogether/services/music-service/api/v1"
 	"github.com/worktogether/services/music-service/internal/domain"
 	"github.com/worktogether/services/music-service/internal/usecase"
 )
 
 type MusicHandler struct {
-	usecase *usecase.MusicUsecase
+	usecase    *usecase.MusicUsecase
+	roomClient roomv1.RoomInternalServiceClient
 }
 
-func NewMusicHandler(u *usecase.MusicUsecase) *MusicHandler {
-	return &MusicHandler{usecase: u}
+func NewMusicHandler(u *usecase.MusicUsecase, roomClient roomv1.RoomInternalServiceClient) *MusicHandler {
+	return &MusicHandler{usecase: u, roomClient: roomClient}
+}
+
+func (h *MusicHandler) requireRoomPermission(c *gin.Context, roomID, permission string) bool {
+	member, err := h.roomClient.VerifyRoomMember(c.Request.Context(), &roomv1.VerifyRoomMemberRequest{RoomID: roomID, UserID: c.GetString("userID")})
+	if err != nil || member == nil || !member.IsMember {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "error": gin.H{"code": "FORBIDDEN"}})
+		return false
+	}
+	if permission != "" {
+		for _, value := range member.Permissions {
+			if strings.EqualFold(value, permission) {
+				return true
+			}
+		}
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "error": gin.H{"code": "FORBIDDEN"}})
+		return false
+	}
+	return true
 }
 
 func (h *MusicHandler) ExtractYoutube(c *gin.Context) {
@@ -168,6 +189,9 @@ func (h *MusicHandler) LogPlayback(c *gin.Context) {
 		})
 		return
 	}
+	if !h.requireRoomPermission(c, body.RoomID, "CAN_CONTROL_PLAYBACK") {
+		return
+	}
 
 	err := h.usecase.LogPlayback(c.Request.Context(), body.RoomID, body.TrackID)
 	if err != nil {
@@ -191,6 +215,9 @@ func (h *MusicHandler) LogPlayback(c *gin.Context) {
 
 func (h *MusicHandler) GetHistory(c *gin.Context) {
 	roomID := c.Param("room_id")
+	if !h.requireRoomPermission(c, roomID, "") {
+		return
+	}
 	tracks, err := h.usecase.GetRoomHistory(c.Request.Context(), roomID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -271,6 +298,9 @@ func (h *MusicHandler) SaveLyrics(c *gin.Context) {
 
 func (h *MusicHandler) GetBookmarks(c *gin.Context) {
 	roomID := c.Param("room_id")
+	if !h.requireRoomPermission(c, roomID, "") {
+		return
+	}
 	list, err := h.usecase.GetBookmarks(c.Request.Context(), roomID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -292,6 +322,9 @@ func (h *MusicHandler) GetBookmarks(c *gin.Context) {
 
 func (h *MusicHandler) SaveBookmark(c *gin.Context) {
 	roomID := c.Param("room_id")
+	if !h.requireRoomPermission(c, roomID, "") {
+		return
+	}
 	userID := c.GetString("userID")
 	if userID == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": gin.H{"code": "UNAUTHORIZED", "message": "Thiếu định danh người dùng."}})
@@ -365,6 +398,9 @@ func (h *MusicHandler) DeleteBookmark(c *gin.Context) {
 
 func (h *MusicHandler) GetStats(c *gin.Context) {
 	roomID := c.Param("room_id")
+	if !h.requireRoomPermission(c, roomID, "") {
+		return
+	}
 	stats, err := h.usecase.GetRoomStats(c.Request.Context(), roomID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
