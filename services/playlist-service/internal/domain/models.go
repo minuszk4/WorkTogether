@@ -51,5 +51,5 @@ type MoveTrackRequest struct {
 }
 
 type VoteTrackRequest struct {
-	VoteType string `json:"vote_type" binding:"required"` // "up" or "down" or "none"
+	VoteType string `json:"vote_type" binding:"required,oneof=up down none"`
 }
