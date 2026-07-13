@@ -22,6 +22,11 @@ export interface RoomModeChange {
   changed_by: string;
 }
 
+export interface RoomEvent {
+  event: string;
+  payload: any;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -39,6 +44,7 @@ export class ChatWsService {
   public liveReaction$ = new Subject<{ user_id: string; emoji: string }>();
   public roomVibe$ = new BehaviorSubject<{ current_vibe: string; vibe_scores: Record<string, number> } | null>(null);
   public roomMode$ = new Subject<RoomModeChange>();
+  public roomEvent$ = new Subject<RoomEvent>();
 
   constructor() {}
 
@@ -108,6 +114,10 @@ export class ChatWsService {
           this.roomMode$.next(msg.payload);
           break;
         default:
+          if (typeof msg.event === 'string' && msg.event.startsWith('session:')) {
+            this.roomEvent$.next({ event: msg.event, payload: msg.payload });
+            break;
+          }
           console.log('[Chat WS] Sự kiện chưa xử lý:', msg.event);
       }
     } catch (e) {

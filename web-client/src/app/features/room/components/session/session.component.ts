@@ -1,10 +1,11 @@
 import { CommonModule } from '@angular/common';
-import { Component, Input, OnInit, inject } from '@angular/core';
+import { Component, Input, OnDestroy, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, Subscription } from 'rxjs';
 import { ApiService } from '../../../../core/services/api.service';
 import { StateService } from '../../../../core/services/state.service';
 import { ToastService } from '../../../../shared/services/toast.service';
+import { ChatWsService } from '../../../../core/services/websocket/chat-ws.service';
 
 @Component({
   selector: 'app-room-session',
@@ -13,12 +14,14 @@ import { ToastService } from '../../../../shared/services/toast.service';
   templateUrl: './session.component.html',
   styleUrl: './session.component.css'
 })
-export class SessionComponent implements OnInit {
+export class SessionComponent implements OnInit, OnDestroy {
   @Input() roomId = '';
 
   private api = inject(ApiService);
   private state = inject(StateService);
   private toast = inject(ToastService);
+  private chatWs = inject(ChatWsService);
+  private sessionEventsSub?: Subscription;
 
   public templates: any[] = [];
   public workspace: any | null = null;
@@ -32,8 +35,11 @@ export class SessionComponent implements OnInit {
 
   public async ngOnInit(): Promise<void> {
     await Promise.all([this.loadTemplates(), this.loadActiveSession()]);
+	this.sessionEventsSub = this.chatWs.roomEvent$.subscribe(() => void this.loadActiveSession());
     this.loading = false;
   }
+
+  public ngOnDestroy(): void { this.sessionEventsSub?.unsubscribe(); }
 
   public get canManage(): boolean {
     const role = this.state.roomMemberRole$.value;
@@ -115,6 +121,7 @@ export class SessionComponent implements OnInit {
     try {
       const session = await firstValueFrom(this.api.room.getActiveSession(this.roomId));
       if (session) await this.loadWorkspace(session.id);
+		else this.workspace = null;
     } catch (error: any) {
       if (error?.message) this.toast.error('Không thể tải session hiện tại.');
     }

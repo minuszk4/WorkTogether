@@ -51,4 +51,17 @@ describe('ChatWsService', () => {
       payload: { mode: 'focus', changed_by: 'moderator-1' }
     }));
   });
+
+  it('emits shared session events', (done) => {
+    service.roomEvent$.subscribe((event) => {
+      expect(event.event).toBe('session:agenda_added');
+      expect(event.payload.id).toBe('agenda-1');
+      done();
+    });
+
+    (service as any).handleMessage(JSON.stringify({
+      event: 'session:agenda_added',
+      payload: { id: 'agenda-1' }
+    }));
+  });
 });
