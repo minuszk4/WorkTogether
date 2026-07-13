@@ -106,7 +106,7 @@ func (r *PostgresRepository) UpdateAccountVerification(ctx context.Context, id s
 }
 
 func (r *PostgresRepository) ListAccounts(ctx context.Context, limit int) ([]*domain.Account, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT id, email, username, COALESCE(password_hash,''), is_verified, COALESCE(is_admin,false), COALESCE(google_id,''), created_at, updated_at FROM accounts ORDER BY created_at DESC LIMIT $1`, limit)
+	rows, err := r.db.QueryContext(ctx, `SELECT id, email, username, COALESCE(password_hash,''), is_verified, COALESCE(is_admin,false), COALESCE(is_suspended,false), COALESCE(google_id,''), created_at, updated_at FROM accounts ORDER BY created_at DESC LIMIT $1`, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -114,7 +114,7 @@ func (r *PostgresRepository) ListAccounts(ctx context.Context, limit int) ([]*do
 	accounts := []*domain.Account{}
 	for rows.Next() {
 		acc := &domain.Account{}
-		if err := rows.Scan(&acc.ID, &acc.Email, &acc.Username, &acc.PasswordHash, &acc.IsVerified, &acc.IsAdmin, &acc.GoogleID, &acc.CreatedAt, &acc.UpdatedAt); err != nil {
+		if err := rows.Scan(&acc.ID, &acc.Email, &acc.Username, &acc.PasswordHash, &acc.IsVerified, &acc.IsAdmin, &acc.IsSuspended, &acc.GoogleID, &acc.CreatedAt, &acc.UpdatedAt); err != nil {
 			return nil, err
 		}
 		accounts = append(accounts, acc)
@@ -124,6 +124,20 @@ func (r *PostgresRepository) ListAccounts(ctx context.Context, limit int) ([]*do
 
 func (r *PostgresRepository) SetAccountAdmin(ctx context.Context, accountID string, isAdmin bool) error {
 	_, err := r.db.ExecContext(ctx, `UPDATE accounts SET is_admin = $1, updated_at = NOW() WHERE id = $2`, isAdmin, accountID)
+	return err
+}
+
+func (r *PostgresRepository) IsAccountSuspended(ctx context.Context, accountID string) (bool, error) {
+	var suspended bool
+	err := r.db.QueryRowContext(ctx, `SELECT COALESCE(is_suspended,false) FROM accounts WHERE id = $1`, accountID).Scan(&suspended)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	return suspended, err
+}
+
+func (r *PostgresRepository) SetAccountSuspended(ctx context.Context, accountID string, suspended bool) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE accounts SET is_suspended = $1, updated_at = NOW() WHERE id = $2`, suspended, accountID)
 	return err
 }
 

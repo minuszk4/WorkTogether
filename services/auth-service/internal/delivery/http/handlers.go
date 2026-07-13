@@ -140,9 +140,30 @@ func (h *AuthHandler) AdminSetAccountRole(c *gin.Context) {
 	c.JSON(http.StatusOK, successResp(gin.H{"id": c.Param("id"), "is_admin": req.IsAdmin}))
 }
 
+func (h *AuthHandler) AdminSetAccountSuspension(c *gin.Context) {
+	isAdmin, _ := c.Get("isAdmin")
+	actorID, _ := c.Get("userID")
+	var req struct {
+		IsSuspended bool `json:"is_suspended"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, errorResp("INVALID_PARAMETERS", err.Error()))
+		return
+	}
+	if err := h.usecase.SetAccountSuspended(c.Request.Context(), isAdmin == true, actorID.(string), c.Param("id"), req.IsSuspended); err != nil {
+		h.writeAdminError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, successResp(gin.H{"id": c.Param("id"), "is_suspended": req.IsSuspended}))
+}
+
 func (h *AuthHandler) writeAdminError(c *gin.Context, err error) {
 	if errors.Is(err, usecase.ErrUnauthorized) {
 		c.JSON(http.StatusForbidden, errorResp("FORBIDDEN", err.Error()))
+		return
+	}
+	if errors.Is(err, usecase.ErrAccountSuspended) {
+		c.JSON(http.StatusForbidden, errorResp("ACCOUNT_SUSPENDED", err.Error()))
 		return
 	}
 	c.JSON(http.StatusBadRequest, errorResp("ADMIN_FAILED", err.Error()))
@@ -219,6 +240,10 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 
 	accessToken, newRefreshToken, err := h.usecase.RefreshToken(c.Request.Context(), refreshToken, c.ClientIP(), c.Request.UserAgent())
 	if err != nil {
+		if errors.Is(err, usecase.ErrAccountSuspended) {
+			c.JSON(http.StatusForbidden, errorResp("ACCOUNT_SUSPENDED", err.Error()))
+			return
+		}
 		c.JSON(http.StatusUnauthorized, errorResp("REFRESH_FAILED", err.Error()))
 		return
 	}

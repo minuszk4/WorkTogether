@@ -9,6 +9,7 @@ type Account struct {
 	PasswordHash string    `json:"-"`
 	IsVerified   bool      `json:"is_verified"`
 	IsAdmin      bool      `json:"is_admin"`
+	IsSuspended  bool      `json:"is_suspended"`
 	GoogleID     string    `json:"-"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`

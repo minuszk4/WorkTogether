@@ -113,6 +113,7 @@ func main() {
 		authGroup.POST("/change-password", middleware.AuthMiddleware(jwtSecret), handler.ChangePassword)
 		authGroup.GET("/admin/accounts", middleware.AuthMiddleware(jwtSecret), handler.AdminListAccounts)
 		authGroup.PUT("/admin/accounts/:id", middleware.AuthMiddleware(jwtSecret), handler.AdminSetAccountRole)
+		authGroup.PUT("/admin/accounts/:id/suspension", middleware.AuthMiddleware(jwtSecret), handler.AdminSetAccountSuspension)
 	}
 
 	r.GET("/health", func(c *gin.Context) {

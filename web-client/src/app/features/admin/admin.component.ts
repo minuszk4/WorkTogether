@@ -46,6 +46,16 @@ export class AdminComponent implements OnInit {
 			this.toast.success('Đã cập nhật quyền account. Token mới áp dụng khi người dùng refresh hoặc đăng nhập lại.');
 		} catch (error: any) { this.toast.error(error?.message || 'Không thể cập nhật quyền account.'); }
 	}
+  public async toggleSuspension(account: any): Promise<void> {
+    const suspended = !account.is_suspended;
+    const action = suspended ? 'Tạm ngưng' : 'Mở lại';
+    if (!window.confirm(`${action} tài khoản ${account.username}?`)) return;
+    try {
+      const result = await firstValueFrom(this.api.admin.setAccountSuspended(account.id, suspended));
+      account.is_suspended = result.is_suspended;
+      this.toast.success(suspended ? 'Đã tạm ngưng tài khoản và thu hồi refresh sessions.' : 'Đã mở lại tài khoản.');
+    } catch (error: any) { this.toast.error(error?.message || 'Không thể cập nhật trạng thái tài khoản.'); }
+  }
   public async save(): Promise<void> {
     if (!this.selected || this.saving) return;
     this.saving = true;

@@ -200,6 +200,7 @@ export class ApiService {
     removeRoomMember: (roomId: string, userId: string): Observable<any> => this.delete<any>(`/admin/rooms/${roomId}/members/${userId}`),
     listAccounts: (): Observable<any[]> => this.get<any[]>('/auth/admin/accounts'),
     setAccountAdmin: (accountId: string, isAdmin: boolean): Observable<any> => this.put<any>(`/auth/admin/accounts/${accountId}`, { is_admin: isAdmin }),
+    setAccountSuspended: (accountId: string, isSuspended: boolean): Observable<any> => this.put<any>(`/auth/admin/accounts/${accountId}/suspension`, { is_suspended: isSuspended }),
   };
 
   // ─── Music APIs ───────────────────────────────────────────────────

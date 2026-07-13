@@ -26,6 +26,7 @@ var (
 	ErrInvalidVerifyToken  = errors.New("mã xác thực không hợp lệ hoặc đã hết hạn")
 	ErrGoogleNotConfigured = errors.New("đăng nhập Google chưa được cấu hình")
 	ErrUnauthorized        = errors.New("bạn không có quyền thực hiện hành động này")
+	ErrAccountSuspended    = errors.New("tài khoản đã bị tạm ngưng")
 )
 
 type AuthUsecase struct {
@@ -51,6 +52,22 @@ func (u *AuthUsecase) SetAccountAdmin(ctx context.Context, isAdmin bool, actorID
 		return errors.New("không thể tự thu hồi quyền admin")
 	}
 	return u.repo.SetAccountAdmin(ctx, accountID, enabled)
+}
+
+func (u *AuthUsecase) SetAccountSuspended(ctx context.Context, isAdmin bool, actorID, accountID string, suspended bool) error {
+	if !isAdmin {
+		return ErrUnauthorized
+	}
+	if actorID == accountID && suspended {
+		return errors.New("không thể tự tạm ngưng tài khoản admin")
+	}
+	if err := u.repo.SetAccountSuspended(ctx, accountID, suspended); err != nil {
+		return err
+	}
+	if suspended {
+		return u.repo.DeleteSessionsByAccountID(ctx, accountID)
+	}
+	return nil
 }
 
 func NewAuthUsecase(repo *repository.PostgresRepository, emailSvc *EmailService, secret string, jwtExpMins int) *AuthUsecase {
@@ -192,6 +209,12 @@ func (u *AuthUsecase) Login(ctx context.Context, req *domain.LoginRequest, ip, u
 	if !acc.IsVerified {
 		return nil, "", "", ErrAccountNotVerified
 	}
+	if suspended, err := u.repo.IsAccountSuspended(ctx, acc.ID); err != nil || suspended {
+		if err != nil {
+			return nil, "", "", err
+		}
+		return nil, "", "", ErrAccountSuspended
+	}
 
 	return u.createSession(ctx, acc, ip, ua)
 }
@@ -234,6 +257,12 @@ func (u *AuthUsecase) LoginWithGoogle(ctx context.Context, googleUser *GoogleUse
 		// Gửi email chào mừng
 		go u.emailSvc.SendWelcomeEmail(acc.Email, acc.Username)
 	}
+	if suspended, err := u.repo.IsAccountSuspended(ctx, acc.ID); err != nil || suspended {
+		if err != nil {
+			return nil, "", "", err
+		}
+		return nil, "", "", ErrAccountSuspended
+	}
 
 	return u.createSession(ctx, acc, ip, ua)
 }
@@ -257,6 +286,13 @@ func (u *AuthUsecase) RefreshToken(ctx context.Context, tokenStr, ip, ua string)
 	acc, err := u.repo.GetAccountByID(ctx, sess.AccountID)
 	if err != nil || acc == nil {
 		return "", "", ErrInvalidSession
+	}
+	if suspended, err := u.repo.IsAccountSuspended(ctx, acc.ID); err != nil || suspended {
+		_ = u.repo.DeleteSession(ctx, tokenStr)
+		if err != nil {
+			return "", "", err
+		}
+		return "", "", ErrAccountSuspended
 	}
 
 	accessToken, err := u.generateAccessToken(acc)

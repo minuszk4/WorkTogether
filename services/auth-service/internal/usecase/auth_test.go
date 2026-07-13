@@ -37,6 +37,42 @@ func TestSetAccountAdminRequiresAdministrator(t *testing.T) {
 	}
 }
 
+func TestSetAccountSuspendedRequiresAdministrator(t *testing.T) {
+	uc := NewAuthUsecase(nil, NewEmailService(), "test_secret", 15)
+	if err := uc.SetAccountSuspended(context.Background(), false, "actor", "target", true); err != ErrUnauthorized {
+		t.Fatalf("expected ErrUnauthorized, got %v", err)
+	}
+}
+
+func TestLoginRejectsSuspendedAccount(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte("correct-password"), bcrypt.DefaultCost)
+	if err != nil {
+		t.Fatal(err)
+	}
+	uc := NewAuthUsecase(repository.NewPostgresRepository(db), NewEmailService(), "test_secret", 15)
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT id, email, username, COALESCE(password_hash,''), is_verified, COALESCE(is_admin,false), COALESCE(google_id,''), created_at, updated_at FROM accounts WHERE email = $1 OR username = $2")).
+		WithArgs("suspended", "suspended").
+		WillReturnRows(sqlmock.NewRows([]string{"id", "email", "username", "password_hash", "is_verified", "is_admin", "google_id", "created_at", "updated_at"}).
+			AddRow("account-1", "suspended@example.com", "suspended", string(passwordHash), true, false, "", time.Now(), time.Now()))
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT COALESCE(is_suspended,false) FROM accounts WHERE id = $1")).
+		WithArgs("account-1").
+		WillReturnRows(sqlmock.NewRows([]string{"is_suspended"}).AddRow(true))
+
+	_, _, _, err = uc.Login(context.Background(), &domain.LoginRequest{Identity: "suspended", Password: "correct-password"}, "127.0.0.1", "test")
+	if err != ErrAccountSuspended {
+		t.Fatalf("expected ErrAccountSuspended, got %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestAuthUsecase_ForgotPassword(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
