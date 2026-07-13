@@ -29,7 +29,7 @@ export const DashboardView = {
           </div>
           <div class="flex flex-col gap-4 items-center">
             <div class="slim-avatar" id="slim-avatar-btn" title="Hồ sơ cá nhân">
-              ${user.avatar_url ? `<img src="${user.avatar_url}" alt="Avatar">` : `<span style="font-weight:600; font-size:12px;">${user.display_name[:2].toUpperCase()}</span>`}
+              ${user.avatar_url ? `<img src="${user.avatar_url}" alt="Avatar">` : `<span style="font-weight:600; font-size:12px;">${user.display_name.slice(0, 2).toUpperCase()}</span>`}
             </div>
             <div class="slim-nav-item" id="slim-logout-btn" title="Đăng xuất">
               <span style="font-size: 14px;">➔</span>

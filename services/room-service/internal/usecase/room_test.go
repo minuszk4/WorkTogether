@@ -47,7 +47,7 @@ func TestDeleteRoom(t *testing.T) {
 	defer db.Close()
 
 	repo := repository.NewPostgresRepository(db)
-	u := NewRoomUsecase(repo)
+	u := NewRoomUsecase(repo, nil)
 	ctx := context.Background()
 
 	t.Run("Success as Owner", func(t *testing.T) {
@@ -106,7 +106,7 @@ func TestMuteMember(t *testing.T) {
 	defer db.Close()
 
 	repo := repository.NewPostgresRepository(db)
-	u := NewRoomUsecase(repo)
+	u := NewRoomUsecase(repo, nil)
 	ctx := context.Background()
 
 	t.Run("Success Mute", func(t *testing.T) {
@@ -250,7 +250,7 @@ func TestUnmuteMember(t *testing.T) {
 	defer db.Close()
 
 	repo := repository.NewPostgresRepository(db)
-	u := NewRoomUsecase(repo)
+	u := NewRoomUsecase(repo, nil)
 	ctx := context.Background()
 
 	t.Run("Success Unmute", func(t *testing.T) {

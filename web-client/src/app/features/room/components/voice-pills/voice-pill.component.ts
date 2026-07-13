@@ -158,8 +158,8 @@ export class VoicePillComponent implements OnInit, OnDestroy {
     if (!roomId || !this.p.identity) return;
     
     this.api.playback.assignGuestDj(roomId, this.p.identity).subscribe({
-      next: () => this.toast.success(`Ä Ã£ gÃ¡n quyá» n DJ cho ${this.p.display_name}`),
-      error: (err) => this.toast.error('Lá»—i: ' + (err.error?.error?.message || err.message))
+      next: () => this.toast.success(`Đã gán quyền DJ cho ${this.p.display_name}`),
+      error: (err: any) => this.toast.error('Lỗi: ' + (err.error?.error?.message || err.message))
     });
   }
 
@@ -169,8 +169,8 @@ export class VoicePillComponent implements OnInit, OnDestroy {
     if (!roomId) return;
 
     this.api.playback.revokeGuestDj(roomId).subscribe({
-      next: () => this.toast.success(`Ä Ã£ thu há»“i quyá» n DJ cá»§a ${this.p.display_name}`),
-      error: (err) => this.toast.error('Lá»—i: ' + (err.error?.error?.message || err.message))
+      next: () => this.toast.success(`Đã thu hồi quyền DJ của ${this.p.display_name}`),
+      error: (err: any) => this.toast.error('Lỗi: ' + (err.error?.error?.message || err.message))
     });
   }
 

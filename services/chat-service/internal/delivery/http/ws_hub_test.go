@@ -3,14 +3,14 @@ package http
 import "testing"
 
 func TestNewHub(t *testing.T) {
-	h := NewHub()
+	h := NewHub(nil)
 	if h.RoomPresences == nil {
 		t.Error("Expected RoomPresences map to be initialized, got nil")
 	}
 }
 
 func TestUpdateClientPresence(t *testing.T) {
-	h := NewHub()
+	h := NewHub(nil)
 	h.UpdateClientPresence("room-1", "user-1", true, 5000)
 
 	presence, exists := h.RoomPresences["room-1"]
@@ -29,7 +29,7 @@ func TestUpdateClientPresence(t *testing.T) {
 }
 
 func TestRecordReaction(t *testing.T) {
-	h := NewHub()
+	h := NewHub(nil)
 	h.RecordReaction("room-1", "🔥")
 
 	presence, exists := h.RoomPresences["room-1"]
@@ -48,7 +48,7 @@ func TestRecordReaction(t *testing.T) {
 }
 
 func TestDetermineVibe(t *testing.T) {
-	h := NewHub()
+	h := NewHub(nil)
 	
 	// Case 1: Hype dominates
 	r1 := map[string]int{"🔥": 5, "❤️": 2}

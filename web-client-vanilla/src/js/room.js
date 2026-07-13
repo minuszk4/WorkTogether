@@ -183,7 +183,7 @@ export const RoomView = {
     
     // Load Playlist & Queue
     await this.setupPlaylist();
-  }
+  },
 
   bindEvents() {
     // Back to dashboard
