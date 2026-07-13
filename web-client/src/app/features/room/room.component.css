@@ -52,6 +52,9 @@ app-room-vibe-meter {
   right: 16px;
   z-index: var(--z-overlay);
 }
+.room-session-panel {
+  position: absolute; left: 16px; bottom: 16px; z-index: var(--z-overlay);
+}
 
 app-room-reactions-canvas {
   position: absolute;
@@ -80,6 +83,7 @@ app-room-quick-reactions {
   .room-chat-dock { width: 100%; bottom: 0; }
   .room-mode-switcher { left: 12px; top: 12px; }
   .room-mode-switcher button { min-width: 0; padding: 0 8px; font-size: 12px; }
+  .room-session-panel { display: none; }
 }
 
 .room-subrooms-panel {

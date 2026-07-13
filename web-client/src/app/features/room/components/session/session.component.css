@@ -1,0 +1,16 @@
+:host { display: block; }
+.session-panel { width: 300px; max-height: calc(100dvh - 180px); overflow: auto; padding: 14px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-elevated); box-shadow: var(--shadow-lg); }
+.session-header { display: flex; align-items: start; justify-content: space-between; gap: 12px; color: var(--text-secondary); font-size: 12px; }
+.session-header strong { display: block; margin-top: 3px; color: var(--text-primary); font-size: 15px; }
+.session-status { color: var(--success); }
+.session-form, .session-section { display: grid; gap: 8px; margin-top: 12px; }
+.session-form input, .session-form select, .session-add input { min-width: 0; min-height: 34px; padding: 0 9px; color: var(--text-primary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-surface); }
+.session-form button, .session-add button { min-height: 34px; border: 0; border-radius: var(--radius-sm); color: var(--text-primary); background: var(--accent-primary); cursor: pointer; }
+.session-form button:disabled { opacity: 0.6; cursor: wait; }
+.session-goal { margin: 8px 0 0; color: var(--text-secondary); font-size: 13px; }
+.section-label { color: var(--text-secondary); font-size: 12px; font-weight: 600; }
+.session-check { display: flex; align-items: center; gap: 8px; color: var(--text-primary); font-size: 13px; }
+.session-check .done { color: var(--text-muted); text-decoration: line-through; }
+.session-add { display: grid; grid-template-columns: 1fr 34px; gap: 6px; }
+.session-empty { padding: 8px 0; color: var(--text-secondary); font-size: 13px; }
+.icon-command { width: 28px; height: 28px; border: 0; border-radius: var(--radius-sm); color: var(--text-secondary); background: transparent; font-size: 22px; cursor: pointer; }

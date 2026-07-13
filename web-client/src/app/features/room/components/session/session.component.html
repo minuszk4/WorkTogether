@@ -1,0 +1,39 @@
+<section class="session-panel" aria-label="Room session">
+  @if (loading) {
+    <div class="session-empty">Đang tải session...</div>
+  } @else if (!session) {
+    <div class="session-header"><span>Session</span><span class="session-status">Sẵn sàng</span></div>
+    @if (canManage) {
+      <div class="session-form">
+        <select [(ngModel)]="selectedTemplate" (change)="onTemplateChange()" aria-label="Session template">
+          @for (template of templates; track template.key) { <option [value]="template.key">{{ template.name }}</option> }
+        </select>
+        <input [(ngModel)]="title" maxlength="160" placeholder="Tên session">
+        <input [(ngModel)]="goal" maxlength="1000" placeholder="Mục tiêu hôm nay">
+        <button type="button" (click)="start()" [disabled]="creating">{{ creating ? 'Đang tạo...' : 'Bắt đầu' }}</button>
+      </div>
+    } @else {
+      <div class="session-empty">Chờ host bắt đầu một session.</div>
+    }
+  } @else {
+    <div class="session-header">
+      <div><span>Session đang diễn ra</span><strong>{{ session.title }}</strong></div>
+      @if (canManage) { <button type="button" class="icon-command" (click)="complete()" aria-label="Kết thúc session">×</button> }
+    </div>
+    @if (session.goal) { <p class="session-goal">{{ session.goal }}</p> }
+    <div class="session-section">
+      <span class="section-label">Agenda</span>
+      @for (item of workspace.agenda; track item.id) {
+        <label class="session-check"><input type="checkbox" [checked]="item.is_done" (change)="toggleAgenda(item)"><span [class.done]="item.is_done">{{ item.content }}</span></label>
+      }
+      <div class="session-add"><input [(ngModel)]="agendaContent" (keyup.enter)="addAgenda()" placeholder="Thêm agenda"><button type="button" (click)="addAgenda()">+</button></div>
+    </div>
+    <div class="session-section">
+      <span class="section-label">Action items</span>
+      @for (item of workspace.actions; track item.id) {
+        <label class="session-check"><input type="checkbox" [checked]="item.status === 'DONE'" (change)="toggleAction(item)"><span [class.done]="item.status === 'DONE'">{{ item.content }}</span></label>
+      }
+      <div class="session-add"><input [(ngModel)]="actionContent" (keyup.enter)="addAction()" placeholder="Thêm việc cần làm"><button type="button" (click)="addAction()">+</button></div>
+    </div>
+  }
+</section>

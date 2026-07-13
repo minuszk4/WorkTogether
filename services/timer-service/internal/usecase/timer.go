@@ -118,9 +118,6 @@ func (uc *TimerUsecase) PauseTimer(ctx context.Context, roomID string) error {
 	if state.Status == "focus" || state.Status == "break" {
 		state.PausedStatus = state.Status
 		state.Status = "paused"
-		if err := uc.saveState(ctx, state.PausedStatus, state); err != nil { // Wait, key should be roomID, not state.PausedStatus! Let's be careful.
-			// Ah, let's write to roomID!
-		}
 		state.EndsAt = 0
 		if err := uc.saveState(ctx, roomID, state); err != nil {
 			return err

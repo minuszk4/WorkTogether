@@ -28,6 +28,7 @@ import { BookmarksComponent } from './components/bookmarks/bookmarks.component';
 import { PlayerEngineService } from './components/player-engine/player-engine.service';
 import { RoomIdentityComponent } from './components/room-identity/room-identity.component';
 import { HistoryStatsComponent } from './components/history-stats/history-stats.component';
+import { SessionComponent } from './components/session/session.component';
 
 @Component({
   selector: 'app-room',
@@ -38,7 +39,7 @@ import { HistoryStatsComponent } from './components/history-stats/history-stats.
     QuickReactionsComponent, ReactionsCanvasComponent, RoomVibeMeterComponent,
     PollWidgetComponent, SubroomsComponent, TimerComponent, CollabNotesComponent,
     LyricsComponent, BookmarksComponent,
-    RoomIdentityComponent, HistoryStatsComponent
+    RoomIdentityComponent, HistoryStatsComponent, SessionComponent
   ],
   templateUrl: './room.component.html',
   styleUrl: './room.component.css'

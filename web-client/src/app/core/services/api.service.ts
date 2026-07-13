@@ -156,6 +156,33 @@ export class ApiService {
 
     updateMode: (roomId: string, mode: 'chill' | 'focus' | 'collaborate'): Observable<{ mode: string }> =>
       this.put<{ mode: string }>(`/rooms/${roomId}/mode`, { mode }),
+
+    listSessionTemplates: (): Observable<any[]> =>
+      this.get<any[]>('/rooms/session-templates'),
+
+    getActiveSession: (roomId: string): Observable<any | null> =>
+      this.get<any | null>(`/rooms/${roomId}/session`),
+
+    startSession: (roomId: string, title: string, goal: string, templateKey: string): Observable<any> =>
+      this.post<any>(`/rooms/${roomId}/sessions`, { title, goal, template_key: templateKey }),
+
+    getSessionWorkspace: (roomId: string, sessionId: string): Observable<any> =>
+      this.get<any>(`/rooms/${roomId}/sessions/${sessionId}`),
+
+    completeSession: (roomId: string, sessionId: string): Observable<any> =>
+      this.put<any>(`/rooms/${roomId}/sessions/${sessionId}/complete`, {}),
+
+    addAgendaItem: (roomId: string, sessionId: string, content: string, position: number): Observable<any> =>
+      this.post<any>(`/rooms/${roomId}/sessions/${sessionId}/agenda`, { content, position }),
+
+    updateAgendaItem: (roomId: string, sessionId: string, itemId: string, isDone: boolean): Observable<any> =>
+      this.put<any>(`/rooms/${roomId}/sessions/${sessionId}/agenda/${itemId}`, { is_done: isDone }),
+
+    addActionItem: (roomId: string, sessionId: string, content: string, assigneeId?: string): Observable<any> =>
+      this.post<any>(`/rooms/${roomId}/sessions/${sessionId}/actions`, { content, assignee_id: assigneeId || null }),
+
+    updateActionItem: (roomId: string, sessionId: string, actionId: string, status: 'OPEN' | 'DONE'): Observable<any> =>
+      this.put<any>(`/rooms/${roomId}/sessions/${sessionId}/actions/${actionId}`, { status }),
   };
 
   // ─── Music APIs ───────────────────────────────────────────────────

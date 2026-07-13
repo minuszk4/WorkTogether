@@ -24,6 +24,9 @@
       <button type="button" [class.active]="roomMode === 'collaborate'" [disabled]="!canChangeRoomMode" (click)="changeRoomMode('collaborate')">Collaborate</button>
     </div>
     <app-room-vibe-meter></app-room-vibe-meter>
+    <div class="room-session-panel">
+      <app-room-session [roomId]="roomId"></app-room-session>
+    </div>
     <app-room-reactions-canvas></app-room-reactions-canvas>
     
     <app-room-voice-pills></app-room-voice-pills>
