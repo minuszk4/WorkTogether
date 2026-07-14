@@ -1,6 +1,7 @@
 package http
 
 import (
+	"context"
 	"errors"
 	"net/http"
 
@@ -10,11 +11,17 @@ import (
 )
 
 type UserHandler struct {
-	usecase *usecase.UserUsecase
+	usecase       *usecase.UserUsecase
+	statusUsecase statusUsecase
+}
+
+type statusUsecase interface {
+	UpdatePresence(context.Context, string, *domain.UpdateStatusRequest) (*domain.Presence, error)
+	HeartbeatPresence(context.Context, string, *domain.HeartbeatRequest) (*domain.Presence, error)
 }
 
 func NewUserHandler(uc *usecase.UserUsecase) *UserHandler {
-	return &UserHandler{usecase: uc}
+	return &UserHandler{usecase: uc, statusUsecase: uc}
 }
 
 func (h *UserHandler) GetProfile(c *gin.Context) {
@@ -119,7 +126,7 @@ func (h *UserHandler) UpdatePresence(c *gin.Context) {
 		return
 	}
 
-	p, err := h.usecase.UpdatePresence(c.Request.Context(), id, &req)
+	p, err := h.statusUsecase.UpdatePresence(c.Request.Context(), id, &req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -137,6 +144,24 @@ func (h *UserHandler) UpdatePresence(c *gin.Context) {
 		"data":    p,
 		"error":   nil,
 	})
+}
+
+func (h *UserHandler) HeartbeatPresence(c *gin.Context) {
+	userID, _ := c.Get("userID")
+	id := userID.(string)
+
+	var req domain.HeartbeatRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "data": nil, "error": gin.H{"code": "INVALID_PARAMETERS", "message": err.Error()}})
+		return
+	}
+
+	p, err := h.statusUsecase.HeartbeatPresence(c.Request.Context(), id, &req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "data": nil, "error": gin.H{"code": "UPDATE_PRESENCE_ERROR", "message": err.Error()}})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": p, "error": nil})
 }
 
 func (h *UserHandler) SendFriendRequest(c *gin.Context) {

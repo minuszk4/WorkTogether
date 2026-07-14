@@ -28,6 +28,7 @@ type customStatusRepository interface {
 
 type presenceRepository interface {
 	GetPresence(context.Context, string) (*domain.Presence, error)
+	SetPresence(context.Context, string, *domain.Presence) error
 }
 
 type UserUsecase struct {
@@ -106,13 +107,25 @@ func (u *UserUsecase) UpdateProfile(ctx context.Context, id string, req *domain.
 }
 
 func (u *UserUsecase) UpdatePresence(ctx context.Context, id string, req *domain.UpdateStatusRequest) (*domain.Presence, error) {
+	presence, err := u.UpdateCustomStatus(ctx, id, req.CustomText)
+	if err != nil {
+		return nil, err
+	}
+	p, err := u.HeartbeatPresence(ctx, id, &domain.HeartbeatRequest{Status: req.Status})
+	if err != nil {
+		return nil, err
+	}
+	p.CustomText = presence.CustomText
+	return p, nil
+}
+
+func (u *UserUsecase) HeartbeatPresence(ctx context.Context, id string, req *domain.HeartbeatRequest) (*domain.Presence, error) {
 	p := &domain.Presence{
 		Status:     req.Status,
-		CustomText: req.CustomText,
 		LastActive: time.Now().Unix(),
 	}
 
-	if err := u.redisRepo.SetPresence(ctx, id, p); err != nil {
+	if err := u.presenceRepo.SetPresence(ctx, id, p); err != nil {
 		return nil, err
 	}
 
