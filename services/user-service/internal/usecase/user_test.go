@@ -24,10 +24,31 @@ func (r *customStatusRepositoryFake) UpdateCustomStatus(_ context.Context, userI
 
 type presenceRepositoryFake struct {
 	presence *domain.Presence
+	set      *domain.Presence
 }
 
 func (r *presenceRepositoryFake) GetPresence(context.Context, string) (*domain.Presence, error) {
 	return r.presence, nil
+}
+
+func (r *presenceRepositoryFake) SetPresence(_ context.Context, _ string, presence *domain.Presence) error {
+	r.set = presence
+	return nil
+}
+
+func TestHeartbeatPresenceOnlyWritesPresence(t *testing.T) {
+	presence := &presenceRepositoryFake{}
+	uc := &UserUsecase{presenceRepo: presence}
+
+	if _, err := uc.HeartbeatPresence(context.Background(), "user-1", &domain.HeartbeatRequest{Status: "away"}); err != nil {
+		t.Fatal(err)
+	}
+	if presence.set == nil || presence.set.Status != "away" {
+		t.Fatalf("saved presence = %#v, want away", presence.set)
+	}
+	if presence.set.CustomText != "" {
+		t.Fatalf("heartbeat custom text = %q, want empty", presence.set.CustomText)
+	}
 }
 
 func TestUpdateCustomStatusTrimsAndPersistsText(t *testing.T) {

@@ -1,16 +1,16 @@
 package main
 
 import (
-	"os/signal"
-	"syscall"
-	dbpkg "github.com/worktogether/pkg/db"
-	"github.com/worktogether/pkg/env"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"context"
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	dbpkg "github.com/worktogether/pkg/db"
+	"github.com/worktogether/pkg/env"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -76,11 +76,12 @@ func main() {
 	usersGroup := r.Group("/api/v1/users")
 	usersGroup.Use(middleware.AuthMiddleware(jwtSecret))
 	{
-		usersGroup.GET("/profile", handler.GetProfile)       // GET /users/profile (own)
-		usersGroup.GET("/profile/:id", handler.GetProfile)   // GET /users/profile/:id
-		usersGroup.GET("/:id/profile", handler.GetProfile)   // GET /users/:id/profile (REST style)
+		usersGroup.GET("/profile", handler.GetProfile)     // GET /users/profile (own)
+		usersGroup.GET("/profile/:id", handler.GetProfile) // GET /users/profile/:id
+		usersGroup.GET("/:id/profile", handler.GetProfile) // GET /users/:id/profile (REST style)
 		usersGroup.PUT("/profile", handler.UpdateProfile)
 		usersGroup.PUT("/status", handler.UpdatePresence)
+		usersGroup.PUT("/status/heartbeat", handler.HeartbeatPresence)
 
 		// Bạn bè
 		usersGroup.GET("/friends", handler.GetFriends)
@@ -129,4 +130,3 @@ func main() {
 
 	log.Println("Server đã thoát an toàn.")
 }
-

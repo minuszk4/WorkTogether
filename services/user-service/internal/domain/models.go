@@ -38,6 +38,10 @@ type UpdateStatusRequest struct {
 	CustomText string `json:"custom_text" binding:"max=100"`
 }
 
+type HeartbeatRequest struct {
+	Status string `json:"status" binding:"required,oneof=online offline busy away"`
+}
+
 type FriendRequest struct {
 	FriendID string `json:"friend_id" binding:"required"`
 }
