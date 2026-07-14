@@ -3,13 +3,14 @@ package domain
 import "time"
 
 type UserProfile struct {
-	ID           string    `json:"id"`
-	DisplayName  string    `json:"display_name"`
-	AvatarURL    string    `json:"avatar_url"`
-	Bio          string    `json:"bio"`
-	CustomStatus string    `json:"custom_status"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID                string    `json:"id"`
+	DisplayName       string    `json:"display_name"`
+	AvatarURL         string    `json:"avatar_url"`
+	Bio               string    `json:"bio"`
+	CustomStatus      string    `json:"custom_status"`
+	PreferredLanguage string    `json:"preferred_language"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
 }
 
 type Friendship struct {
@@ -28,9 +29,10 @@ type Presence struct {
 }
 
 type UpdateProfileRequest struct {
-	DisplayName string `json:"display_name" binding:"required,max=100"`
-	Bio         string `json:"bio" binding:"max=200"`
-	AvatarURL   string `json:"avatar_url"`
+	DisplayName       string `json:"display_name" binding:"required,max=100"`
+	Bio               string `json:"bio" binding:"max=200"`
+	AvatarURL         string `json:"avatar_url"`
+	PreferredLanguage string `json:"preferred_language" binding:"omitempty,min=2,max=10"`
 }
 
 type UpdateStatusRequest struct {

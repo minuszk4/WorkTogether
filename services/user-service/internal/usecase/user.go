@@ -121,6 +121,9 @@ func (u *UserUsecase) UpdateProfile(ctx context.Context, id string, req *domain.
 
 	p.DisplayName = req.DisplayName
 	p.Bio = req.Bio
+	if req.PreferredLanguage != "" {
+		p.PreferredLanguage = req.PreferredLanguage
+	}
 	if req.AvatarURL != "" {
 		p.AvatarURL = req.AvatarURL
 	}
