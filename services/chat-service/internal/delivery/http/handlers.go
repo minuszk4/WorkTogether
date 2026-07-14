@@ -12,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/worktogether/pkg/env"
 	roomv1 "github.com/worktogether/services/chat-service/api/v1"
@@ -41,6 +42,19 @@ type ChatHandler struct {
 	usecase    *usecase.ChatUsecase
 	hub        *Hub
 	roomClient roomv1.RoomInternalServiceClient
+}
+
+func validTranslationLanguage(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if len(value) < 2 || len(value) > 10 {
+		return ""
+	}
+	for _, char := range value {
+		if (char < 'a' || char > 'z') && char != '-' {
+			return ""
+		}
+	}
+	return value
 }
 
 func NewChatHandler(uc *usecase.ChatUsecase, hub *Hub, rc roomv1.RoomInternalServiceClient) *ChatHandler {
@@ -382,6 +396,43 @@ func (c *Client) readPump(uc *usecase.ChatUsecase, canModerate bool) {
 			} else if err != nil {
 				c.sendError(err)
 			}
+
+		case "translation:configure":
+			var payload struct {
+				TargetLanguage string `json:"target_language"`
+			}
+			payloadBytes, _ := json.Marshal(incoming.Payload)
+			_ = json.Unmarshal(payloadBytes, &payload)
+			if targetLanguage := validTranslationLanguage(payload.TargetLanguage); targetLanguage != "" {
+				c.TargetLanguage = targetLanguage
+			}
+
+		case "subtitle:transcript":
+			if !c.CanChat {
+				continue
+			}
+			var payload struct {
+				Text     string `json:"text"`
+				Language string `json:"language"`
+			}
+			payloadBytes, _ := json.Marshal(incoming.Payload)
+			_ = json.Unmarshal(payloadBytes, &payload)
+			text := strings.TrimSpace(payload.Text)
+			if text == "" || len(text) > 1000 {
+				continue
+			}
+			broadcastMsg := domain.WSMessage{
+				Event:  "subtitle:received",
+				RoomID: c.RoomID,
+				Payload: gin.H{
+					"id":        uuid.NewString(),
+					"sender_id": c.UserID,
+					"text":      text,
+					"language":  validTranslationLanguage(payload.Language),
+				},
+			}
+			data, _ := json.Marshal(broadcastMsg)
+			c.Hub.BroadcastToRoom(c.RoomID, data)
 
 		case "chat:typing":
 			if !c.CanChat {

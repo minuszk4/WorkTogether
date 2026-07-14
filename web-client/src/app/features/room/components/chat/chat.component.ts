@@ -81,6 +81,14 @@ export class ChatComponent implements OnInit, OnDestroy {
       })
     );
 
+    this.subs.push(
+      this.chatWs.translationReceived$.subscribe((translation) => {
+        if (translation.kind !== 'chat') return;
+        const message = this.messages.find((item) => item.id === translation.event_id);
+        if (message) message.translation = translation.text;
+      })
+    );
+
     // 2. Subscribe message deleted
     this.subs.push(
       this.chatWs.messageDeleted$.subscribe((msgId) => {

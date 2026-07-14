@@ -55,3 +55,15 @@ func TestWorkerFailsOpenWhenDisabledFullOrTimedOut(t *testing.T) {
 	go worker.Start(ctx)
 	time.Sleep(50 * time.Millisecond)
 }
+
+func TestWorkerDropsJobsOverTheCharacterBudget(t *testing.T) {
+	worker := NewWorkerWithRateLimit(2, time.Second, 5, func(_ context.Context, job Job) (Result, error) {
+		return Result{Job: job}, nil
+	}, nil)
+	if !worker.Submit(Job{Text: "hello", TargetLanguage: "vi"}) {
+		t.Fatal("job inside the character budget was rejected")
+	}
+	if worker.Submit(Job{Text: "x", TargetLanguage: "vi"}) {
+		t.Fatal("job over the character budget was accepted")
+	}
+}

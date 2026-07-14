@@ -38,6 +38,22 @@ app-room-stage {
   min-height: 0;
   width: 100%;
 }
+.room-subtitle {
+  position: absolute;
+  z-index: var(--z-overlay);
+  left: 50%;
+  bottom: 36px;
+  transform: translateX(-50%);
+  max-width: min(80%, 760px);
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  background: rgba(8, 12, 24, 0.86);
+  color: var(--text-primary, #fff);
+  font-weight: 600;
+  text-align: center;
+  pointer-events: none;
+}
+.room-subtitle .translated { margin-top: 4px; color: var(--text-secondary, #c6ccda); font-weight: 400; }
 .room-queue-panel {
   grid-area: queue; width: 296px; flex-shrink: 0; overflow: hidden;
   background: var(--bg-glass); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);

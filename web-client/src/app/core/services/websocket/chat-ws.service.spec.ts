@@ -64,4 +64,31 @@ describe('ChatWsService', () => {
       payload: { id: 'agenda-1' }
     }));
   });
+
+  it('emits late translations independently from the original chat message', (done) => {
+    service.translationReceived$.subscribe((translation) => {
+      expect(translation.event_id).toBe('message-1');
+      expect(translation.text).toBe('xin chào');
+      expect(translation.kind).toBe('chat');
+      done();
+    });
+
+    (service as any).handleMessage(JSON.stringify({
+      event: 'translation:received',
+      payload: { event_id: 'message-1', text: 'xin chào', kind: 'chat', target_language: 'vi' }
+    }));
+  });
+
+  it('emits room subtitles separately from chat and playback events', (done) => {
+    service.subtitleReceived$.subscribe((subtitle) => {
+      expect(subtitle.id).toBe('subtitle-1');
+      expect(subtitle.text).toBe('Hello everyone');
+      done();
+    });
+
+    (service as any).handleMessage(JSON.stringify({
+      event: 'subtitle:received',
+      payload: { id: 'subtitle-1', sender_id: 'user-1', text: 'Hello everyone', language: 'en' }
+    }));
+  });
 });

@@ -1,6 +1,14 @@
 package http
 
-import "testing"
+import (
+	"context"
+	"encoding/json"
+	"testing"
+	"time"
+
+	"github.com/worktogether/pkg/translation"
+	"github.com/worktogether/services/chat-service/internal/domain"
+)
 
 func TestNewHub(t *testing.T) {
 	h := NewHub(nil)
@@ -49,7 +57,7 @@ func TestRecordReaction(t *testing.T) {
 
 func TestDetermineVibe(t *testing.T) {
 	h := NewHub(nil)
-	
+
 	// Case 1: Hype dominates
 	r1 := map[string]int{"🔥": 5, "❤️": 2}
 	vibe, _ := h.determineVibe(r1)
@@ -69,5 +77,41 @@ func TestDetermineVibe(t *testing.T) {
 	vibe, _ = h.determineVibe(r3)
 	if vibe != "chill" {
 		t.Errorf("Expected chill, got %s", vibe)
+	}
+}
+
+func TestHubDeliversTranslationOnlyToTheConfiguredRecipient(t *testing.T) {
+	hub := NewHub(nil)
+	hub.EnableTranslation(context.Background(), 2, time.Second, 0, func(_ context.Context, job translation.Job) (translation.Result, error) {
+		return translation.Result{Job: job, Text: "xin chào"}, nil
+	})
+	client := &Client{UserID: "user-1", RoomID: "room-1", TargetLanguage: "vi", Send: make(chan []byte, 1)}
+	hub.Register(client)
+
+	original, err := json.Marshal(domain.WSMessage{
+		Event:   "chat:message_received",
+		RoomID:  "room-1",
+		Payload: map[string]any{"id": "message-1", "content": "hello", "sender_id": "user-2"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	hub.queueTranslations(original)
+
+	select {
+	case data := <-client.Send:
+		var message domain.WSMessage
+		if err := json.Unmarshal(data, &message); err != nil {
+			t.Fatal(err)
+		}
+		if message.Event != "translation:received" {
+			t.Fatalf("event = %q", message.Event)
+		}
+		payload := message.Payload.(map[string]any)
+		if payload["event_id"] != "message-1" || payload["text"] != "xin chào" {
+			t.Fatalf("unexpected translation payload: %#v", payload)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("translation was not delivered")
 	}
 }

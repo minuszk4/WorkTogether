@@ -15,6 +15,7 @@ export interface ChatMessage {
   created_at: string;
   status?: 'sending' | 'sent' | 'error';
   reactions?: { emoji: string; users: string[] }[];
+  translation?: string;
 }
 
 export interface RoomModeChange {
@@ -25,6 +26,20 @@ export interface RoomModeChange {
 export interface RoomEvent {
   event: string;
   payload: any;
+}
+
+export interface TranslationResult {
+  event_id: string;
+  kind: 'chat' | 'transcript';
+  text: string;
+  target_language: string;
+}
+
+export interface SubtitleEvent {
+  id: string;
+  sender_id: string;
+  text: string;
+  language?: string;
 }
 
 @Injectable({
@@ -45,10 +60,12 @@ export class ChatWsService {
   public roomVibe$ = new BehaviorSubject<{ current_vibe: string; vibe_scores: Record<string, number> } | null>(null);
   public roomMode$ = new Subject<RoomModeChange>();
   public roomEvent$ = new Subject<RoomEvent>();
+  public translationReceived$ = new Subject<TranslationResult>();
+  public subtitleReceived$ = new Subject<SubtitleEvent>();
 
   constructor() {}
 
-  public connect(roomId: string, token: string): void {
+  public connect(roomId: string, token: string, targetLanguage = ''): void {
     this.roomId = roomId;
     const wsUrl = `${environment.wsUrl}/api/v1/rooms/${roomId}/chat/ws?token=${token}`;
 
@@ -57,6 +74,14 @@ export class ChatWsService {
     this.socket.onopen = () => {
       console.log('[Chat WS] Kết nối thành công.');
       this.connected$.next(true);
+      this.socket?.send(JSON.stringify({ event: 'auth', token }));
+      if (targetLanguage) {
+        this.socket?.send(JSON.stringify({
+          event: 'translation:configure',
+          room_id: roomId,
+          payload: { target_language: targetLanguage }
+        }));
+      }
     };
 
     this.socket.onmessage = (event) => {
@@ -100,6 +125,12 @@ export class ChatWsService {
           break;
         case 'chat:error':
           this.messageError$.next(msg.payload);
+          break;
+        case 'translation:received':
+          this.translationReceived$.next(msg.payload);
+          break;
+        case 'subtitle:received':
+          this.subtitleReceived$.next(msg.payload);
           break;
         case 'presence:listener_states':
           this.listenerStates$.next(msg.payload.user_states);

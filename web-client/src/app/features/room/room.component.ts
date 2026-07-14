@@ -71,7 +71,10 @@ export class RoomComponent implements OnInit, OnDestroy {
 	public selectedAudioInput = '';
   public currentSubRoomId: string | null = null;
   public isWhiteboardOpen = false;
+  public subtitleOriginal = '';
+  public subtitleTranslation = '';
   public savedVolume: number | null = null;
+  private currentSubtitleId = '';
 
   private subs: Subscription[] = [];
   private presenceTimer: any = null;
@@ -111,7 +114,7 @@ export class RoomComponent implements OnInit, OnDestroy {
   private connectWebSockets(): void {
     const token = this.state.accessToken;
     if (!token) { this.toast.error('Thiếu token.'); this.router.navigate(['/auth']); return; }
-    this.chatWs.connect(this.roomId, token);
+    this.chatWs.connect(this.roomId, token, this.state.user?.preferred_language || '');
     this.playbackWs.connect(this.roomId, token);
     this.startPresenceHeartbeat();
     this.startMembersPolling();
@@ -138,6 +141,16 @@ export class RoomComponent implements OnInit, OnDestroy {
       }),
       this.chatWs.roomMode$.subscribe(change => {
         if (change) this.applyRoomMode(change.mode);
+      }),
+      this.chatWs.subtitleReceived$.subscribe(subtitle => {
+        this.currentSubtitleId = subtitle.id;
+        this.subtitleOriginal = subtitle.text;
+        this.subtitleTranslation = '';
+      }),
+      this.chatWs.translationReceived$.subscribe(translation => {
+        if (translation.kind === 'transcript' && translation.event_id === this.currentSubtitleId) {
+          this.subtitleTranslation = translation.text;
+        }
       })
     );
   }

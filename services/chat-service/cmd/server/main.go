@@ -5,10 +5,12 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/worktogether/pkg/env"
+	"github.com/worktogether/pkg/translation"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -115,6 +117,16 @@ func main() {
 	repo := repository.NewPostgresRepository(db)
 	uc := usecase.NewChatUsecase(repo, rdb)
 	hub := delivery.NewHub(rdb)
+	hub.StartRedisSubscriber()
+	if credentialsPath := os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"); credentialsPath != "" {
+		translator, err := translation.NewGoogleTranslator(credentialsPath, nil)
+		if err != nil {
+			log.Printf("Realtime translation disabled: %v", err)
+		} else {
+			hub.EnableTranslation(context.Background(), envInt("TRANSLATION_QUEUE_SIZE", 64), time.Duration(envInt("TRANSLATION_TIMEOUT_MS", 1200))*time.Millisecond, envInt("TRANSLATION_MAX_CHARS_PER_MINUTE", 30000), translator.Translate)
+			log.Println("Realtime translation worker enabled.")
+		}
+	}
 	hub.StartVibeTicker()
 	handler := delivery.NewChatHandler(uc, hub, roomClient)
 
@@ -177,4 +189,12 @@ func main() {
 	}
 
 	log.Println("Server đã thoát an toàn.")
+}
+
+func envInt(name string, fallback int) int {
+	value, err := strconv.Atoi(os.Getenv(name))
+	if err != nil || value < 1 {
+		return fallback
+	}
+	return value
 }

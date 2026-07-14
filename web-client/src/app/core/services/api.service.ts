@@ -93,8 +93,13 @@ export class ApiService {
       this.profileCache.delete(`${userId}:${roomId}`);
     },
 
-    updateProfile: (displayName: string, bio: string, avatarUrl = ''): Observable<any> =>
-      this.put<any>('/users/profile', { display_name: displayName, bio, avatar_url: avatarUrl }),
+    updateProfile: (displayName: string, bio: string, avatarUrl = '', preferredLanguage = ''): Observable<any> =>
+      this.put<any>('/users/profile', {
+        display_name: displayName,
+        bio,
+        avatar_url: avatarUrl,
+        preferred_language: preferredLanguage
+      }),
 
     updateStatus: (status: string, customText = ''): Observable<any> =>
       this.put<any>('/users/status', { status, custom_text: customText }),

@@ -3,7 +3,9 @@ package translation
 
 import (
 	"context"
+	"sync"
 	"time"
+	"unicode/utf8"
 )
 
 type Kind string
@@ -17,6 +19,7 @@ const (
 type Job struct {
 	EventID        string
 	RoomID         string
+	RecipientID    string
 	Kind           Kind
 	Text           string
 	SourceLanguage string
@@ -32,27 +35,63 @@ type Result struct {
 type Translator func(context.Context, Job) (Result, error)
 
 type Worker struct {
-	jobs      chan Job
-	timeout   time.Duration
-	translate Translator
-	publish   func(Result)
+	jobs              chan Job
+	timeout           time.Duration
+	translate         Translator
+	publish           func(Result)
+	maxCharsPerMinute int
+	windowStartedAt   time.Time
+	charsInWindow     int
+	mu                sync.Mutex
 }
 
 // NewWorker makes a bounded, best-effort worker. A nil translator disables it.
 func NewWorker(queueSize int, timeout time.Duration, translate Translator, publish func(Result)) *Worker {
+	return NewWorkerWithRateLimit(queueSize, timeout, 0, translate, publish)
+}
+
+// NewWorkerWithRateLimit additionally bounds provider usage. A non-positive
+// character budget disables the limit.
+func NewWorkerWithRateLimit(queueSize int, timeout time.Duration, maxCharsPerMinute int, translate Translator, publish func(Result)) *Worker {
 	if queueSize < 1 {
 		queueSize = 1
 	}
 	if timeout <= 0 {
 		timeout = time.Second
 	}
-	return &Worker{jobs: make(chan Job, queueSize), timeout: timeout, translate: translate, publish: publish}
+	return &Worker{
+		jobs:              make(chan Job, queueSize),
+		timeout:           timeout,
+		translate:         translate,
+		publish:           publish,
+		maxCharsPerMinute: maxCharsPerMinute,
+		windowStartedAt:   time.Now(),
+	}
 }
 
 // Submit never waits: callers keep their original event path if translation is unavailable.
 func (w *Worker) Submit(job Job) bool {
 	if w.translate == nil || job.Text == "" || job.TargetLanguage == "" {
 		return false
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.maxCharsPerMinute > 0 {
+		if time.Since(w.windowStartedAt) >= time.Minute {
+			w.windowStartedAt = time.Now()
+			w.charsInWindow = 0
+		}
+		characters := utf8.RuneCountInString(job.Text)
+		if w.charsInWindow+characters > w.maxCharsPerMinute {
+			return false
+		}
+		select {
+		case w.jobs <- job:
+			w.charsInWindow += characters
+			return true
+		default:
+			return false
+		}
 	}
 	select {
 	case w.jobs <- job:

@@ -46,6 +46,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   public profileBio = '';
   public profileAvatarUrl = '';
   public customStatus = '';
+  public preferredLanguage = 'en';
 
   public addFriendId = '';
   public inviteCode = '';
@@ -72,6 +73,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.profileAvatarUrl = user.avatar_url || '';
     this.customStatus = user.presence?.custom_text || '';
     this.presenceStatus = user.presence?.status || 'online';
+    this.preferredLanguage = user.preferred_language || 'en';
     this.applyDashboardLoadState();
 
     void this.initializeDashboard();
@@ -455,7 +457,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.api.user.updateProfile(
           this.profileDisplayName.trim(),
           this.profileBio.trim(),
-          this.profileAvatarUrl
+          this.profileAvatarUrl,
+          this.preferredLanguage
         )
       );
 

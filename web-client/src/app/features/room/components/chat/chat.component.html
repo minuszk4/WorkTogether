@@ -54,6 +54,9 @@
               }
             }
           </div>
+          @if (msg.translation) {
+            <div class="chat-msg-translation">{{ msg.translation }}</div>
+          }
           
           @if (msg.reactions && msg.reactions.length > 0) {
             <div class="chat-msg-reactions">
