@@ -34,3 +34,11 @@ func (uc *CollabUsecase) DeleteBlock(ctx context.Context, noteID string, blockID
 func (uc *CollabUsecase) UpdateBlocksOrder(ctx context.Context, noteID string, blockIDs []string) error {
 	return uc.repo.UpdateBlocksOrder(ctx, noteID, blockIDs)
 }
+
+func (uc *CollabUsecase) GetWhiteboardSnapshot(ctx context.Context, roomID string) (*domain.WhiteboardSnapshot, error) {
+	return uc.repo.GetWhiteboardSnapshot(ctx, roomID)
+}
+
+func (uc *CollabUsecase) SaveWhiteboardSnapshot(ctx context.Context, roomID string, snapshot []byte) error {
+	return uc.repo.SaveWhiteboardSnapshot(ctx, roomID, snapshot)
+}

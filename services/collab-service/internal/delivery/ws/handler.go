@@ -39,6 +39,50 @@ type WSMessage struct {
 	Payload json.RawMessage `json:"payload"`
 }
 
+type whiteboardPoint struct {
+	X float64 `json:"x"`
+	Y float64 `json:"y"`
+}
+
+type whiteboardOperation struct {
+	Type   string            `json:"type"`
+	Points []whiteboardPoint `json:"points"`
+	Color  string            `json:"color"`
+	Width  float64           `json:"width"`
+}
+
+func parseWhiteboardOperation(payload json.RawMessage) (whiteboardOperation, error) {
+	var operation whiteboardOperation
+	if err := json.Unmarshal(payload, &operation); err != nil {
+		return operation, err
+	}
+	if operation.Type != "stroke" || len(operation.Points) == 0 || len(operation.Points) > 128 ||
+		len(operation.Color) != 7 || operation.Color[0] != '#' || operation.Width <= 0 || operation.Width > 64 {
+		return operation, fmt.Errorf("invalid whiteboard operation")
+	}
+	for _, point := range operation.Points {
+		if point.X < 0 || point.X > 10000 || point.Y < 0 || point.Y > 10000 {
+			return operation, fmt.Errorf("invalid whiteboard point")
+		}
+	}
+	return operation, nil
+}
+
+func parseWhiteboardSnapshot(payload json.RawMessage) error {
+	var snapshot struct {
+		Operations []json.RawMessage `json:"operations"`
+	}
+	if err := json.Unmarshal(payload, &snapshot); err != nil || snapshot.Operations == nil || len(snapshot.Operations) > 64 {
+		return fmt.Errorf("invalid whiteboard snapshot")
+	}
+	for _, operation := range snapshot.Operations {
+		if _, err := parseWhiteboardOperation(operation); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 type Hub struct {
 	Usecase    *usecase.CollabUsecase
 	jwtSecret  string
@@ -102,6 +146,16 @@ func (h *Hub) Run() {
 				client.Send <- msgBytes
 			} else {
 				log.Printf("Lỗi lấy/tạo note cho phòng %s: %v\n", client.RoomID, err)
+			}
+
+			snapshot, err := h.Usecase.GetWhiteboardSnapshot(ctx, client.RoomID)
+			if err == nil && snapshot != nil {
+				message := WSMessage{Event: "whiteboard.snapshot", RoomID: client.RoomID, Payload: snapshot.Snapshot}
+				if messageBytes, err := json.Marshal(message); err == nil {
+					client.Send <- messageBytes
+				}
+			} else if err != nil {
+				log.Printf("Lỗi lấy whiteboard snapshot cho phòng %s: %v\n", client.RoomID, err)
 			}
 
 		case client := <-h.unregister:
@@ -230,6 +284,21 @@ func (c *Client) ReadPump() {
 					c.Hub.BroadcastToRoom(c.RoomID, "block:ordered", map[string]interface{}{"block_ids": req.BlockIDs})
 				} else {
 					log.Printf("Lỗi UpdateBlocksOrder: %v\n", err)
+				}
+			}
+
+		case "whiteboard.operation":
+			if operation, err := parseWhiteboardOperation(rawMsg.Payload); err == nil {
+				c.Hub.BroadcastToRoom(c.RoomID, "whiteboard.operation", operation)
+			}
+
+		case "whiteboard.snapshot":
+			if err := parseWhiteboardSnapshot(rawMsg.Payload); err == nil {
+				err = c.Hub.Usecase.SaveWhiteboardSnapshot(ctx, c.RoomID, rawMsg.Payload)
+				if err == nil {
+					c.Hub.BroadcastToRoom(c.RoomID, "whiteboard.snapshot", json.RawMessage(rawMsg.Payload))
+				} else {
+					log.Printf("Lỗi lưu whiteboard snapshot: %v\n", err)
 				}
 			}
 		}

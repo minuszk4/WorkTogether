@@ -111,3 +111,22 @@ func (r *PostgresRepository) UpdateBlocksOrder(ctx context.Context, noteID strin
 
 	return tx.Commit()
 }
+
+func (r *PostgresRepository) GetWhiteboardSnapshot(ctx context.Context, roomID string) (*domain.WhiteboardSnapshot, error) {
+	snapshot := &domain.WhiteboardSnapshot{RoomID: roomID}
+	err := r.db.QueryRowContext(ctx, `SELECT snapshot, updated_at FROM whiteboard_snapshots WHERE room_id = $1`, roomID).Scan(&snapshot.Snapshot, &snapshot.UpdatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return snapshot, nil
+}
+
+func (r *PostgresRepository) SaveWhiteboardSnapshot(ctx context.Context, roomID string, snapshot []byte) error {
+	_, err := r.db.ExecContext(ctx, `INSERT INTO whiteboard_snapshots (room_id, snapshot, updated_at)
+		VALUES ($1, $2::jsonb, NOW())
+		ON CONFLICT (room_id) DO UPDATE SET snapshot = EXCLUDED.snapshot, updated_at = NOW()`, roomID, snapshot)
+	return err
+}

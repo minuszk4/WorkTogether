@@ -44,3 +44,25 @@ func TestUnmarshalWSEvents(t *testing.T) {
 		t.Errorf("Expected block_type to be 'todo', got '%s'", payload.BlockType)
 	}
 }
+
+func TestParseWhiteboardOperation(t *testing.T) {
+	operation, err := parseWhiteboardOperation(json.RawMessage(`{
+		"type":"stroke",
+		"points":[{"x":12.5,"y":24}],
+		"color":"#112233",
+		"width":4
+	}`))
+	if err != nil {
+		t.Fatalf("expected valid operation, got %v", err)
+	}
+	if operation.Type != "stroke" || len(operation.Points) != 1 {
+		t.Fatalf("unexpected operation: %#v", operation)
+	}
+}
+
+func TestParseWhiteboardOperationRejectsInvalidPayload(t *testing.T) {
+	_, err := parseWhiteboardOperation(json.RawMessage(`{"type":"stroke","points":[],"color":"red","width":0}`))
+	if err == nil {
+		t.Fatal("expected invalid operation to be rejected")
+	}
+}
