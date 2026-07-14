@@ -189,6 +189,16 @@
   flex-shrink: 0;
 }
 
+.custom-status-form {
+  display: flex;
+  gap: 8px;
+}
+
+.custom-status-form input {
+  width: 190px;
+  min-width: 0;
+}
+
 .notification-button,
 .user-status-widget {
   height: 40px;

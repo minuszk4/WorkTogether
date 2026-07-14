@@ -279,7 +279,7 @@ export class ChatComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.api.user.getProfile(senderId).subscribe({
+    this.api.user.getProfile(senderId, this.state.activeRoom$.value?.id).subscribe({
       next: (res) => {
         if (res) {
           const display_name = res.display_name || res.username || 'Thành viên ' + senderId.substring(0, 8);

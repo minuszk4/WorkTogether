@@ -27,7 +27,7 @@ describe('RoomComponent', () => {
         listMembers: () => of([])
       },
 	  user: {
-		updateStatus: () => of({})
+		heartbeatPresence: () => of({})
 	  },
       voice: {
         getToken: () => of({ livekit_url: 'ws://livekit', token: 'token' })

@@ -79,16 +79,18 @@ export class ApiService {
 
   // ─── User & Profile APIs ──────────────────────────────────────────
   public user = {
-    getProfile: (userId: string): Observable<any> => {
-      if (!this.profileCache.has(userId)) {
-        const obs = this.get<any>(`/users/${userId}/profile`).pipe(shareReplay(1));
-        this.profileCache.set(userId, obs);
+    getProfile: (userId: string, roomId = ''): Observable<any> => {
+      const key = `${userId}:${roomId}`;
+      if (!this.profileCache.has(key)) {
+        const roomQuery = roomId ? `?room_id=${encodeURIComponent(roomId)}` : '';
+        const obs = this.get<any>(`/users/${userId}/profile${roomQuery}`).pipe(shareReplay(1));
+        this.profileCache.set(key, obs);
       }
-      return this.profileCache.get(userId)!;
+      return this.profileCache.get(key)!;
     },
 
-    clearProfileCache: (userId: string) => {
-      this.profileCache.delete(userId);
+    clearProfileCache: (userId: string, roomId = '') => {
+      this.profileCache.delete(`${userId}:${roomId}`);
     },
 
     updateProfile: (displayName: string, bio: string, avatarUrl = ''): Observable<any> =>
@@ -96,6 +98,9 @@ export class ApiService {
 
     updateStatus: (status: string, customText = ''): Observable<any> =>
       this.put<any>('/users/status', { status, custom_text: customText }),
+
+    heartbeatPresence: (status: string): Observable<any> =>
+      this.put<any>('/users/status/heartbeat', { status }),
 
     getFriends: (status = 'ACCEPTED'): Observable<any[]> =>
       this.get<any[]>(`/users/friends?status=${status}`),
