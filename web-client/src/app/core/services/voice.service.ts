@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
-import { ConnectionQuality, Participant, Room, RoomEvent } from 'livekit-client';
+import { ConnectionQuality, Participant, Room, RoomEvent, Track } from 'livekit-client';
 import { environment } from '../../../environments/environment';
 
 @Injectable({
@@ -18,6 +18,11 @@ export class VoiceService {
   public isCameraActive$ = new BehaviorSubject<boolean>(false);
   public connectionState$ = new BehaviorSubject<'disconnected' | 'connecting' | 'connected' | 'reconnecting' | 'degraded'>('disconnected');
   private audioHost: HTMLElement | null = null;
+  private captionRecorder: MediaRecorder | null = null;
+  private captionTimer: ReturnType<typeof setTimeout> | null = null;
+  private captionEnabled = false;
+  private captionPaused = false;
+  private captionCallback: ((audio: Blob) => void) | null = null;
 
   public async connect(serverUrl: string, token: string, audioDeviceId = ''): Promise<void> {
     if (this.connected$.value) return;
@@ -187,7 +192,56 @@ export class VoiceService {
     if (!this.room || !this.room.localParticipant) return;
 
     await this.room.localParticipant.setMicrophoneEnabled(!muted);
+    if (this.captionEnabled) {
+      this.captionPaused = muted;
+      if (muted) this.stopCaptions();
+      else this.startCaptions();
+    }
     this.updateParticipants();
+  }
+
+  public setCaptionsEnabled(enabled: boolean, onAudio?: (audio: Blob) => void): boolean {
+    this.captionEnabled = enabled;
+    this.captionPaused = false;
+    this.captionCallback = enabled ? onAudio || null : null;
+    this.stopCaptions();
+    return !enabled || this.startCaptions();
+  }
+
+  private startCaptions(): boolean {
+    if (!this.captionEnabled || this.captionRecorder || !this.room?.localParticipant || typeof MediaRecorder === 'undefined') return false;
+    const track = this.room.localParticipant.getTrackPublication(Track.Source.Microphone)?.audioTrack?.mediaStreamTrack;
+    if (!track || track.readyState !== 'live') return false;
+    const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm';
+    const chunks: Blob[] = [];
+    let recorder: MediaRecorder;
+    try {
+      recorder = new MediaRecorder(new MediaStream([track]), { mimeType });
+    } catch {
+      return false;
+    }
+    recorder.ondataavailable = event => {
+      if (event.data.size > 0) chunks.push(event.data);
+    };
+    recorder.onstop = () => {
+      if (this.captionRecorder === recorder) this.captionRecorder = null;
+      if (this.captionTimer) clearTimeout(this.captionTimer);
+      this.captionTimer = null;
+      const audio = new Blob(chunks, { type: mimeType });
+      if (!this.captionPaused && audio.size > 0) this.captionCallback?.(audio);
+      if (this.captionEnabled && !this.captionPaused) this.startCaptions();
+    };
+    recorder.start();
+    this.captionRecorder = recorder;
+    this.captionTimer = setTimeout(() => recorder.stop(), 2000);
+    return true;
+  }
+
+  private stopCaptions(): void {
+    if (this.captionTimer) clearTimeout(this.captionTimer);
+    this.captionTimer = null;
+    if (this.captionRecorder && this.captionRecorder.state !== 'inactive') this.captionRecorder.stop();
+    this.captionRecorder = null;
   }
 
   public async setScreenShare(enabled: boolean): Promise<void> {
@@ -248,6 +302,10 @@ export class VoiceService {
   }
 
   private resetState(): void {
+	this.stopCaptions();
+	this.captionEnabled = false;
+	this.captionPaused = false;
+	this.captionCallback = null;
 	this.audioHost?.remove();
 	this.audioHost = null;
     this.room = null;

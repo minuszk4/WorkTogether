@@ -20,7 +20,7 @@ import (
 	"time"
 )
 
-const cloudTranslationScope = "https://www.googleapis.com/auth/cloud-translation"
+const googleCloudScope = "https://www.googleapis.com/auth/cloud-platform"
 
 type googleServiceAccount struct {
 	ClientEmail string `json:"client_email"`
@@ -176,7 +176,7 @@ func (g *GoogleTranslator) signedAssertion(now time.Time) (string, error) {
 	header := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"RS256","typ":"JWT"}`))
 	claims, err := json.Marshal(map[string]any{
 		"iss":   g.credentials.ClientEmail,
-		"scope": cloudTranslationScope,
+		"scope": googleCloudScope,
 		"aud":   g.credentials.TokenURI,
 		"iat":   now.Unix(),
 		"exp":   now.Add(time.Hour).Unix(),

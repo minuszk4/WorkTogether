@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -12,9 +13,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/worktogether/pkg/env"
+	"github.com/worktogether/pkg/translation"
 	roomv1 "github.com/worktogether/services/chat-service/api/v1"
 	"github.com/worktogether/services/chat-service/internal/domain"
 	"github.com/worktogether/services/chat-service/internal/usecase"
@@ -39,9 +40,16 @@ var upgrader = websocket.Upgrader{
 }
 
 type ChatHandler struct {
-	usecase    *usecase.ChatUsecase
-	hub        *Hub
-	roomClient roomv1.RoomInternalServiceClient
+	usecase      *usecase.ChatUsecase
+	hub          *Hub
+	roomClient   roomv1.RoomInternalServiceClient
+	transcribe   translation.Transcriber
+	captionSlots chan struct{}
+}
+
+func (h *ChatHandler) EnableCaptionTranscription(transcriber translation.Transcriber) {
+	h.transcribe = transcriber
+	h.captionSlots = make(chan struct{}, 2)
 }
 
 func validTranslationLanguage(value string) string {
@@ -421,18 +429,7 @@ func (c *Client) readPump(uc *usecase.ChatUsecase, canModerate bool) {
 			if text == "" || len(text) > 1000 {
 				continue
 			}
-			broadcastMsg := domain.WSMessage{
-				Event:  "subtitle:received",
-				RoomID: c.RoomID,
-				Payload: gin.H{
-					"id":        uuid.NewString(),
-					"sender_id": c.UserID,
-					"text":      text,
-					"language":  validTranslationLanguage(payload.Language),
-				},
-			}
-			data, _ := json.Marshal(broadcastMsg)
-			c.Hub.BroadcastToRoom(c.RoomID, data)
+			c.Hub.BroadcastSubtitle(c.RoomID, c.UserID, text, validTranslationLanguage(payload.Language))
 
 		case "chat:typing":
 			if !c.CanChat {
@@ -572,6 +569,79 @@ func (c *Client) readPump(uc *usecase.ChatUsecase, canModerate bool) {
 			}
 		}
 	}
+}
+
+// TranscribeCaption accepts a short, opt-in WebM chunk from the caller's
+// already-published microphone track. The original audio is never persisted.
+func (h *ChatHandler) TranscribeCaption(c *gin.Context) {
+	if h.transcribe == nil || h.captionSlots == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"success": false, "error": gin.H{"code": "CAPTIONS_DISABLED", "message": "Voice captions are not configured."}})
+		return
+	}
+	roomID, userID := c.Param("id"), c.GetString("userID")
+	membership, err := h.roomClient.VerifyRoomMember(c.Request.Context(), &roomv1.VerifyRoomMemberRequest{RoomID: roomID, UserID: userID})
+	if err != nil || membership == nil || !membership.IsMember || !hasPermission(membership.Permissions, "CAN_USE_VOICE") {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "error": gin.H{"code": "FORBIDDEN", "message": "Bạn không có quyền dùng voice captions trong phòng này."}})
+		return
+	}
+	if h.hub.RedisClient != nil {
+		allowed, redisErr := h.hub.RedisClient.SetNX(c.Request.Context(), "caption:rate:"+userID, "1", 2*time.Second).Result()
+		if redisErr != nil || !allowed {
+			c.JSON(http.StatusTooManyRequests, gin.H{"success": false, "error": gin.H{"code": "CAPTIONS_RATE_LIMITED", "message": "Vui lòng chờ trước khi gửi đoạn voice tiếp theo."}})
+			return
+		}
+	}
+	select {
+	case h.captionSlots <- struct{}{}:
+		defer func() { <-h.captionSlots }()
+	default:
+		c.JSON(http.StatusTooManyRequests, gin.H{"success": false, "error": gin.H{"code": "CAPTIONS_BUSY", "message": "Voice captions đang bận."}})
+		return
+	}
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 128*1024)
+	file, err := c.FormFile("audio")
+	if err != nil || file.Size < 1 || file.Size > 128*1024 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"code": "INVALID_AUDIO", "message": "Đoạn audio không hợp lệ."}})
+		return
+	}
+	reader, err := file.Open()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"code": "INVALID_AUDIO", "message": "Không đọc được đoạn audio."}})
+		return
+	}
+	defer reader.Close()
+	audio, err := io.ReadAll(reader)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"code": "INVALID_AUDIO", "message": "Không đọc được đoạn audio."}})
+		return
+	}
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
+	defer cancel()
+	language := validTranslationLanguage(c.DefaultPostForm("language", "en-US"))
+	if language == "" {
+		language = "en-us"
+	}
+	text, err := h.transcribe(ctx, audio, language)
+	if err != nil {
+		c.JSON(http.StatusBadGateway, gin.H{"success": false, "error": gin.H{"code": "TRANSCRIPTION_FAILED", "message": "Không thể tạo phụ đề."}})
+		return
+	}
+	text = strings.TrimSpace(text)
+	if text == "" {
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"transcript": ""}, "error": nil})
+		return
+	}
+	id := h.hub.BroadcastSubtitle(roomID, userID, text, language)
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"id": id, "transcript": text}, "error": nil})
+}
+
+func hasPermission(permissions []string, expected string) bool {
+	for _, permission := range permissions {
+		if permission == expected {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *Client) sendError(err error) {

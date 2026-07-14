@@ -210,6 +210,15 @@ export class ApiService {
       this.put<any>(`/rooms/${roomId}/sessions/${sessionId}/actions/${actionId}`, { status }),
   };
 
+  public chat = {
+    transcribeCaption: (roomId: string, audio: Blob, language: string): Observable<any> => {
+      const formData = new FormData();
+      formData.append('audio', audio, 'caption.webm');
+      formData.append('language', language);
+      return this.postForm<any>(`/rooms/${roomId}/chat/subtitles`, formData);
+    },
+  };
+
   public admin = {
     listRooms: (): Observable<any[]> => this.get<any[]>('/admin/rooms'),
     listAudit: (): Observable<any[]> => this.get<any[]>('/admin/audit'),

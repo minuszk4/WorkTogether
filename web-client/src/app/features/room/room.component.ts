@@ -73,6 +73,8 @@ export class RoomComponent implements OnInit, OnDestroy {
   public isWhiteboardOpen = false;
   public subtitleOriginal = '';
   public subtitleTranslation = '';
+  public isCaptionsEnabled = false;
+  private captionUploadBusy = false;
   public savedVolume: number | null = null;
   private currentSubtitleId = '';
 
@@ -122,7 +124,7 @@ export class RoomComponent implements OnInit, OnDestroy {
     this.subs.push(
       this.voiceService.connected$.subscribe(c => {
         this.isMicActive = c;
-        if (!c) { this.isMuted = false; this.isScreenSharing = false; this.isCameraActive = false; this.isVoiceBusy = false; }
+        if (!c) { this.isMuted = false; this.isScreenSharing = false; this.isCameraActive = false; this.isVoiceBusy = false; this.isCaptionsEnabled = false; }
         this.recomputeStageMode();
       }),
       this.voiceService.isMuted$.subscribe(m => (this.isMuted = m)),
@@ -221,6 +223,34 @@ export class RoomComponent implements OnInit, OnDestroy {
       await this.voiceService.setMute(target);
       this.toast.info(target ? 'Đã tắt mic.' : 'Đã bật mic.');
     } catch (err: any) { this.toast.error('Lỗi mic: ' + err.message); }
+  }
+
+  public onCaptionsToggleClick(): void {
+    const enabled = !this.isCaptionsEnabled;
+    const started = this.voiceService.setCaptionsEnabled(enabled, audio => this.sendCaptionAudio(audio));
+    if (enabled && !started) {
+      this.toast.info('Bật microphone trước khi dùng phụ đề.');
+      return;
+    }
+    this.isCaptionsEnabled = enabled;
+    this.toast.info(enabled ? 'Đã bật phụ đề giọng nói.' : 'Đã tắt phụ đề giọng nói.');
+  }
+
+  private sendCaptionAudio(audio: Blob): void {
+    if (this.captionUploadBusy || audio.size > 128 * 1024) return;
+    this.captionUploadBusy = true;
+    // ponytail: one request at a time; increase concurrency only if captions demonstrably fall behind.
+    this.api.chat.transcribeCaption(this.roomId, audio, navigator.language || 'en-US').subscribe({
+      error: (error) => {
+        this.captionUploadBusy = false;
+        if (error?.status === 503) {
+          this.voiceService.setCaptionsEnabled(false);
+          this.isCaptionsEnabled = false;
+          this.toast.error('Phụ đề chưa được cấu hình trên server.');
+        }
+      },
+      complete: () => { this.captionUploadBusy = false; }
+    });
   }
 
   public async onScreenShareToggleClick(): Promise<void> {

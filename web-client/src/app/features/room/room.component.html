@@ -23,6 +23,7 @@
       <button type="button" [class.active]="roomMode === 'focus'" [disabled]="!canChangeRoomMode" (click)="changeRoomMode('focus')">Focus</button>
       <button type="button" [class.active]="roomMode === 'collaborate'" [disabled]="!canChangeRoomMode" (click)="changeRoomMode('collaborate')">Collaborate</button>
       <button type="button" [class.active]="isWhiteboardOpen" (click)="isWhiteboardOpen = !isWhiteboardOpen">Whiteboard</button>
+      <button type="button" [class.active]="isCaptionsEnabled" [disabled]="!isMicActive || isMuted" (click)="onCaptionsToggleClick()">Captions</button>
     </div>
     <app-room-vibe-meter></app-room-vibe-meter>
     <div class="room-session-panel">

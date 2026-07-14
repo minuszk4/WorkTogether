@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/redis/go-redis/v9"
 	"github.com/worktogether/pkg/translation"
@@ -22,6 +23,24 @@ type Client struct {
 	Hub            *Hub
 	CanChat        bool
 	TargetLanguage string
+}
+
+func (h *Hub) BroadcastSubtitle(roomID, userID, text, language string) string {
+	id := uuid.NewString()
+	data, err := json.Marshal(domain.WSMessage{
+		Event:  "subtitle:received",
+		RoomID: roomID,
+		Payload: gin.H{
+			"id":        id,
+			"sender_id": userID,
+			"text":      text,
+			"language":  language,
+		},
+	})
+	if err == nil {
+		h.BroadcastToRoom(roomID, data)
+	}
+	return id
 }
 
 type MemberState struct {

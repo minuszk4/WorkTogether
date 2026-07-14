@@ -117,6 +117,7 @@ func main() {
 	repo := repository.NewPostgresRepository(db)
 	uc := usecase.NewChatUsecase(repo, rdb)
 	hub := delivery.NewHub(rdb)
+	var speechTranscriber translation.Transcriber
 	hub.StartRedisSubscriber()
 	if credentialsPath := os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"); credentialsPath != "" {
 		translator, err := translation.NewGoogleTranslator(credentialsPath, nil)
@@ -126,9 +127,19 @@ func main() {
 			hub.EnableTranslation(context.Background(), envInt("TRANSLATION_QUEUE_SIZE", 64), time.Duration(envInt("TRANSLATION_TIMEOUT_MS", 1200))*time.Millisecond, envInt("TRANSLATION_MAX_CHARS_PER_MINUTE", 30000), translator.Translate)
 			log.Println("Realtime translation worker enabled.")
 		}
+		transcriber, err := translation.NewGoogleSpeechTranscriber(credentialsPath, nil)
+		if err != nil {
+			log.Printf("Voice captions disabled: %v", err)
+		} else {
+			speechTranscriber = transcriber.Transcribe
+			log.Println("Google voice captions enabled.")
+		}
 	}
 	hub.StartVibeTicker()
 	handler := delivery.NewChatHandler(uc, hub, roomClient)
+	if speechTranscriber != nil {
+		handler.EnableCaptionTranscription(speechTranscriber)
+	}
 
 	// 5. Khởi chạy Redis Stream Worker (Ngắt socket khi bị kick/ban)
 	worker := deliveryRedis.NewEventWorker(rdb, hub)
@@ -157,6 +168,7 @@ func main() {
 	{
 		chatGroup.GET("/messages", handler.GetMessages)
 		chatGroup.GET("/search", handler.SearchMessages)
+		chatGroup.POST("/subtitles", handler.TranscribeCaption)
 		chatGroup.DELETE("/messages/:message_id", handler.AdminDeleteMessage)
 	}
 

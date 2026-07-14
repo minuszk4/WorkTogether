@@ -34,6 +34,8 @@ type Result struct {
 
 type Translator func(context.Context, Job) (Result, error)
 
+type Transcriber func(context.Context, []byte, string) (string, error)
+
 type Worker struct {
 	jobs              chan Job
 	timeout           time.Duration
