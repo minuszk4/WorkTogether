@@ -71,7 +71,7 @@ jobs:
           CHROME_BIN: ${{ steps.chrome.outputs.chrome-path }}
         run: |
           npm ci
-          npm test -- --watch=false --browsers=ChromeHeadless
+          npm test -- --watch=false --browsers=ChromeHeadlessCI
 
       - name: Build Angular client
         working-directory: web-client
