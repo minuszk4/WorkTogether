@@ -65,6 +65,18 @@ func (r *PostgresRepository) UpdateCustomStatus(ctx context.Context, userID, tex
 	return nil
 }
 
+func (r *PostgresRepository) AreAcceptedFriends(ctx context.Context, firstUserID, secondUserID string) (bool, error) {
+	var accepted bool
+	err := r.db.QueryRowContext(ctx, `
+		SELECT EXISTS (
+			SELECT 1 FROM friendships
+			WHERE status = 'ACCEPTED'
+			  AND ((user_id = $1 AND friend_id = $2) OR (user_id = $2 AND friend_id = $1))
+		)
+	`, firstUserID, secondUserID).Scan(&accepted)
+	return accepted, err
+}
+
 func (r *PostgresRepository) CreateFriendRequest(ctx context.Context, userID, friendID string) (*domain.Friendship, error) {
 	// Kiểm tra xem mối quan hệ đã tồn tại chưa
 	queryCheck := `SELECT id, user_id, friend_id, status FROM friendships WHERE (user_id = $1 AND friend_id = $2) OR (user_id = $2 AND friend_id = $1)`
