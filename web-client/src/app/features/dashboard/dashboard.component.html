@@ -33,6 +33,11 @@
       </div>
 
       <div class="topbar-utility-cluster">
+        <form class="custom-status-form" (ngSubmit)="onCustomStatusSubmit()">
+          <input type="text" name="customStatus" [(ngModel)]="customStatus" maxlength="100" aria-label="Custom status" placeholder="Set a custom status">
+          <button type="submit" class="btn btn-secondary">Save</button>
+        </form>
+
         <button type="button" class="notification-button" (click)="toggleNotificationPanel()">
           <span class="notification-button-label">Notifications</span>
           @if (unreadNotificationCount > 0) {

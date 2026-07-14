@@ -45,6 +45,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   public profileDisplayName = '';
   public profileBio = '';
   public profileAvatarUrl = '';
+  public customStatus = '';
 
   public addFriendId = '';
   public inviteCode = '';
@@ -69,6 +70,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.profileDisplayName = user.display_name || user.username;
     this.profileBio = user.bio || '';
     this.profileAvatarUrl = user.avatar_url || '';
+    this.customStatus = user.presence?.custom_text || '';
+    this.presenceStatus = user.presence?.status || 'online';
     this.applyDashboardLoadState();
 
     void this.initializeDashboard();
@@ -228,7 +231,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const nextStatus = statuses[(currentIndex + 1) % statuses.length];
 
     try {
-      await firstValueFrom(this.api.user.updateStatus(nextStatus, ''));
+      await firstValueFrom(this.api.user.updateStatus(nextStatus, this.customStatus));
       this.presenceStatus = nextStatus;
       this.toast.info(`Da doi trang thai sang ${nextStatus.toUpperCase()}`);
     } catch {
@@ -464,6 +467,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
   }
 
+  public async onCustomStatusSubmit(): Promise<void> {
+    try {
+      await firstValueFrom(this.api.user.updateStatus(this.presenceStatus, this.customStatus.trim()));
+      this.customStatus = this.customStatus.trim();
+      this.toast.success('Da luu custom status.');
+    } catch (error: any) {
+      this.toast.error('Luu custom status that bai: ' + this.errorMessage(error));
+    }
+  }
+
   public async logout(): Promise<void> {
     try {
       await firstValueFrom(this.api.auth.logout());
@@ -523,7 +536,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private startPresenceHeartbeat(): void {
     this.stopPresenceHeartbeat();
     this.presenceTimer = setInterval(() => {
-      void firstValueFrom(this.api.user.updateStatus(this.presenceStatus, 'Lobby active')).catch((error) => {
+      void firstValueFrom(this.api.user.heartbeatPresence(this.presenceStatus)).catch((error) => {
         console.warn('Presence heartbeat update failed:', error);
       });
     }, 45 * 1000);

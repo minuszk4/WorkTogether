@@ -248,7 +248,7 @@ export class RoomComponent implements OnInit, OnDestroy {
       const enrichedMembers = await Promise.all(
         (members || []).map(async (member: any) => {
           try {
-            const profile = await this.api.user.getProfile(member.user_id).toPromise();
+            const profile = await this.api.user.getProfile(member.user_id, this.roomId).toPromise();
             return {
               id: member.user_id,
               member_id: member.id,
@@ -301,13 +301,7 @@ export class RoomComponent implements OnInit, OnDestroy {
   }
 
   private updateRoomPresence(): void {
-    const roomName = this.state.activeRoom$.value?.name || 'một room';
-    const activity = this.roomMode === 'focus'
-      ? `Đang focus tại ${roomName}`
-      : this.roomMode === 'collaborate'
-        ? `Đang cộng tác tại ${roomName}`
-        : `Đang thư giãn tại ${roomName}`;
-    void this.api.user.updateStatus('online', activity).toPromise().catch(err => {
+    void this.api.user.heartbeatPresence('online').toPromise().catch(err => {
       console.warn('Room presence update failed:', err);
     });
   }
