@@ -22,6 +22,7 @@
       <button type="button" [class.active]="roomMode === 'chill'" [disabled]="!canChangeRoomMode" (click)="changeRoomMode('chill')">Chill</button>
       <button type="button" [class.active]="roomMode === 'focus'" [disabled]="!canChangeRoomMode" (click)="changeRoomMode('focus')">Focus</button>
       <button type="button" [class.active]="roomMode === 'collaborate'" [disabled]="!canChangeRoomMode" (click)="changeRoomMode('collaborate')">Collaborate</button>
+      <button type="button" [class.active]="isWhiteboardOpen" (click)="isWhiteboardOpen = !isWhiteboardOpen">Whiteboard</button>
     </div>
     <app-room-vibe-meter></app-room-vibe-meter>
     <div class="room-session-panel">
@@ -62,6 +63,10 @@
     <div class="room-notes-panel">
       <app-room-collab-notes [roomId]="roomId"></app-room-collab-notes>
     </div>
+  }
+
+  @if (isWhiteboardOpen) {
+    <aside class="room-notes-panel"><app-whiteboard [roomId]="roomId"></app-whiteboard></aside>
   }
 
   @if (isLyricsOpen) {
