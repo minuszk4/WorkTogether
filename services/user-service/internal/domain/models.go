@@ -3,12 +3,13 @@ package domain
 import "time"
 
 type UserProfile struct {
-	ID          string    `json:"id"`
-	DisplayName string    `json:"display_name"`
-	AvatarURL   string    `json:"avatar_url"`
-	Bio         string    `json:"bio"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID           string    `json:"id"`
+	DisplayName  string    `json:"display_name"`
+	AvatarURL    string    `json:"avatar_url"`
+	Bio          string    `json:"bio"`
+	CustomStatus string    `json:"custom_status"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }
 
 type Friendship struct {
