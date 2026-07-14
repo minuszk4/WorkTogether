@@ -7,13 +7,27 @@ import (
 	"strings"
 	"testing"
 
+	roomv1 "github.com/worktogether/services/user-service/api/v1"
 	"github.com/worktogether/services/user-service/internal/domain"
+	"google.golang.org/grpc"
 )
 
 type customStatusRepositoryFake struct {
 	userID string
 	text   string
 	err    error
+}
+
+type acceptedFriendsFake struct{ accepted bool }
+
+func (r acceptedFriendsFake) AreAcceptedFriends(context.Context, string, string) (bool, error) {
+	return r.accepted, nil
+}
+
+type roomClientFake struct{ members map[string]bool }
+
+func (r roomClientFake) VerifyRoomMember(_ context.Context, request *roomv1.VerifyRoomMemberRequest, _ ...grpc.CallOption) (*roomv1.VerifyRoomMemberResponse, error) {
+	return &roomv1.VerifyRoomMemberResponse{IsMember: r.members[request.UserID]}, nil
 }
 
 func (r *customStatusRepositoryFake) UpdateCustomStatus(_ context.Context, userID, text string) error {
@@ -111,5 +125,42 @@ func TestUpdateCustomStatusRejectsMissingProfile(t *testing.T) {
 	_, err := uc.UpdateCustomStatus(context.Background(), "missing-user", "studying")
 	if !errors.Is(err, ErrProfileNotFound) {
 		t.Fatalf("error = %v, want %v", err, ErrProfileNotFound)
+	}
+}
+
+func TestCanViewCustomStatus(t *testing.T) {
+	tests := []struct {
+		name    string
+		viewer  string
+		target  string
+		roomID  string
+		friends bool
+		members map[string]bool
+		want    string
+	}{
+		{"owner", "user-1", "user-1", "", false, nil, "studying"},
+		{"accepted friend", "user-1", "user-2", "", true, nil, "studying"},
+		{"non-friend", "user-1", "user-2", "", false, nil, ""},
+		{"both room members", "user-1", "user-2", "room-1", false, map[string]bool{"user-1": true, "user-2": true}, "studying"},
+		{"viewer is not room member", "user-1", "user-2", "room-1", false, map[string]bool{"user-1": false, "user-2": true}, ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			presence := &domain.Presence{Status: "online", CustomText: "studying"}
+			uc := &UserUsecase{
+				friendshipRepo: acceptedFriendsFake{accepted: tt.friends},
+				roomClient:     roomClientFake{members: tt.members},
+			}
+
+			uc.filterCustomStatus(context.Background(), tt.viewer, tt.target, tt.roomID, presence)
+
+			if presence.CustomText != tt.want {
+				t.Fatalf("custom text = %q, want %q", presence.CustomText, tt.want)
+			}
+			if presence.Status != "online" {
+				t.Fatalf("status = %q, want online", presence.Status)
+			}
+		})
 	}
 }

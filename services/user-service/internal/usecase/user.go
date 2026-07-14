@@ -8,6 +8,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	roomv1 "github.com/worktogether/services/user-service/api/v1"
 	"github.com/worktogether/services/user-service/internal/domain"
 	"github.com/worktogether/services/user-service/internal/repository"
 )
@@ -31,23 +32,31 @@ type presenceRepository interface {
 	SetPresence(context.Context, string, *domain.Presence) error
 }
 
+type friendshipRepository interface {
+	AreAcceptedFriends(context.Context, string, string) (bool, error)
+}
+
 type UserUsecase struct {
 	postgresRepo     *repository.PostgresRepository
 	redisRepo        *repository.RedisRepository
 	customStatusRepo customStatusRepository
 	presenceRepo     presenceRepository
+	friendshipRepo   friendshipRepository
+	roomClient       roomv1.RoomInternalServiceClient
 }
 
-func NewUserUsecase(pg *repository.PostgresRepository, rdb *repository.RedisRepository) *UserUsecase {
+func NewUserUsecase(pg *repository.PostgresRepository, rdb *repository.RedisRepository, roomClient roomv1.RoomInternalServiceClient) *UserUsecase {
 	return &UserUsecase{
 		postgresRepo:     pg,
 		redisRepo:        rdb,
 		customStatusRepo: pg,
 		presenceRepo:     rdb,
+		friendshipRepo:   pg,
+		roomClient:       roomClient,
 	}
 }
 
-func (u *UserUsecase) GetProfile(ctx context.Context, id string) (*domain.UserProfile, *domain.Presence, error) {
+func (u *UserUsecase) GetProfile(ctx context.Context, viewerID, id, roomID string) (*domain.UserProfile, *domain.Presence, error) {
 	p, err := u.postgresRepo.GetProfileByID(ctx, id)
 	if err != nil {
 		return nil, nil, err
@@ -75,8 +84,30 @@ func (u *UserUsecase) GetProfile(ctx context.Context, id string) (*domain.UserPr
 			LastActive: time.Now().Unix(),
 		}
 	}
+	presence.CustomText = p.CustomStatus
+	u.filterCustomStatus(ctx, viewerID, id, roomID, presence)
 
 	return p, presence, nil
+}
+
+func (u *UserUsecase) filterCustomStatus(ctx context.Context, viewerID, targetID, roomID string, presence *domain.Presence) {
+	if viewerID == targetID {
+		return
+	}
+	accepted, err := u.friendshipRepo.AreAcceptedFriends(ctx, viewerID, targetID)
+	if err == nil && accepted {
+		return
+	}
+	if roomID != "" && u.roomClient != nil {
+		memberCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+		defer cancel()
+		viewer, viewerErr := u.roomClient.VerifyRoomMember(memberCtx, &roomv1.VerifyRoomMemberRequest{RoomID: roomID, UserID: viewerID})
+		target, targetErr := u.roomClient.VerifyRoomMember(memberCtx, &roomv1.VerifyRoomMemberRequest{RoomID: roomID, UserID: targetID})
+		if viewerErr == nil && targetErr == nil && viewer.IsMember && target.IsMember {
+			return
+		}
+	}
+	presence.CustomText = ""
 }
 
 func (u *UserUsecase) UpdateProfile(ctx context.Context, id string, req *domain.UpdateProfileRequest) (*domain.UserProfile, error) {
@@ -157,8 +188,8 @@ func (u *UserUsecase) SendFriendRequest(ctx context.Context, userID, friendID st
 	}
 
 	// Đảm bảo cả 2 tài khoản đều tồn tại profile
-	_, _, _ = u.GetProfile(ctx, userID)
-	_, _, _ = u.GetProfile(ctx, friendID)
+	_, _, _ = u.GetProfile(ctx, userID, userID, "")
+	_, _, _ = u.GetProfile(ctx, friendID, friendID, "")
 
 	return u.postgresRepo.CreateFriendRequest(ctx, userID, friendID)
 }

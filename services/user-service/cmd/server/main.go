@@ -15,10 +15,13 @@ import (
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	roomv1 "github.com/worktogether/services/user-service/api/v1"
 	delivery "github.com/worktogether/services/user-service/internal/delivery/http"
 	"github.com/worktogether/services/user-service/internal/repository"
 	"github.com/worktogether/services/user-service/internal/usecase"
 	"github.com/worktogether/services/user-service/pkg/middleware"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
@@ -56,7 +59,12 @@ func main() {
 	// 3. Khởi tạo Layers
 	pgRepo := repository.NewPostgresRepository(db)
 	redisRepo := repository.NewRedisRepository(rdb)
-	uc := usecase.NewUserUsecase(pgRepo, redisRepo)
+	roomConn, err := grpc.Dial(env.GetEnv("ROOM_SERVICE_GRPC", "localhost:50051"), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatalf("Không thể kết nối gRPC đến room-service: %v", err)
+	}
+	defer roomConn.Close()
+	uc := usecase.NewUserUsecase(pgRepo, redisRepo, roomv1.NewRoomInternalServiceClient(roomConn))
 	handler := delivery.NewUserHandler(uc)
 
 	jwtSecret := os.Getenv("JWT_SECRET")

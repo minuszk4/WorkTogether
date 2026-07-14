@@ -25,6 +25,7 @@ func NewUserHandler(uc *usecase.UserUsecase) *UserHandler {
 }
 
 func (h *UserHandler) GetProfile(c *gin.Context) {
+	viewerID := c.GetString("userID")
 	// Support cả 2 patterns: /users/:id/profile và /users/profile/:id
 	id := c.Param("id")
 	if id == "" {
@@ -44,7 +45,7 @@ func (h *UserHandler) GetProfile(c *gin.Context) {
 		id = val.(string)
 	}
 
-	p, presence, err := h.usecase.GetProfile(c.Request.Context(), id)
+	p, presence, err := h.usecase.GetProfile(c.Request.Context(), viewerID, id, c.Query("room_id"))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,

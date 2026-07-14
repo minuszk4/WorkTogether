@@ -124,11 +124,14 @@ services:
       - DB_NAME=worktogether_user
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - ROOM_SERVICE_GRPC=room-service:50051
       - PORT=${USER_PORT}
     depends_on:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      room-service:
         condition: service_healthy
     healthcheck: *service-healthcheck
     restart: unless-stopped
