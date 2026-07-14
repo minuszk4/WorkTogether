@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS whiteboard_snapshots (
+    room_id UUID PRIMARY KEY,
+    snapshot JSONB NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

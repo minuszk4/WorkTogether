@@ -1,6 +1,9 @@
 package domain
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 type Note struct {
 	ID        string    `json:"id"`
@@ -19,4 +22,10 @@ type NoteBlock struct {
 	OrderIndex int       `json:"order_index"`
 	UpdatedBy  string    `json:"updated_by"`
 	UpdatedAt  time.Time `json:"updated_at"`
+}
+
+type WhiteboardSnapshot struct {
+	RoomID    string          `json:"room_id"`
+	Snapshot  json.RawMessage `json:"snapshot"`
+	UpdatedAt time.Time       `json:"updated_at"`
 }

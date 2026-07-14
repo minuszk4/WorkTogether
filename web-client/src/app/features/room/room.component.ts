@@ -29,6 +29,7 @@ import { PlayerEngineService } from './components/player-engine/player-engine.se
 import { RoomIdentityComponent } from './components/room-identity/room-identity.component';
 import { HistoryStatsComponent } from './components/history-stats/history-stats.component';
 import { SessionComponent } from './components/session/session.component';
+import { WhiteboardComponent } from './components/whiteboard/whiteboard.component';
 
 @Component({
   selector: 'app-room',
@@ -39,7 +40,7 @@ import { SessionComponent } from './components/session/session.component';
     QuickReactionsComponent, ReactionsCanvasComponent, RoomVibeMeterComponent,
     PollWidgetComponent, SubroomsComponent, TimerComponent, CollabNotesComponent,
     LyricsComponent, BookmarksComponent,
-    RoomIdentityComponent, HistoryStatsComponent, SessionComponent
+    RoomIdentityComponent, HistoryStatsComponent, SessionComponent, WhiteboardComponent
   ],
   templateUrl: './room.component.html',
   styleUrl: './room.component.css'
@@ -69,6 +70,7 @@ export class RoomComponent implements OnInit, OnDestroy {
 	public audioInputDevices: MediaDeviceInfo[] = [];
 	public selectedAudioInput = '';
   public currentSubRoomId: string | null = null;
+  public isWhiteboardOpen = false;
   public savedVolume: number | null = null;
 
   private subs: Subscription[] = [];
