@@ -1,18 +1,21 @@
 package main
 
 import (
+	"fmt"
 	dbpkg "github.com/worktogether/pkg/db"
 	"github.com/worktogether/pkg/env"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	roomv1 "github.com/worktogether/services/collab-service/api/v1"
 	"github.com/worktogether/services/collab-service/internal/delivery/ws"
 	"github.com/worktogether/services/collab-service/internal/repository"
 	"github.com/worktogether/services/collab-service/internal/usecase"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
@@ -28,6 +31,7 @@ func main() {
 		log.Fatal("FATAL: Environment variable JWT_SECRET is not set. Service cannot start.")
 	}
 	port := env.GetEnv("PORT", "8094")
+	roomServiceGRPC := env.GetEnv("ROOM_SERVICE_GRPC", "room-service:50051")
 
 	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", dbUser, dbPassword, dbHost, dbPort, dbName)
 
@@ -42,7 +46,12 @@ func main() {
 	// Set up layers
 	repo := repository.NewPostgresRepository(db)
 	uc := usecase.NewCollabUsecase(repo)
-	hub := ws.NewHub(jwtSecret, uc)
+	roomConn, err := grpc.Dial(roomServiceGRPC, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatalf("Không thể tạo kết nối gRPC đến room-service: %v", err)
+	}
+	defer roomConn.Close()
+	hub := ws.NewHub(jwtSecret, uc, roomv1.NewRoomInternalServiceClient(roomConn))
 
 	go hub.Run()
 
@@ -65,4 +74,3 @@ func main() {
 		log.Fatalf("Lỗi khởi chạy Gin: %v\n", err)
 	}
 }
-

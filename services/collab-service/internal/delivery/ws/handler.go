@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/websocket"
+	roomv1 "github.com/worktogether/services/collab-service/api/v1"
 	"github.com/worktogether/services/collab-service/internal/domain"
 	"github.com/worktogether/services/collab-service/internal/usecase"
 )
@@ -41,6 +42,7 @@ type WSMessage struct {
 type Hub struct {
 	Usecase    *usecase.CollabUsecase
 	jwtSecret  string
+	roomClient roomv1.RoomInternalServiceClient
 	rooms      map[string]map[*Client]bool
 	register   chan *Client
 	unregister chan *Client
@@ -48,15 +50,26 @@ type Hub struct {
 	mutex      sync.RWMutex
 }
 
-func NewHub(jwtSecret string, uc *usecase.CollabUsecase) *Hub {
+func NewHub(jwtSecret string, uc *usecase.CollabUsecase, roomClient roomv1.RoomInternalServiceClient) *Hub {
 	return &Hub{
 		Usecase:    uc,
 		jwtSecret:  jwtSecret,
+		roomClient: roomClient,
 		rooms:      make(map[string]map[*Client]bool),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
 		broadcast:  make(chan *WSMessage),
 	}
+}
+
+func (h *Hub) canAccessRoom(ctx context.Context, roomID, userID string) bool {
+	if h.roomClient == nil {
+		return false
+	}
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	member, err := h.roomClient.VerifyRoomMember(ctx, &roomv1.VerifyRoomMemberRequest{RoomID: roomID, UserID: userID})
+	return err == nil && member != nil && member.IsMember
 }
 
 func (h *Hub) Run() {
@@ -292,6 +305,10 @@ func ServeCollabWS(hub *Hub) gin.HandlerFunc {
 		}
 
 		userID, _ := claims["sub"].(string)
+		if !hub.canAccessRoom(c.Request.Context(), roomID, userID) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Bạn không phải thành viên của phòng này"})
+			return
+		}
 
 		conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 		if err != nil {
