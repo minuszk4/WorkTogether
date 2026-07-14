@@ -2,6 +2,8 @@ package usecase
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"strings"
 	"testing"
 
@@ -11,12 +13,13 @@ import (
 type customStatusRepositoryFake struct {
 	userID string
 	text   string
+	err    error
 }
 
 func (r *customStatusRepositoryFake) UpdateCustomStatus(_ context.Context, userID, text string) error {
 	r.userID = userID
 	r.text = text
-	return nil
+	return r.err
 }
 
 type presenceRepositoryFake struct {
@@ -75,5 +78,17 @@ func TestUpdateCustomStatusRejectsTextOver100Characters(t *testing.T) {
 	}
 	if profiles.userID != "" || profiles.text != "" {
 		t.Fatalf("unexpected profile update = (%q, %q)", profiles.userID, profiles.text)
+	}
+}
+
+func TestUpdateCustomStatusRejectsMissingProfile(t *testing.T) {
+	uc := &UserUsecase{
+		customStatusRepo: &customStatusRepositoryFake{err: sql.ErrNoRows},
+		presenceRepo:     &presenceRepositoryFake{presence: &domain.Presence{Status: "online"}},
+	}
+
+	_, err := uc.UpdateCustomStatus(context.Background(), "missing-user", "studying")
+	if !errors.Is(err, ErrProfileNotFound) {
+		t.Fatalf("error = %v, want %v", err, ErrProfileNotFound)
 	}
 }
