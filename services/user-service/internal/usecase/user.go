@@ -4,30 +4,45 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/worktogether/services/user-service/internal/domain"
 	"github.com/worktogether/services/user-service/internal/repository"
 )
 
 var (
-	ErrProfileNotFound      = errors.New("không tìm thấy hồ sơ người dùng")
-	ErrFriendshipNotFound   = errors.New("không tìm thấy mối quan hệ bạn bè")
-	ErrSelfFriendRequest    = errors.New("không thể kết bạn với chính mình")
+	ErrProfileNotFound       = errors.New("không tìm thấy hồ sơ người dùng")
+	ErrFriendshipNotFound    = errors.New("không tìm thấy mối quan hệ bạn bè")
+	ErrSelfFriendRequest     = errors.New("không thể kết bạn với chính mình")
 	ErrFriendRequestNotFound = errors.New("không tìm thấy lời mời kết bạn hoặc bạn không có quyền hủy")
 	ErrFriendshipNotActive   = errors.New("mối quan hệ bạn bè không tồn tại hoặc chưa được chấp nhận")
 	ErrBlockNotFound         = errors.New("không tìm thấy trạng thái chặn")
+	ErrCustomStatusTooLong   = errors.New("trạng thái tùy chỉnh không được quá 100 ký tự")
 )
 
+type customStatusRepository interface {
+	UpdateCustomStatus(context.Context, string, string) error
+}
+
+type presenceRepository interface {
+	GetPresence(context.Context, string) (*domain.Presence, error)
+}
+
 type UserUsecase struct {
-	postgresRepo *repository.PostgresRepository
-	redisRepo    *repository.RedisRepository
+	postgresRepo     *repository.PostgresRepository
+	redisRepo        *repository.RedisRepository
+	customStatusRepo customStatusRepository
+	presenceRepo     presenceRepository
 }
 
 func NewUserUsecase(pg *repository.PostgresRepository, rdb *repository.RedisRepository) *UserUsecase {
 	return &UserUsecase{
-		postgresRepo: pg,
-		redisRepo:    rdb,
+		postgresRepo:     pg,
+		redisRepo:        rdb,
+		customStatusRepo: pg,
+		presenceRepo:     rdb,
 	}
 }
 
@@ -102,6 +117,22 @@ func (u *UserUsecase) UpdatePresence(ctx context.Context, id string, req *domain
 	}
 
 	return p, nil
+}
+
+func (u *UserUsecase) UpdateCustomStatus(ctx context.Context, userID, text string) (*domain.Presence, error) {
+	text = strings.TrimSpace(text)
+	if utf8.RuneCountInString(text) > 100 {
+		return nil, ErrCustomStatusTooLong
+	}
+	if err := u.customStatusRepo.UpdateCustomStatus(ctx, userID, text); err != nil {
+		return nil, err
+	}
+	presence, err := u.presenceRepo.GetPresence(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	presence.CustomText = text
+	return presence, nil
 }
 
 func (u *UserUsecase) SendFriendRequest(ctx context.Context, userID, friendID string) (*domain.Friendship, error) {

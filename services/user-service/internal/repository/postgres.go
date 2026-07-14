@@ -18,19 +18,19 @@ func NewPostgresRepository(db *sql.DB) *PostgresRepository {
 
 func (r *PostgresRepository) CreateProfile(ctx context.Context, p *domain.UserProfile) error {
 	query := `
-		INSERT INTO profiles (id, display_name, avatar_url, bio)
-		VALUES ($1, $2, $3, $4)
+		INSERT INTO profiles (id, display_name, avatar_url, bio, custom_status)
+		VALUES ($1, $2, $3, $4, $5)
 		RETURNING created_at, updated_at
 	`
-	return r.db.QueryRowContext(ctx, query, p.ID, p.DisplayName, p.AvatarURL, p.Bio).
+	return r.db.QueryRowContext(ctx, query, p.ID, p.DisplayName, p.AvatarURL, p.Bio, p.CustomStatus).
 		Scan(&p.CreatedAt, &p.UpdatedAt)
 }
 
 func (r *PostgresRepository) GetProfileByID(ctx context.Context, id string) (*domain.UserProfile, error) {
-	query := `SELECT id, display_name, avatar_url, bio, created_at, updated_at FROM profiles WHERE id = $1`
+	query := `SELECT id, display_name, avatar_url, bio, custom_status, created_at, updated_at FROM profiles WHERE id = $1`
 	p := &domain.UserProfile{}
 	err := r.db.QueryRowContext(ctx, query, id).
-		Scan(&p.ID, &p.DisplayName, &p.AvatarURL, &p.Bio, &p.CreatedAt, &p.UpdatedAt)
+		Scan(&p.ID, &p.DisplayName, &p.AvatarURL, &p.Bio, &p.CustomStatus, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
@@ -43,10 +43,15 @@ func (r *PostgresRepository) GetProfileByID(ctx context.Context, id string) (*do
 func (r *PostgresRepository) UpdateProfile(ctx context.Context, p *domain.UserProfile) error {
 	query := `
 		UPDATE profiles 
-		SET display_name = $1, bio = $2, avatar_url = $3, updated_at = NOW() 
-		WHERE id = $4
+		SET display_name = $1, bio = $2, avatar_url = $3, custom_status = $4, updated_at = NOW()
+		WHERE id = $5
 	`
-	_, err := r.db.ExecContext(ctx, query, p.DisplayName, p.Bio, p.AvatarURL, p.ID)
+	_, err := r.db.ExecContext(ctx, query, p.DisplayName, p.Bio, p.AvatarURL, p.CustomStatus, p.ID)
+	return err
+}
+
+func (r *PostgresRepository) UpdateCustomStatus(ctx context.Context, userID, text string) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE profiles SET custom_status = $1, updated_at = NOW() WHERE id = $2`, text, userID)
 	return err
 }
 
