@@ -51,8 +51,18 @@ func (r *PostgresRepository) UpdateProfile(ctx context.Context, p *domain.UserPr
 }
 
 func (r *PostgresRepository) UpdateCustomStatus(ctx context.Context, userID, text string) error {
-	_, err := r.db.ExecContext(ctx, `UPDATE profiles SET custom_status = $1, updated_at = NOW() WHERE id = $2`, text, userID)
-	return err
+	res, err := r.db.ExecContext(ctx, `UPDATE profiles SET custom_status = $1, updated_at = NOW() WHERE id = $2`, text, userID)
+	if err != nil {
+		return err
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
 }
 
 func (r *PostgresRepository) CreateFriendRequest(ctx context.Context, userID, friendID string) (*domain.Friendship, error) {

@@ -125,6 +125,9 @@ func (u *UserUsecase) UpdateCustomStatus(ctx context.Context, userID, text strin
 		return nil, ErrCustomStatusTooLong
 	}
 	if err := u.customStatusRepo.UpdateCustomStatus(ctx, userID, text); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrProfileNotFound
+		}
 		return nil, err
 	}
 	presence, err := u.presenceRepo.GetPresence(ctx, userID)
