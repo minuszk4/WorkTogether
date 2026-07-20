@@ -8,7 +8,7 @@ import { PlaybackWsService } from '../../core/services/websocket/playback-ws.ser
 import { VoiceService } from '../../core/services/voice.service';
 import { ToastService } from '../../shared/services/toast.service';
 import { RoomUiStateService } from './room-ui-state.service';
-import { BehaviorSubject, of } from 'rxjs';
+import { BehaviorSubject, of, Subject } from 'rxjs';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
 
 describe('RoomComponent', () => {
@@ -50,7 +50,9 @@ describe('RoomComponent', () => {
       listenerStates$: new BehaviorSubject({}),
       liveReaction$: new BehaviorSubject(null),
       roomVibe$: new BehaviorSubject(null),
-      roomMode$: new BehaviorSubject(null)
+      roomMode$: new BehaviorSubject(null),
+      subtitleReceived$: new Subject(),
+      translationReceived$: new Subject()
     };
     mockPlaybackWsService = {
       connect: () => {},

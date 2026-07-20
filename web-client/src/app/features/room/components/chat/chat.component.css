@@ -503,3 +503,9 @@
 .chat-seek-btn:active {
   transform: scale(0.95);
 }
+.chat-msg-translation {
+  margin-top: 4px;
+  color: var(--text-secondary, #8b93a7);
+  font-size: 0.875rem;
+  font-style: italic;
+}

@@ -7,19 +7,40 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/redis/go-redis/v9"
+	"github.com/worktogether/pkg/translation"
 	"github.com/worktogether/services/chat-service/internal/domain"
 )
 
 type Client struct {
-	UserID   string
-	RoomID   string
-	Username string
-	Conn     *websocket.Conn
-	Send     chan []byte
-	Hub      *Hub
-	CanChat  bool
+	UserID         string
+	RoomID         string
+	Username       string
+	Conn           *websocket.Conn
+	Send           chan []byte
+	Hub            *Hub
+	CanChat        bool
+	TargetLanguage string
+}
+
+func (h *Hub) BroadcastSubtitle(roomID, userID, text, language string) string {
+	id := uuid.NewString()
+	data, err := json.Marshal(domain.WSMessage{
+		Event:  "subtitle:received",
+		RoomID: roomID,
+		Payload: gin.H{
+			"id":        id,
+			"sender_id": userID,
+			"text":      text,
+			"language":  language,
+		},
+	})
+	if err == nil {
+		h.BroadcastToRoom(roomID, data)
+	}
+	return id
 }
 
 type MemberState struct {
@@ -36,9 +57,10 @@ type RoomPresence struct {
 
 type Hub struct {
 	sync.RWMutex
-	Rooms         map[string]map[*Client]bool
-	RoomPresences map[string]*RoomPresence
-	RedisClient   *redis.Client
+	Rooms             map[string]map[*Client]bool
+	RoomPresences     map[string]*RoomPresence
+	RedisClient       *redis.Client
+	translationWorker *translation.Worker
 }
 
 func NewHub(rdb *redis.Client) *Hub {
@@ -78,11 +100,25 @@ func (h *Hub) Unregister(c *Client) {
 func (h *Hub) BroadcastToRoom(roomID string, message []byte) {
 	if h.RedisClient == nil {
 		h.localBroadcastToRoom(roomID, message)
+		h.queueTranslations(message)
 		return
 	}
 	ctx := context.Background()
 	// Parse event type to use correct channel if needed, or default to ch:chat
 	h.RedisClient.Publish(ctx, "ch:chat:"+roomID, message)
+}
+
+// EnableTranslation starts one bounded worker for this chat-service instance.
+// Translation failures are intentionally dropped; chat delivery never waits.
+func (h *Hub) EnableTranslation(ctx context.Context, queueSize int, timeout time.Duration, maxCharsPerMinute int, translator translation.Translator) {
+	if translator == nil {
+		return
+	}
+	worker := translation.NewWorkerWithRateLimit(queueSize, timeout, maxCharsPerMinute, translator, h.publishTranslation)
+	h.Lock()
+	h.translationWorker = worker
+	h.Unlock()
+	go worker.Start(ctx)
 }
 
 func (h *Hub) localBroadcastToRoom(roomID string, message []byte) {
@@ -115,9 +151,100 @@ func (h *Hub) StartRedisSubscriber() {
 			}
 			if roomID != "" {
 				h.localBroadcastToRoom(roomID, []byte(msg.Payload))
+				h.queueTranslations([]byte(msg.Payload))
 			}
 		}
 	}()
+}
+
+func (h *Hub) queueTranslations(data []byte) {
+	var message struct {
+		Event   string          `json:"event"`
+		RoomID  string          `json:"room_id"`
+		Payload json.RawMessage `json:"payload"`
+	}
+	if json.Unmarshal(data, &message) != nil {
+		return
+	}
+	var payload struct {
+		ID       string `json:"id"`
+		Content  string `json:"content"`
+		Text     string `json:"text"`
+		SenderID string `json:"sender_id"`
+		Language string `json:"language"`
+	}
+	if json.Unmarshal(message.Payload, &payload) != nil {
+		return
+	}
+	text := payload.Content
+	kind := translation.ChatEvent
+	if message.Event == "subtitle:received" {
+		text = payload.Text
+		kind = translation.TranscriptEvent
+	}
+	if (message.Event != "chat:message_received" && message.Event != "subtitle:received") || message.RoomID == "" || payload.ID == "" || text == "" {
+		return
+	}
+	h.RLock()
+	worker := h.translationWorker
+	clients := h.Rooms[message.RoomID]
+	jobs := make([]translation.Job, 0, len(clients))
+	seen := make(map[string]struct{})
+	for client := range clients {
+		if client.TargetLanguage == "" || client.UserID == payload.SenderID {
+			continue
+		}
+		key := client.UserID + "\x00" + client.TargetLanguage
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		jobs = append(jobs, translation.Job{
+			EventID:        payload.ID,
+			RoomID:         message.RoomID,
+			RecipientID:    client.UserID,
+			Kind:           kind,
+			Text:           text,
+			SourceLanguage: payload.Language,
+			TargetLanguage: client.TargetLanguage,
+		})
+	}
+	h.RUnlock()
+	if worker == nil {
+		return
+	}
+	for _, job := range jobs {
+		worker.Submit(job)
+	}
+}
+
+func (h *Hub) publishTranslation(result translation.Result) {
+	data, err := json.Marshal(domain.WSMessage{
+		Event:  "translation:received",
+		RoomID: result.RoomID,
+		Payload: gin.H{
+			"event_id":          result.EventID,
+			"kind":              result.Kind,
+			"text":              result.Text,
+			"target_language":   result.TargetLanguage,
+			"detected_language": result.DetectedLanguage,
+		},
+	})
+	if err != nil {
+		return
+	}
+	h.RLock()
+	defer h.RUnlock()
+	for client := range h.Rooms[result.RoomID] {
+		if client.UserID != result.RecipientID || client.TargetLanguage != result.TargetLanguage {
+			continue
+		}
+		select {
+		case client.Send <- data:
+		default:
+			go h.Unregister(client)
+		}
+	}
 }
 
 func (h *Hub) UpdateClientPresence(roomID string, userID string, isPlaying bool, positionMs int) {

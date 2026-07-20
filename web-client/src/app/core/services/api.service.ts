@@ -93,8 +93,13 @@ export class ApiService {
       this.profileCache.delete(`${userId}:${roomId}`);
     },
 
-    updateProfile: (displayName: string, bio: string, avatarUrl = ''): Observable<any> =>
-      this.put<any>('/users/profile', { display_name: displayName, bio, avatar_url: avatarUrl }),
+    updateProfile: (displayName: string, bio: string, avatarUrl = '', preferredLanguage = ''): Observable<any> =>
+      this.put<any>('/users/profile', {
+        display_name: displayName,
+        bio,
+        avatar_url: avatarUrl,
+        preferred_language: preferredLanguage
+      }),
 
     updateStatus: (status: string, customText = ''): Observable<any> =>
       this.put<any>('/users/status', { status, custom_text: customText }),
@@ -203,6 +208,15 @@ export class ApiService {
 
     updateActionItem: (roomId: string, sessionId: string, actionId: string, status: 'OPEN' | 'DONE'): Observable<any> =>
       this.put<any>(`/rooms/${roomId}/sessions/${sessionId}/actions/${actionId}`, { status }),
+  };
+
+  public chat = {
+    transcribeCaption: (roomId: string, audio: Blob, language: string): Observable<any> => {
+      const formData = new FormData();
+      formData.append('audio', audio, 'caption.webm');
+      formData.append('language', language);
+      return this.postForm<any>(`/rooms/${roomId}/chat/subtitles`, formData);
+    },
   };
 
   public admin = {

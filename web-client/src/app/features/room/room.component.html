@@ -23,6 +23,7 @@
       <button type="button" [class.active]="roomMode === 'focus'" [disabled]="!canChangeRoomMode" (click)="changeRoomMode('focus')">Focus</button>
       <button type="button" [class.active]="roomMode === 'collaborate'" [disabled]="!canChangeRoomMode" (click)="changeRoomMode('collaborate')">Collaborate</button>
       <button type="button" [class.active]="isWhiteboardOpen" (click)="isWhiteboardOpen = !isWhiteboardOpen">Whiteboard</button>
+      <button type="button" [class.active]="isCaptionsEnabled" [disabled]="!isMicActive || isMuted" (click)="onCaptionsToggleClick()">Captions</button>
     </div>
     <app-room-vibe-meter></app-room-vibe-meter>
     <div class="room-session-panel">
@@ -31,6 +32,12 @@
     <app-room-reactions-canvas></app-room-reactions-canvas>
     
     <app-room-voice-pills></app-room-voice-pills>
+    @if (subtitleOriginal) {
+      <section class="room-subtitle" aria-live="polite" aria-label="Phụ đề thời gian thực">
+        <div>{{ subtitleOriginal }}</div>
+        @if (subtitleTranslation) { <div class="translated">{{ subtitleTranslation }}</div> }
+      </section>
+    }
     <app-room-stage>
       <!-- screenshare/video media slot: legacy voice-grid surfaces until parity -->
     </app-room-stage>
